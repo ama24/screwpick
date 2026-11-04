@@ -8,7 +8,7 @@
  --bad:#b4553f;--bad-soft:#f8ebe7;--work:#edf2f4;--cell:#fafaf8;
  --r:12px;--r2:8px;
 }
-*{box-sizing:border-box}
+*{box-sizing:border-box}[hidden]{display:none!important}
 html{background:var(--bg)}
 body{margin:0;background:var(--bg);color:var(--ink);font:14.5px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
 a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
@@ -85,11 +85,15 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 #login form{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px;width:min(360px,100% - 32px);display:grid;gap:12px}
 #login .brand{margin-bottom:6px}#login h3{margin:0;font-size:17px;font-weight:600}#login input{width:100%}
 
+.badge{display:inline-block;min-width:18px;margin-left:6px;padding:0 6px;border-radius:999px;background:var(--warn-soft);color:var(--warn);font-size:12px;font-weight:600}
+.step{display:grid;grid-template-columns:34px 1fr;gap:4px 14px}.num{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--line2);color:var(--mut);font-weight:600;font-size:13px}
+.num.ok{background:var(--ok);color:#fff}.step h3{margin:3px 0 2px;font-size:15px;font-weight:600}.step .body{grid-column:2}
+.checks{list-style:none;padding:0;margin:8px 0}.checks li{padding:2px 0}.mfield input{width:84px}
 .jog{display:grid;grid-template-columns:repeat(3,54px);gap:6px}.jog button{height:44px;padding:0}
 </style></head><body>
 <header><div class="bar">
  <div class="brand"><span class="logo"><i></i><i></i><i></i><i></i></span>screwpick</div>
- <nav><button data-t="run" class="on">Run</button><button data-t="layout">Layout</button><button data-t="calib">Calibrate</button><button data-t="print">Print bins</button><button data-t="models">Models</button><button data-t="users">Users</button></nav>
+ <nav><button data-t="setup">Setup<span id="setupbadge" class="badge" hidden></span></button><button data-t="run" class="on">Run</button><button data-t="layout">Layout</button><button data-t="calib">Calibrate</button><button data-t="print">Print bins</button><button data-t="models">Models</button><button data-t="users">Users</button></nav>
  <div class="right"><span id="status"><span class="dot"></span>…</span><span id="me"></span><button class="estop" onclick="cmd('estop')">STOP</button></div>
 </div></header>
 <div id="ready"><div class="notice"><span class="check">✓</span><div><b>Ready to take out</b><span class="note"> · nothing on the plate goes into these bins any more. Empty them, then press Emptied.</span><ul id="readylist"></ul></div></div></div>
@@ -105,7 +109,13 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 </form></div>
 
 <main>
+<section id="setup">
+ <div class="card"><h2>Setup</h2><p class="note" style="margin:0">Go through these steps once, in order, and again whenever something changes (picker, Z switch, camera, bins). <b>Sort</b> and <b>Automatic</b> start only when every step is checked. Until then the machine only makes the moves you ask for here. <span id="setupsum"></span></p></div>
+ <div id="steps"></div>
+</section>
+
 <section id="run" class="on">
+ <div class="card notice" id="setupnote" hidden style="background:var(--warn-soft);border-color:#eedfc0"><span class="check" style="background:var(--warn)">!</span><div><b>Setup not finished</b><br><span class="note" id="setupmissing"></span> <button class="b s" onclick="go('setup')">Open Setup</button></div></div>
  <div class="card row" style="gap:10px">
   <select id="strategy"></select>
   <button class="b p" onclick="cmd('auto')" title="Standby: looks for parts every minute and sorts them, until Stop. Stays on after a restart.">Automatic</button><button class="b" onclick="cmd('start')">Sort once</button><button class="b" onclick="cmd('step')">One pick</button>
@@ -217,7 +227,7 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 <script>
 const $=id=>document.getElementById(id);
 let S={},lay=null,sel=null,workStart=null,markers=[];
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");history.replaceState(null,"","#"+b.dataset.t);if(b.dataset.t==="models")loadModels();else if(b.dataset.t==="print")loadLayout();else if(b.dataset.t==="users")loadUsers();else if(b.dataset.t!=="run")loadLayout();});
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");history.replaceState(null,"","#"+b.dataset.t);if(b.dataset.t==="setup")loadSetup();else if(b.dataset.t==="models")loadModels();else if(b.dataset.t==="print")loadLayout();else if(b.dataset.t==="users")loadUsers();else if(b.dataset.t!=="run")loadLayout();});
 setTimeout(()=>{const t=location.hash.slice(1),b=t&&document.querySelector(`nav button[data-t="${t}"]`);if(b)b.click();window.scrollTo(0,0);});
 if("scrollRestoration" in history)history.scrollRestoration="manual";
 async function api(path,body){const r=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json();if(r.status===401){showLogin(false);}if(!r.ok)throw new Error(j.error||r.status);return j;}
@@ -258,6 +268,7 @@ async function poll(){try{S=await api("api/state");}catch(e){$("status").innerHT
  const parts=S.parts.filter(p=>p.in_work!==false);
  $("parts").innerHTML=parts.length?"<tr><th>part</th><th>length</th><th>score</th><th>free</th></tr>"+parts.map(p=>`<tr><td>${esc(p.cls)}</td><td>${p.length!=null?p.length+" mm":"–"}</td><td>${p.score}</td><td>${p.gap!=null?p.gap+" mm":"–"}</td></tr>`).join(""):'<tr><td class="note">empty</td></tr>';
  $("events").textContent=S.events.slice().reverse().join("\n");
+ const su=S.setup||{};$("setupbadge").hidden=!(su.required&&!su.complete);$("setupbadge").textContent=(su.missing||[]).length;$("setupnote").hidden=!(su.required&&!su.complete);$("setupmissing").textContent="still to do: "+(su.missing||[]).join(", ");
  renderPairs(S.calib_pairs||[]);renderBins();if(lay&&$("layout").classList.contains("on")&&!workStart)render();}
 setInterval(()=>{if(!$("login").classList.contains("on"))poll();},1500);session();
 
@@ -326,6 +337,34 @@ function delBin(){lay.bins=lay.bins.filter(b=>b.marker!==sel);sel=null;render();
 async function saveLayout(){try{const j=await api("api/layout",{layout:lay});lay=j.layout;showProblems(j.problems);flash("laymsg",j.problems.length?"saved, but see below":"saved");render();renderPrint();}catch(e){flash("laymsg",e.message,1);}}
 async function scan(){flash("laymsg","taking a photo…");try{const j=await api("api/scan",{});flash("laymsg",`found ${j.bins.length} bin(s)`);await loadLayout();showProblems(j.problems);}catch(e){flash("laymsg",e.message,1);}}
 function renderPrint(){$("printlist").innerHTML="<tr><th>bin</th><th>size</th><th>holds</th><th>files</th></tr>"+lay.bins.map(b=>`<tr><td>${b.marker}</td><td>${b.w}×${b.d} · ${b.height_u}u</td><td>${esc(b.label||b.holds.join(", ")||b.role)}</td><td><a href="api/print/bin?marker=${b.marker}&fmt=3mf">3MF</a> · <a href="api/print/bin?marker=${b.marker}&fmt=stl">STL</a></td></tr>`).join("");}
+
+// ---------------------------------------------------------------- setup
+function go(t){document.querySelector(`nav button[data-t="${t}"]`).click();}
+let SU={steps:[]},CHECKS=null;
+async function loadSetup(){try{SU=await api("api/setup");renderSetup();}catch(e){flash("setupsum",e.message,1);}}
+async function setupCall(path,body,msg){try{if(msg)flash("setupsum",msg);const j=await api(path,body||{});if(j.checks)CHECKS=j.checks;SU=j.steps?j:await api("api/setup");renderSetup();if(j.tip)flash("setupsum",`tip at ${j.tip.join(", ")}`);poll();}catch(e){flash("setupsum",e.message,1);}}
+function mval(id){return +$(id).value;}
+function saveMachine(){setupCall("api/setup/machine",{values:{limits_x:[mval("mx0"),mval("mx1")],limits_y:[mval("my0"),mval("my1")],limits_z:[mval("mz0"),mval("mz1")],travel_z:mval("mtz"),photo_position:[mval("mpx"),mval("mpy"),mval("mpz")]}},"saving…");}
+function stepBody(st){const m=SU.machine||{},redo=st.done?` <button class="b s" onclick="setupCall('api/setup/reset',{step:'${st.key}'})">Redo</button>`:"";
+ switch(st.key){
+ case "printer":return `<p class="note">Asks Klipper a few questions; nothing moves.</p><button class="b p s" onclick="setupCall('api/setup/printer',{},'asking Klipper…')">Check</button>`+
+  (CHECKS?`<ul class="checks">${CHECKS.map(c=>`<li><span class="${c.ok?"ok":"bad"}">${c.ok?"✓":"✗"}</span> ${esc(c.what)} <span class="note">${esc(c.detail||"")}</span></li>`).join("")}</ul>`:"");
+ case "homing":return `<p class="note">Watch the printer. It lifts first, homes X and Y, moves the tip over the <b>middle of the working area</b> and homes Z there. If it heads for a bin, press <b>STOP</b>.</p><button class="b p s" onclick="setupCall('api/setup/home',{},'homing…')">Home now</button>`+
+  (SU.homed_now&&!st.done?` <button class="b s" onclick="setupCall('api/setup/confirm',{step:'homing'})">Yes, Z came down over the plate</button>`:"")+redo;
+ case "machine":return `<p class="note">Toolhead limits (mm) as in printer.cfg, the travel height (above the tallest bins), and the photo position: bed all the way out, head out of the working area.</p>
+  <div class="row mfield"><label>X<input id="mx0" type="number" value="${m.limits_x[0]}">–<input id="mx1" type="number" value="${m.limits_x[1]}"></label><label>Y<input id="my0" type="number" value="${m.limits_y[0]}">–<input id="my1" type="number" value="${m.limits_y[1]}"></label><label>Z<input id="mz0" type="number" value="${m.limits_z[0]}">–<input id="mz1" type="number" value="${m.limits_z[1]}"></label></div>
+  <div class="row mfield" style="margin-top:8px"><label>travel height<input id="mtz" type="number" value="${m.travel_z}"></label><label>photo X/Y/Z<input id="mpx" type="number" value="${m.photo_position[0]}"><input id="mpy" type="number" value="${m.photo_position[1]}"><input id="mpz" type="number" value="${m.photo_position[2]}"></label><button class="b s" onclick="saveMachine()">Save</button></div>
+  <div class="row" style="margin-top:10px"><span class="note">show me:</span>${["photo","front_left","back_right","centre"].map(t=>`<button class="b s" onclick="setupCall('api/setup/goto',{target:'${t}'},'moving…')">${{photo:"photo position",front_left:"front-left limit",back_right:"back-right limit",centre:"plate centre"}[t]}</button>`).join("")}</div>
+  <p style="margin-top:10px">${st.done?"":`<button class="b p s" onclick="setupCall('api/setup/confirm',{step:'machine'})">All positions are right</button>`}${redo}</p>`;
+ case "tip":return `<p class="note">In <b>Calibrate → Tip height</b>: jog the tip down onto the plate until a sheet of paper just drags, then press the button. This step checks itself.</p><button class="b s" onclick="go('calib')">Open Calibrate</button>`;
+ case "picker":return `<p class="note">Runs the grab and release macros where the tool is now; nothing moves. Hold a screw against the cup or between the fingers.</p><button class="b s" onclick="setupCall('api/setup/picker',{action:'grab'})">Grab</button> <button class="b s" onclick="setupCall('api/setup/picker',{action:'release'})">Release</button>`+
+  ((SU.picker_tried||[]).length===2&&!st.done?` <button class="b p s" onclick="setupCall('api/setup/confirm',{step:'picker'})">It holds and lets go</button>`:"")+redo;
+ case "camera":return `<p class="note">In <b>Calibrate</b>: photo, the tip onto 3 or more markers, Fit. Checks itself when the worst error is below 1 mm.</p><button class="b s" onclick="go('calib')">Open Calibrate</button>`;
+ case "layout":return `<p class="note">In <b>Layout</b>: save the layout without problems, then <b>Find bins with the camera</b>. Checks itself when bins are found.</p><button class="b s" onclick="go('layout')">Open Layout</button>`;
+ }return "";}
+function renderSetup(){const left=SU.steps.filter(x=>!x.done).length;
+ $("setupsum").innerHTML=SU.required?(left?`<b>${left}</b> step${left===1?"":"s"} to go.`:'<span class="ok">All done: the machine may sort.</span>'):"(Simulation: not required.)";
+ $("steps").innerHTML=SU.steps.map((st,i)=>`<div class="card step"><span class="num ${st.done?"ok":""}">${st.done?"✓":i+1}</span><div><h3>${esc(st.title)}</h3><span class="note">${esc(st.goal)}${st.done?` · done ${esc(st.at||"")} ${esc(st.note||"")}`:""}</span></div><div class="body" style="margin-top:8px">${stepBody(st)}</div></div>`).join("");}
 
 // ---------------------------------------------------------------- calibration
 async function calibPhoto(){flash("calmsg","taking a photo…");try{const j=await api("api/calib/photo",{});markers=j.markers;renderMarkers();flash("calmsg",`${markers.length} marker(s) seen`);poll();}catch(e){flash("calmsg",e.message,1);}}

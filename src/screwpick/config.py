@@ -38,6 +38,8 @@ class Paths:
     users: str = "../data/users.json"  # web page accounts (create the first one in the page)
     state: str = "../data/state.json"  # automatic mode on/off (it survives restarts)
     tool: str = "../data/tool.json"  # tip height measured in the Calibrate tab
+    setup: str = "../data/setup.json"  # the Setup tab's checklist
+    machine: str = "../data/machine.json"  # limits/positions set in the Setup tab (over this file)
 
 
 @dataclass

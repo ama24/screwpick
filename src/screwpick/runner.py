@@ -27,6 +27,8 @@ from .layout import Layout, yaw_from_up
 from .models import ModelError, ModelStore
 from .parts import compute_gaps, to_bed
 from .printer import Motion, Printer, PrinterError
+from .setup import KEYS as SETUP_KEYS
+from .setup import Setup
 from .strategies import STRATEGIES, Plan, Planner
 from .transform import BedCalibration, Transform2D
 from .vision import Shot, Vision
@@ -75,6 +77,14 @@ class Runner:
         self.claims, self.bin_counts = self._load_claims()
         self.ready: dict[int, dict[str, Any]] = {}  # bins that can be taken out
         self._load_tool()
+        self._load_machine()
+        setup_path = self.m.path(self.m.paths.setup)
+        assert setup_path is not None
+        self.setup = Setup(setup_path)
+        # the simulator needs no setup; a real printer does
+        self.require_setup = self.m.printer.driver != "sim"
+        self._setup_homed = False  # homed from the Setup tab since the program started
+        self._setup_picker: set[str] = set()  # grab / release tried
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="analyse")
 
     # ------------------------------------------------------------------ files
@@ -141,12 +151,25 @@ class Runner:
             "auto": self.saved_mode()[0],
             "tip_offset_z": self.m.tool.offset[2],
             "timing": self.state.timing,
+            "setup": {
+                "required": self.require_setup,
+                "complete": not self.setup.missing(),
+                "missing": self.setup.missing(),
+            },
         }
 
     # ------------------------------------------------------------------ commands
     def command(self, cmd: str, strategy: str | None = None) -> str:
         cmd = (cmd or "").strip().lower()
         running = self._thread is not None and self._thread.is_alive()
+        resuming = running and self.state.status in ("paused", "stuck") and cmd == "start"
+        if (
+            cmd in ("start", "step", "auto")
+            and self.require_setup
+            and self.setup.missing()
+            and not resuming
+        ):
+            return "finish the Setup tab first: " + ", ".join(self.setup.missing())
         if cmd in ("start", "step"):
             if running:
                 if self.state.status in ("paused", "stuck") and cmd == "start":
@@ -536,6 +559,7 @@ class Runner:
             },
         )
         self.m.tool.offset[2] = offset_z
+        self.setup.mark("tip", f"offset {offset_z:+.2f} mm")
         self.note(
             f"tip height: touches the plate at toolhead Z {pos[2]:.2f} (offset {offset_z:+.2f} mm)"
         )
@@ -599,7 +623,7 @@ class Runner:
     def jog(self, dx: float, dy: float, dz: float) -> list[float]:
         self._idle()
         with self._lock:
-            self.motion.preflight()
+            self.motion.preflight(home=False)
             return [round(v, 3) for v in self.motion.jog(dx, dy, dz)]
 
     def tip(self) -> list[float]:
@@ -612,7 +636,7 @@ class Runner:
         layout = self.layout()
         cal = self.calibration()
         with self._lock:
-            self.motion.preflight()
+            self.motion.preflight(home=False)
         shot = self.take_shot(layout, cal.transform if cal else None)
         out = []
         for mk in shot.markers:
@@ -645,6 +669,10 @@ class Runner:
         cal.save(self.transform_path)
         worst = max(cal.residuals_mm)
         self.note(f"calibrated: {len(self.calib_pairs)} points, worst error {worst:.2f} mm")
+        if worst < 1.0:
+            self.setup.mark("camera", f"{len(self.calib_pairs)} points, worst {worst:.2f} mm")
+        else:
+            self.setup.reset("camera")
         return {
             "residuals_mm": cal.residuals_mm,
             "angle_deg": round(cal.transform.angle_deg, 3),
@@ -668,7 +696,7 @@ class Runner:
         b = layout.bin_by_marker(marker)
         z = layout.marker_z(b.height_u if b else 3) + 2.0
         with self._lock:
-            self.motion.preflight()
+            self.motion.preflight(home=False)
             self.motion.travel(x, y)
             self.motion.move(z=z)
             self.printer.gcode("M400")
@@ -680,12 +708,193 @@ class Runner:
         layout = self.layout()
         T = self.transform()
         with self._lock:
-            self.motion.preflight()
+            self.motion.preflight(home=False)
         shot = self.take_shot(layout, T)
         moved = self._place_bins(layout, shot, T)
         layout.save(self.layout_path)
         self.note(f"scanned bins: {len(moved)} marker(s) seen")
-        return {"bins": moved, "problems": layout.problems()}
+        problems = layout.problems()
+        if moved and not problems:
+            self.setup.mark("layout", f"{len(moved)} bins found")
+        else:
+            self.setup.reset("layout")
+        return {"bins": moved, "problems": problems}
+
+    # ------------------------------------------------------------------ the Setup tab
+    MACHINE_KEYS = ("photo_position", "travel_z", "limits_x", "limits_y", "limits_z")
+
+    def _load_machine(self) -> None:
+        p = self.m.path(self.m.paths.machine)
+        if p is None or not p.is_file():
+            return
+        for k, v in (read_json(p) or {}).items():
+            if k in self.MACHINE_KEYS:
+                setattr(self.m.printer, k, v)
+
+    def machine_values(self) -> dict[str, Any]:
+        return {k: getattr(self.m.printer, k) for k in self.MACHINE_KEYS}
+
+    def save_machine(self, values: dict[str, Any]) -> dict[str, Any]:
+        """Limits, travel height and photo position from the Setup tab (kept in data/
+        machine.json, over machine.yaml). Un-checks the Machine step: confirm it again."""
+        self._idle()
+        new = self.machine_values()
+        for k, v in values.items():
+            if k not in self.MACHINE_KEYS:
+                raise ValueError(f"unknown machine value {k!r}")
+            if k == "travel_z":
+                new[k] = float(v)
+            else:
+                vals = [float(x) for x in v]
+                if len(vals) != (3 if k == "photo_position" else 2):
+                    raise ValueError(f"{k}: wrong number of values")
+                if k != "photo_position" and not vals[0] < vals[1]:
+                    raise ValueError(f"{k}: the minimum must be below the maximum")
+                new[k] = vals
+        old = self.machine_values()
+        for k, v in new.items():
+            setattr(self.m.printer, k, v)
+        try:
+            x, y, z = new["photo_position"]
+            self.motion.check(x, y, z)
+            self.motion.check(x, y, new["travel_z"])
+        except PrinterError:
+            for k, v in old.items():
+                setattr(self.m.printer, k, v)
+            raise
+        p = self.m.path(self.m.paths.machine)
+        assert p is not None
+        write_json(p, new)
+        self.setup.reset("machine")
+        self.note("machine values saved: confirm them in the Setup tab")
+        return self.setup_state()
+
+    def setup_state(self) -> dict[str, Any]:
+        return {
+            "steps": self.setup.state(),
+            "required": self.require_setup,
+            "complete": not self.setup.missing(),
+            "machine": self.machine_values(),
+            "homed_now": self._setup_homed,
+            "picker_tried": sorted(self._setup_picker),
+        }
+
+    def setup_check_printer(self) -> dict[str, Any]:
+        """Only questions to Klipper, nothing moves."""
+        pc = self.m.printer
+        checks: list[dict[str, Any]] = []
+        try:
+            st = self.printer.status(pc.tool_macro)
+        except PrinterError as exc:
+            checks.append({"what": "Moonraker answers", "ok": False, "detail": str(exc)})
+            st = None
+        if st is not None:
+            checks.append(
+                {"what": "Klipper is ready", "ok": st.ready, "detail": st.message or st.state}
+            )
+            if st.ready:
+                if pc.tool_macro:
+                    checks.append(
+                        {
+                            "what": "screwpick.cfg is included",
+                            "ok": st.tool is not None,
+                            "detail": "[include screwpick.cfg] in printer.cfg",
+                        }
+                    )
+                    checks.append(
+                        {
+                            "what": "the picker is mounted (TOOL_PICKER)",
+                            "ok": st.tool == "picker",
+                            "detail": f"active tool: {st.tool}",
+                        }
+                    )
+                hot = st.hotend_c
+                checks.append(
+                    {
+                        "what": "the hotend is cold",
+                        "ok": hot is None or hot <= pc.max_hotend_c,
+                        "detail": f"{hot} C",
+                    }
+                )
+                checks.append({"what": "nothing is printing", "ok": not st.printing, "detail": ""})
+        ok = bool(checks) and all(c["ok"] for c in checks)
+        if ok:
+            self.setup.mark("printer")
+        else:
+            self.setup.reset("printer")
+        return {"ok": ok, "checks": checks, **self.setup_state()}
+
+    def setup_home(self) -> dict[str, Any]:
+        """Home while the user watches: Z must come down over the middle of the plate."""
+        self._idle()
+        layout = self.layout()
+        x0, y0, x1, y1 = layout.work_rect()
+        with self._lock:
+            self.motion.z_home_xy = ((x0 + x1) / 2, (y0 + y1) / 2)
+            try:
+                self.motion.preflight(home=False)
+            except PrinterError as exc:
+                if "not homed" not in str(exc):
+                    raise
+            self.motion.home()
+            self.printer.gcode("M400")
+        self._setup_homed = True
+        self.note("homed from the Setup tab")
+        return self.setup_state()
+
+    def setup_goto(self, target: str) -> list[float]:
+        """Show a position: the photo position, two corners of the limits, the plate centre."""
+        self._idle()
+        pc = self.m.printer
+        ox, oy, _ = self.m.tool.offset
+        layout = self.layout()
+        x0, y0, x1, y1 = layout.work_rect()
+        spots = {
+            "front_left": (pc.limits_x[0] + ox, pc.limits_y[0] + oy),
+            "back_right": (pc.limits_x[1] + ox, pc.limits_y[1] + oy),
+            "centre": ((x0 + x1) / 2, (y0 + y1) / 2),
+        }
+        with self._lock:
+            self.motion.preflight(home=False)
+            if target == "photo":
+                self.motion.photo_position()
+            elif target in spots:
+                self.motion.travel(*spots[target])
+                self.printer.gcode("M400")
+            else:
+                raise ValueError(f"unknown position {target!r}")
+            return [round(v, 2) for v in self.motion.current_tip()]
+
+    def setup_picker(self, action: str) -> dict[str, Any]:
+        """Run the grab or release macro where the tool is: nothing moves."""
+        self._idle()
+        pk = self.m.picker
+        macro = {"grab": pk.grab, "release": pk.release}.get(action)
+        if macro is None:
+            raise ValueError("action must be grab or release")
+        with self._lock:
+            self.printer.gcode(macro)
+        self._setup_picker.add(action)
+        return self.setup_state()
+
+    def setup_confirm(self, key: str) -> dict[str, Any]:
+        if key not in SETUP_KEYS:
+            raise ValueError(f"unknown setup step {key!r}")
+        if key == "homing" and not self._setup_homed:
+            raise PrinterError("press Home now and watch where Z comes down first")
+        if key == "machine" and not self.setup.is_done("printer"):
+            raise PrinterError("check the printer first")
+        if key == "picker" and not {"grab", "release"} <= self._setup_picker:
+            raise PrinterError("try Grab and Release first")
+        if key in ("printer", "tip", "camera", "layout"):
+            raise PrinterError("this step is checked by the machine, not by hand")
+        self.setup.mark(key)
+        self.note(f"setup: {key} confirmed")
+        return self.setup_state()
+
+    def setup_reset(self, key: str) -> dict[str, Any]:
+        self.setup.reset(key)
+        return self.setup_state()
 
     def _place_bins(self, layout: Layout, shot: Shot, T: Transform2D) -> list[dict[str, Any]]:
         """Move every bin whose marker is in the photo to where it is; unknown markers become new

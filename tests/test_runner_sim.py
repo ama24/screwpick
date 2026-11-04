@@ -83,6 +83,7 @@ def test_failed_picks_are_detected(machine, layout):
 
 def test_calibration_scan_and_goto(machine, layout):
     runner, world = make(machine, layout, n=0)
+    runner.setup_home()  # setup moves never home by themselves
     markers = runner.calib_photo()
     assert {m["marker"] for m in markers} == {b.marker for b in layout.bins}
     # jog the tip onto three markers: in the simulation the plate frame = printer frame
@@ -137,6 +138,7 @@ def test_web_api(machine, layout):
         lay["layout"]["bins"][0]["holds"] = ["DIN933*"]
         saved = post("/api/layout", lay)
         assert saved["layout"]["bins"][0]["holds"] == ["DIN933*"]
+        assert post("/api/setup/home", {})["homed_now"] is True
         assert post("/api/jog", {"dx": 0, "dy": 0, "dz": 1})["tip"][2] > 0
         data, ctype = get("/api/print/labels")
         assert data.startswith(b"<svg") and ctype == "image/svg+xml"
