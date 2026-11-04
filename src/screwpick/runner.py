@@ -72,6 +72,7 @@ class Runner:
         # wild bin marker -> what it collects; bin marker -> parts in it since it was emptied
         self.claims, self.bin_counts = self._load_claims()
         self.ready: dict[int, dict[str, Any]] = {}  # bins that can be taken out
+        self._load_tool()
 
     # ------------------------------------------------------------------ files
     @property
@@ -134,6 +135,8 @@ class Runner:
             "calib_pairs": self.calib_pairs,
             "driver": self.m.printer.driver,
             **self.bins_state(),
+            "auto": self.saved_mode()[0],
+            "tip_offset_z": self.m.tool.offset[2],
         }
 
     # ------------------------------------------------------------------ commands
@@ -166,6 +169,28 @@ class Runner:
             )
             self._thread.start()
             return f"{cmd}: {strat}"
+        if cmd == "auto":
+            if running:
+                return "already running: stop first"
+            strat = (strategy or self.state.strategy or self.m.run.strategy).lower()
+            if strat not in STRATEGIES:
+                return f"unknown strategy {strat!r}"
+            self._pause.clear()
+            self._stop.clear()
+            self._save_mode(True, strat)
+            self._set(
+                strategy=strat,
+                status="standby",
+                message="automatic mode",
+                picks=0,
+                failed_picks=0,
+                counts={},
+            )
+            self._thread = threading.Thread(
+                target=self._auto, args=(strat,), name="sorter", daemon=True
+            )
+            self._thread.start()
+            return f"automatic: {strat}"
         if cmd == "pause":
             if running:
                 self._pause.set()
@@ -177,6 +202,7 @@ class Runner:
                 self._set(status="running", message="resumed")
             return "resumed"
         if cmd == "stop":
+            self._save_mode(False)
             if running:
                 self._stop.set()
                 self._pause.clear()
@@ -185,6 +211,7 @@ class Runner:
         if cmd in ("estop", "emergency_stop"):
             self._stop.set()
             self._pause.clear()
+            self._save_mode(False)
             try:
                 self.printer.emergency_stop()
             finally:
@@ -200,10 +227,12 @@ class Runner:
             self._thread.join(timeout)
 
     # ------------------------------------------------------------------ one photo
-    def take_shot(self, layout: Layout, T: Transform2D | None) -> Shot:
-        """Photo position, photo, parts (with printer X/Y when T is known), markers."""
+    def take_shot(self, layout: Layout, T: Transform2D | None, move: bool = True) -> Shot:
+        """Photo position, photo, parts (with printer X/Y when T is known), markers. `move`
+        False: photograph where the bed is (standby with the motors off: still parked)."""
         with self._lock:
-            self.motion.photo_position()
+            if move:
+                self.motion.photo_position()
             self._shot_no += 1
             name = time.strftime("%Y%m%d-%H%M%S") + f"_{self._shot_no:04d}"
             shot = self.vision.capture(name, lambda mid: _marker_plate_height(layout, mid))
@@ -246,113 +275,255 @@ class Runner:
     # ------------------------------------------------------------------ the loop
     def _run(self, strategy: str, steps: int | None) -> None:
         try:
-            layout = self.layout()
-            T = self.transform()
-            with self._lock:
-                self.motion.preflight()
-            first: Shot | None = None
-            run = self.m.run
-            if run.scan_bins_on_start or run.only_seen_bins:
-                first = self.take_shot(layout, T)
-                seen = {mk.marker for mk in first.markers}
-                if run.scan_bins_on_start:
-                    moved = self._place_bins(layout, first, T)
-                    added = [b["marker"] for b in moved if b.get("new")]
-                    layout.save(self.layout_path)
-                    if added:
-                        self.note(f"new bins seen, used as wild bins: {', '.join(map(str, added))}")
-                if run.only_seen_bins:
-                    missing = sorted(b.marker for b in layout.bins if b.marker not in seen)
-                    if missing:
-                        self.note(f"bins not seen by the camera, not used: {missing}")
-                    layout.bins = [b for b in layout.bins if b.marker in seen]
-                    if not layout.bins:
-                        raise PrinterError("the camera sees no bins (markers covered or dirty?)")
-            problems = layout.problems()
-            if problems:
-                raise PrinterError("layout: " + "; ".join(problems))
-            planner = Planner(layout, self.m, strategy)
-            wild = {b.marker for b in layout.bins if b.role == "wild"}
-            with self._claims_lock:
-                for mk in [k for k in self.claims if k not in wild and layout.bin_by_marker(k)]:
-                    del self.claims[mk]  # no longer a wild bin
-                planner.claims = self.claims  # shared: releases from the page apply at once
-            self.note(f"started: {STRATEGIES[strategy]}")
-            prev: Plan | None = None
-            done_steps = 0
-            while not self._stop.is_set():
-                if self._pause.is_set():
-                    self._set(
-                        status="paused",
-                        message="paused: resume from the web page or the printer menu",
-                    )
-                    while self._pause.is_set() and not self._stop.is_set():
-                        time.sleep(0.2)
-                    if self._stop.is_set():
-                        break
-                    self._set(status="running")
-                    planner.shakes_in_row = 0
-                    prev = None  # someone may have moved parts
-                shot, first = (
-                    (first, None) if first is not None else (self.take_shot(layout, T), None)
-                )
-                with self._claims_lock:
-                    before = dict(self.claims)
-                    ok = prev is None or planner.report(prev, shot.parts)
-                    if self.claims != before:
-                        self._save_claims()
-                        mk = next(k for k in self.claims if before.get(k) != self.claims[k])
-                        self.note(f"wild bin {mk} now collects {self.claims[mk]}")
-                if not ok:
-                    self.note(
-                        f"pick of {prev.part.cls if prev.part else '?'} failed: the part is still there"
-                    )
-                if ok and prev is not None and prev.kind == "pick" and prev.bin is not None:
-                    with self._claims_lock:
-                        mk = prev.bin.marker
-                        self.bin_counts[mk] = self.bin_counts.get(mk, 0) + 1
-                        self._save_claims()
-                self._set(
-                    counts=dict(planner.sorted_count),
-                    failed_picks=planner.failed_picks,
-                    picks=sum(planner.sorted_count.values()),
-                )
-                self._update_ready(planner, layout, shot.parts)
-                if steps is not None and done_steps >= steps:
-                    break
-                here = tuple(self.motion.current_tip()[:2])
-                plan = planner.next(shot.parts, here)  # type: ignore[arg-type]
-                self._set(plan=_describe(plan))
-                if plan.kind == "done":
-                    self._set(status="done", message=plan.reason)
-                    self.note(f"done: {plan.reason}")
-                    self.motion.message("screwpick: done")
-                    break
-                if plan.kind == "stuck":
-                    self.note(plan.reason)
-                    self._set(status="stuck", message=plan.reason + "; then press resume")
-                    self.motion.message("screwpick: needs a hand")
-                    self._pause.set()
-                    while self._pause.is_set() and not self._stop.is_set():
-                        time.sleep(0.2)
-                    planner.shakes_in_row = 0
-                    prev = None
-                    self._set(status="running")
-                    continue
-                with self._lock:
-                    if plan.kind == "shake":
-                        self.note(plan.reason)
-                        self.motion.shake()
-                    else:
-                        self._pick_and_drop(plan, layout)
-                prev = plan
-                done_steps += 1
-            if self.state.status not in ("done",):
+            outcome = self._sort(strategy, steps)
+            if outcome != "done":
                 self._set(status="idle", message="stopped" if self._stop.is_set() else "finished")
         except Exception as exc:  # noqa: BLE001 - shown on the web page, the loop must not die silently
             log.exception("sorting stopped")
             self.note(f"error: {exc}")
             self._set(status="error", message=str(exc))
+
+    def _prepare(self) -> tuple[Layout, Transform2D]:
+        layout = self.layout()
+        T = self.transform()
+        x0, y0, x1, y1 = layout.work_rect()
+        self.motion.z_home_xy = ((x0 + x1) / 2, (y0 + y1) / 2)  # Z is homed over the plate
+        return layout, T
+
+    def _sort(self, strategy: str, steps: int | None, auto: bool = False) -> str:
+        """Sort until the working area is empty: "done", "stuck" (only when `auto`: then the
+        caller waits for the parts to change), "stopped" or "steps"."""
+        layout, T = self._prepare()
+        with self._lock:
+            self.motion.preflight()
+        first: Shot | None = None
+        run = self.m.run
+        if run.scan_bins_on_start or run.only_seen_bins:
+            first = self.take_shot(layout, T)
+            seen = {mk.marker for mk in first.markers}
+            if run.scan_bins_on_start:
+                moved = self._place_bins(layout, first, T)
+                added = [b["marker"] for b in moved if b.get("new")]
+                layout.save(self.layout_path)
+                if added:
+                    self.note(f"new bins seen, used as wild bins: {', '.join(map(str, added))}")
+            if run.only_seen_bins:
+                missing = sorted(b.marker for b in layout.bins if b.marker not in seen)
+                if missing:
+                    self.note(f"bins not seen by the camera, not used: {missing}")
+                layout.bins = [b for b in layout.bins if b.marker in seen]
+                if not layout.bins:
+                    raise PrinterError("the camera sees no bins (markers covered or dirty?)")
+        problems = layout.problems()
+        if problems:
+            raise PrinterError("layout: " + "; ".join(problems))
+        planner = Planner(layout, self.m, strategy)
+        wild = {b.marker for b in layout.bins if b.role == "wild"}
+        with self._claims_lock:
+            for mk in [k for k in self.claims if k not in wild and layout.bin_by_marker(k)]:
+                del self.claims[mk]  # no longer a wild bin
+            planner.claims = self.claims  # shared: emptied bins apply at once
+        self._set(status="running")
+        self.note(f"started: {STRATEGIES[strategy]}")
+        prev: Plan | None = None
+        done_steps = 0
+        while not self._stop.is_set():
+            if self._pause.is_set():
+                self._set(
+                    status="paused", message="paused: resume from the web page or the printer menu"
+                )
+                while self._pause.is_set() and not self._stop.is_set():
+                    time.sleep(0.2)
+                if self._stop.is_set():
+                    break
+                self._set(status="running")
+                planner.shakes_in_row = 0
+                prev = None  # someone may have moved parts
+            shot, first = (first, None) if first is not None else (self.take_shot(layout, T), None)
+            with self._claims_lock:
+                before = dict(self.claims)
+                ok = prev is None or planner.report(prev, shot.parts)
+                if self.claims != before:
+                    self._save_claims()
+                    mk = next(k for k in self.claims if before.get(k) != self.claims[k])
+                    self.note(f"wild bin {mk} now collects {self.claims[mk]}")
+            if not ok:
+                self.note(
+                    f"pick of {prev.part.cls if prev and prev.part else '?'} failed: the part is still there"
+                )
+            if ok and prev is not None and prev.kind == "pick" and prev.bin is not None:
+                with self._claims_lock:
+                    mk = prev.bin.marker
+                    self.bin_counts[mk] = self.bin_counts.get(mk, 0) + 1
+                    self._save_claims()
+            self._set(
+                counts=dict(planner.sorted_count),
+                failed_picks=planner.failed_picks,
+                picks=sum(planner.sorted_count.values()),
+            )
+            self._update_ready(planner, layout, shot.parts)
+            if steps is not None and done_steps >= steps:
+                return "steps"
+            here = tuple(self.motion.current_tip()[:2])
+            plan = planner.next(shot.parts, here)  # type: ignore[arg-type]
+            self._set(plan=_describe(plan))
+            if plan.kind == "done":
+                self._set(status="done", message=plan.reason)
+                self.note(f"done: {plan.reason}")
+                self.motion.message("screwpick: done")
+                return "done"
+            if plan.kind == "stuck":
+                self.note(plan.reason)
+                self.motion.message("screwpick: needs a hand")
+                if auto:
+                    self._set(
+                        status="stuck", message=plan.reason + "; waiting until they are moved"
+                    )
+                    return "stuck"
+                self._set(status="stuck", message=plan.reason + "; then press resume")
+                self._pause.set()
+                while self._pause.is_set() and not self._stop.is_set():
+                    time.sleep(0.2)
+                planner.shakes_in_row = 0
+                prev = None
+                self._set(status="running")
+                continue
+            with self._lock:
+                if plan.kind == "shake":
+                    self.note(plan.reason)
+                    self.motion.shake()
+                else:
+                    self._pick_and_drop(plan, layout)
+            prev = plan
+            done_steps += 1
+        return "stopped"
+
+    # ------------------------------------------------------------------ automatic mode
+    def _wait(self, seconds: float) -> bool:
+        """Sleep, waking up for stop; True when stopped."""
+        return self._stop.wait(max(0.0, seconds))
+
+    def _look(self) -> tuple[Shot, list[Any], Layout]:
+        """A standby photo. With the motors off nothing moves: the bed is still parked out."""
+        layout, T = self._prepare()
+        st = self.printer.status(None)
+        homed = st.ready and all(a in st.homed for a in "xyz")
+        shot = self.take_shot(layout, T, move=homed)
+        margin = self.m.run.work_margin_mm
+        return shot, [p for p in shot.parts if layout.in_work(p.bed_xy, margin)], layout
+
+    def _auto(self, strategy: str) -> None:
+        """Standby: look for parts every standby.interval_s; when some lie still on the plate, sort
+        them; then wait again. Runs until Stop (or too many errors in a row)."""
+        sb = self.m.standby
+        tried: list[Any] | None = None  # the parts of a stuck plate: wait until they change
+        errors = 0
+        self.note(f"automatic mode on: {STRATEGIES[strategy]}")
+        while not self._stop.is_set():
+            try:
+                if self._pause.is_set():
+                    self._set(status="paused", message="automatic mode paused")
+                    while self._pause.is_set() and not self._stop.is_set():
+                        time.sleep(0.2)
+                    tried = None
+                    continue
+                _, parts, _ = self._look()
+                if len(parts) >= sb.min_parts and not (
+                    tried is not None and same_parts(parts, tried)
+                ):
+                    self._set(
+                        status="standby",
+                        message=f"{len(parts)} part(s) seen: waiting until they lie still",
+                    )
+                    if self._wait(sb.settle_s):
+                        break
+                    _, again, _ = self._look()
+                    if same_parts(parts, again):
+                        outcome = self._sort(strategy, None, auto=True)
+                        tried = None
+                        if outcome == "stuck" and self.last_shot is not None:
+                            _, tried, _ = self._look()
+                        if outcome == "stopped":
+                            break
+                        if sb.motors_off:
+                            with self._lock:
+                                self.motion.motors_off()
+                        errors = 0
+                        continue  # look again at once: more parts may have arrived meanwhile
+                errors = 0
+                nxt = time.strftime("%H:%M:%S", time.localtime(time.time() + sb.interval_s))
+                status = "stuck" if tried is not None else "standby"
+                msg = "parts need a hand" if tried is not None else "waiting for parts"
+                self._set(status=status, message=f"{msg} · next look at {nxt}")
+                if self._wait(sb.interval_s):
+                    break
+            except Exception as exc:  # noqa: BLE001 - shown on the page; standby keeps trying
+                errors += 1
+                log.exception("automatic mode")
+                self.note(f"error ({errors}/{sb.max_errors}): {exc}")
+                self._set(status="error", message=str(exc))
+                if errors >= sb.max_errors:
+                    self.note("automatic mode switched off after repeated errors")
+                    self._save_mode(False)
+                    return
+                if self._wait(sb.interval_s):
+                    break
+        self._set(status="idle", message="automatic mode off")
+
+    # ------------------------------------------------------------------ remembered settings
+    @property
+    def state_path(self) -> Path:
+        p = self.m.path(self.m.paths.state)
+        assert p is not None
+        return p
+
+    def _save_mode(self, auto: bool, strategy: str | None = None) -> None:
+        write_json(self.state_path, {"auto": auto, "strategy": strategy or self.state.strategy})
+
+    def saved_mode(self) -> tuple[bool, str]:
+        """Was automatic mode on when the program stopped? (it is switched on again at start)"""
+        if not self.state_path.is_file():
+            return False, self.m.run.strategy
+        d = read_json(self.state_path) or {}
+        return bool(d.get("auto")), str(d.get("strategy") or self.m.run.strategy)
+
+    def shutdown(self) -> None:
+        """The program ends: stop after this move, but remember automatic mode for the restart."""
+        self._stop.set()
+        self._pause.clear()
+        self.wait(30)
+
+    def _load_tool(self) -> None:
+        p = self.m.path(self.m.paths.tool)
+        if p is not None and p.is_file():
+            d = read_json(p) or {}
+            if "offset_z" in d:
+                self.m.tool.offset[2] = float(d["offset_z"])
+
+    def tip_touches_plate(self) -> dict[str, Any]:
+        """The tip was jogged down until it just touches the TPU plate: from now on that is the
+        plate's height, whatever Z the homing gives (see "Homing" in the README)."""
+        self._idle()
+        layout = self.layout()
+        with self._lock:
+            pos = self.printer.status(None).position
+            self.motion.tip = None
+        offset_z = round(layout.plate_thickness_mm - pos[2], 3)
+        p = self.m.path(self.m.paths.tool)
+        assert p is not None
+        write_json(
+            p,
+            {
+                "offset_z": offset_z,
+                "toolhead_z": pos[2],
+                "measured": time.strftime("%Y-%m-%d %H:%M:%S"),
+            },
+        )
+        self.m.tool.offset[2] = offset_z
+        self.note(
+            f"tip height: touches the plate at toolhead Z {pos[2]:.2f} (offset {offset_z:+.2f} mm)"
+        )
+        return {"offset_z": offset_z, "toolhead_z": pos[2]}
 
     def _pick_and_drop(self, plan: Plan, layout: Layout) -> None:
         p, b = plan.part, plan.bin
@@ -658,3 +829,18 @@ def _describe(plan: Plan) -> str:
         name = p.cls + (f"x{p.length_mm:g}" if p.length_mm is not None else "")
         return f"pick {name} -> bin {plan.bin.marker}"
     return f"{plan.kind}: {plan.reason}"
+
+
+def same_parts(a: list[Any], b: list[Any], tol_mm: float = 3.0) -> bool:
+    """The same parts at the same places (nothing moved, no hand in the picture)?"""
+    if len(a) != len(b):
+        return False
+    left = list(b)
+    for p in a:
+        hit = next(
+            (q for q in left if q.cls == p.cls and math.dist(q.bed_xy, p.bed_xy) <= tol_mm), None
+        )
+        if hit is None:
+            return False
+        left.remove(hit)
+    return True

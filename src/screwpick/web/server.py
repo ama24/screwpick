@@ -201,6 +201,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         elif method == "POST" and path == "/api/calib/clear":
             r.calib_clear()
             self._json({"pairs": []})
+        elif method == "POST" and path == "/api/calib/tip":
+            self._json(r.tip_touches_plate())
         elif method == "POST" and path == "/api/calib/goto":
             self._json({"tip": r.goto_marker(int(self._body()["marker"]))})
         elif method == "POST" and path == "/api/jog":

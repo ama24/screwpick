@@ -20,6 +20,7 @@ class Motion:
         self.p = printer
         self.m = machine
         self.tip: list[float] | None = None  # last commanded tip position
+        self.z_home_xy: tuple[float, float] | None = None  # tip X/Y for homing Z (set by runner)
 
     # ------------------------------------------------------------------ checks
     def preflight(self) -> PrinterStatus:
@@ -44,11 +45,31 @@ class Motion:
         if not all(a in st.homed for a in "xyz"):
             if not pc.auto_home:
                 raise PrinterError(f"axes not homed ({st.homed or 'none'})")
-            log.info("homing")
-            self.p.gcode("G28")
-            self.tip = None
+            self.home()
             st = self.p.status(pc.tool_macro)
         return st
+
+    def home(self) -> None:
+        """G28 through klipper/screwpick.cfg's homing override: lift first, home X and Y, home Z
+        with the tip over `z_home_xy` (the middle of the working area: flat plate, no bins)."""
+        pc = self.m.printer
+        lines = []
+        if pc.home_macro and self.z_home_xy is not None:
+            ox, oy, _ = self.m.tool.offset
+            x, y = self.z_home_xy[0] - ox, self.z_home_xy[1] - oy  # toolhead over that spot
+            self.check(self.z_home_xy[0], self.z_home_xy[1], pc.travel_z)
+            lines += [
+                f"SET_GCODE_VARIABLE MACRO={pc.home_macro} VARIABLE=z_home_x VALUE={x:.2f}",
+                f"SET_GCODE_VARIABLE MACRO={pc.home_macro} VARIABLE=z_home_y VALUE={y:.2f}",
+            ]
+        log.info("homing")
+        self.p.gcode("\n".join([*lines, "G28"]))
+        self.tip = None
+
+    def motors_off(self) -> None:
+        """Quiet standby: the axes lose their homing and are homed again before the next move."""
+        self.p.gcode("M84")
+        self.tip = None
 
     def check(self, x: float, y: float, z: float) -> None:
         pc = self.m.printer

@@ -36,6 +36,8 @@ class Paths:
     runs: str = "../runs"  # photos and results of every run
     claims: str = "../data/wild_bins.json"  # what each wild bin collects (kept across runs)
     users: str = "../data/users.json"  # web page accounts (create the first one in the page)
+    state: str = "../data/state.json"  # automatic mode on/off (it survives restarts)
+    tool: str = "../data/tool.json"  # tip height measured in the Calibrate tab
 
 
 @dataclass
@@ -49,7 +51,9 @@ class Camera:
 class Printer:
     driver: str = "moonraker"  # moonraker (Klipper) | sim (no printer: a simulated one)
     url: str = "http://localhost:7125"  # Moonraker on this Pi
-    photo_position: list[float] = field(default_factory=lambda: [0.0, 200.0, 60.0])  # X Y Z
+    # tip X Y Z for photos and standby: bed all the way out (Y max on a bed-slinger), head out
+    # of the picture; the camera calibration is made with the bed here
+    photo_position: list[float] = field(default_factory=lambda: [0.0, 220.0, 60.0])
     travel_z: float = 50.0  # tip height for every move (above the bins)
     feed_xy: float = 6000.0
     feed_z: float = 1200.0
@@ -58,6 +62,9 @@ class Printer:
     limits_z: list[float] = field(default_factory=lambda: [0.0, 120.0])
     max_hotend_c: float = 50.0  # refuse to run while the hotend is hotter than this
     auto_home: bool = True  # home (G28) when an axis is not homed
+    # homing: Z is homed over the middle of the working area (flat plate, no bins) through
+    # this macro's variables z_home_x / z_home_y (klipper/screwpick.cfg); None = plain G28
+    home_macro: str | None = "_SCREWPICK_HOME"
     tool_macro: str | None = "_SCREWPICK_TOOL"  # its variable `tool` must be "picker"; None = skip
     timeout_s: float = 120.0
 
@@ -103,7 +110,17 @@ class Run:
     keep_photos: int = 300  # keep this many photos in the runs folder (0 = keep all)
     scan_bins_on_start: bool = True  # find the bins with the camera when a run starts
     only_seen_bins: bool = True  # use only the bins the camera sees (covered ones are skipped)
+    order: str = "largest_group"  # largest_group (the most numerous kind first) | nearest
     shake: Shake = field(default_factory=Shake)
+
+
+@dataclass
+class Standby:
+    interval_s: float = 60.0  # automatic mode: look for new parts this often
+    settle_s: float = 8.0  # parts must lie still this long before sorting (a hand still throwing)
+    min_parts: int = 1  # start sorting from this many parts
+    motors_off: bool = True  # motors off while waiting (quiet; homes again before sorting)
+    max_errors: int = 3  # automatic mode switches itself off after this many errors in a row
 
 
 @dataclass
@@ -131,6 +148,7 @@ class Machine:
     picker: Picker = field(default_factory=Picker)
     run: Run = field(default_factory=Run)
     models: Models = field(default_factory=Models)
+    standby: Standby = field(default_factory=Standby)
     web: Web = field(default_factory=Web)
     base_dir: Path = field(default_factory=Path.cwd)  # folder of the config file
 
@@ -156,6 +174,8 @@ class Machine:
                 raise ConfigError(f"printer.{name}: wrong number of values {v}")
         if len(self.tool.offset) != 3:
             raise ConfigError("tool.offset needs X Y Z")
+        if self.run.order not in ("largest_group", "nearest"):
+            raise ConfigError("run.order must be largest_group or nearest")
         if self.run.shake.axis.upper() not in ("X", "Y"):
             raise ConfigError("run.shake.axis must be X or Y")
 

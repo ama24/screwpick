@@ -108,7 +108,7 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 <section id="run" class="on">
  <div class="card row" style="gap:10px">
   <select id="strategy"></select>
-  <button class="b p" onclick="cmd('start')">Start</button><button class="b" onclick="cmd('step')">One pick</button>
+  <button class="b p" onclick="cmd('auto')" title="Standby: looks for parts every minute and sorts them, until Stop. Stays on after a restart.">Automatic</button><button class="b" onclick="cmd('start')">Sort once</button><button class="b" onclick="cmd('step')">One pick</button>
   <button class="b" onclick="cmd('pause')">Pause</button><button class="b" onclick="cmd('resume')">Resume</button><button class="b" onclick="cmd('stop')">Stop</button>
   <span id="msg" class="note" style="margin-left:6px"></span>
  </div>
@@ -171,6 +171,9 @@ ul.plain{margin:8px 0 0;padding-left:18px}
    <p class="note">On a bed-slinger the Y buttons move the bed.</p>
   </div>
  </div>
+ <div class="card"><h2>Tip height</h2>
+  <p class="note">Do this after homing, whenever the picker or the Z switch was moved. Jog the tip down over the TPU plate (0.1 mm steps at the end) until a sheet of paper just drags under it, then press the button. Everything screwpick does in Z counts from this.</p>
+  <div class="row"><button class="b p" onclick="tipTouch()">Tip touches the plate</button><span class="note">tip offset <b id="tipz">–</b></span><span id="tipmsg" class="note"></span></div></div>
  <div class="card"><h2>Photo</h2><img id="calshot" class="shot" alt=""></div>
 </section>
 
@@ -209,7 +212,8 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 const $=id=>document.getElementById(id);
 let S={},lay=null,sel=null,workStart=null,markers=[];
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");history.replaceState(null,"","#"+b.dataset.t);if(b.dataset.t==="models")loadModels();else if(b.dataset.t==="users")loadUsers();else if(b.dataset.t!=="run")loadLayout();});
-setTimeout(()=>{const t=location.hash.slice(1),b=t&&document.querySelector(`nav button[data-t="${t}"]`);if(b)b.click();});
+setTimeout(()=>{const t=location.hash.slice(1),b=t&&document.querySelector(`nav button[data-t="${t}"]`);if(b)b.click();window.scrollTo(0,0);});
+if("scrollRestoration" in history)history.scrollRestoration="manual";
 async function api(path,body){const r=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json();if(r.status===401){showLogin(false);}if(!r.ok)throw new Error(j.error||r.status);return j;}
 function flash(id,text,bad){$(id).textContent=text;$(id).className=bad?"note bad":"note";}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
@@ -239,8 +243,8 @@ function renderBins(){
  $("binsuse").innerHTML=ids.length?ids.map(m=>`<div class="stat"><span>Bin ${esc(m)} <span class="mut">${esc(claims[m]||"")}</span> ${rm[m]?'<span class="tag on">ready</span>':""}</span><b>${counts[m]||0}</b></div>`).join(""):"no bin filled yet";}
 let shown="";
 async function poll(){try{S=await api("api/state");}catch(e){$("status").innerHTML='<span class="dot bad"></span>no connection';return;}
- const cls={running:"ok",done:"ok",error:"bad",stuck:"warn",paused:"warn",stopping:"warn"}[S.status]||"";
- $("status").innerHTML=`<span class="dot ${cls}"></span><b>${esc(S.status)}</b>${S.driver==="sim"?" · simulation":""}`;
+ const cls={running:"ok",done:"ok",standby:"ok",error:"bad",stuck:"warn",paused:"warn",stopping:"warn"}[S.status]||"";
+ $("status").innerHTML=`<span class="dot ${cls}"></span><b>${esc(S.status)}</b>${S.auto?" · automatic":""}${S.driver==="sim"?" · simulation":""}`;$("tipz").textContent=(S.tip_offset_z>=0?"+":"")+(+S.tip_offset_z).toFixed(2)+" mm";
  $("msg").textContent=S.message;$("plan").textContent=S.plan||"";
  const st=$("strategy");if(!st.options.length){for(const[k,v]of Object.entries(S.strategies)){const o=document.createElement("option");o.value=k;o.textContent=v;st.appendChild(o);}st.value=S.strategy;}
  if(S.shot&&S.shot!==shown){shown=S.shot;$("shot").src="runs/"+encodeURIComponent(S.shot);$("calshot").src=$("shot").src;}
@@ -323,6 +327,7 @@ async function calibFit(){try{const j=await api("api/calib/fit",{});flash("calms
 async function calibClear(){await api("api/calib/clear",{});renderPairs([]);}
 async function goto_(m){try{const j=await api("api/calib/goto",{marker:m});$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
 async function jog(x,y,z){const s=+$("step").value;try{const j=await api("api/jog",{dx:x*s,dy:y*s,dz:z*s});$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
+async function tipTouch(){try{const j=await api("api/calib/tip",{});flash("tipmsg",`saved: the plate is at toolhead Z ${j.toolhead_z}`);poll();}catch(e){flash("tipmsg",e.message,1);}}
 async function getTip(){try{const j=await api("api/tip");$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
 
 // ---------------------------------------------------------------- models

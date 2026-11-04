@@ -146,7 +146,11 @@ class SimPrinter:
                 self.world.grab(self._tip())
             elif word == pk.release.upper():
                 self.world.release(self._tip())
-            elif word in ("M400", "G4", "M117") or (pk.rotate and word == pk.rotate.upper()):
+            elif word in ("M84", "M18"):
+                self.homed = ""  # motors off: the axes are no longer homed
+            elif word in ("M400", "G4", "M117", "SET_GCODE_VARIABLE") or (
+                pk.rotate and word == pk.rotate.upper()
+            ):
                 pass
             else:
                 raise PrinterError(f"simulated printer: unknown command {line!r}")

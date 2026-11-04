@@ -5,20 +5,22 @@ Strategies:
   clear  everything into the "all" bin (or "overflow"), no sorting
   kit    only the parts on the kit list (rule -> count) into the "kit" bin, then stop
 
-Shared rules: only parts inside the working area; parts with free space around them first,
-then the most confident, then the nearest; a spot that failed too often is left alone; when
-nothing can be picked the bed is shaken (a few times at most) to spread clumps.
+Shared rules: only parts inside the working area; with run.order "largest_group" the most
+numerous kind (part number, else class) first; then parts with free space around them, the most
+confident, the nearest; a spot that failed too often is left alone; when nothing can be picked
+the bed is shaken (a few times at most) to spread clumps.
 """
 
 from __future__ import annotations
 
 import math
+from collections import Counter
 from dataclasses import dataclass, field
 
 from .config import Machine
 from .layout import Bin, Layout
 from .parts import Part
-from .rules import Decision, destination, match
+from .rules import Decision, destination, match, part_number
 
 STRATEGIES = {
     "sort": "Sort: every part to the bin its rules point to",
@@ -120,9 +122,16 @@ class Planner:
                 options.append((p, dec, kit_rule))
         clearance = self.machine.picker.clearance_mm
         if options:
+            population = Counter(_kind(p) for p in cands)
+            by_group = self.machine.run.order == "largest_group"
             p, dec, rule = min(
                 options,
-                key=lambda o: (o[0].gap_mm < clearance, -o[0].score, _dist(o[0].bed_xy, here)),
+                key=lambda o: (
+                    -population[_kind(o[0])] if by_group else 0,
+                    o[0].gap_mm < clearance,
+                    -o[0].score,
+                    _dist(o[0].bed_xy, here),
+                ),
             )
             return Plan("pick", p, dec.bin, dec.reason, rule, dec.claim)
         stuck_parts = len(waiting) + blocked
@@ -200,3 +209,8 @@ class Planner:
 
 def _dist(a: tuple[float, float], b: tuple[float, float]) -> float:
     return math.hypot(a[0] - b[0], a[1] - b[1])
+
+
+def _kind(p: Part) -> str:
+    """What counts as one group for run.order: the part number, else the class."""
+    return part_number(p) or p.cls

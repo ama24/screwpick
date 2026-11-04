@@ -205,6 +205,64 @@ The page is plain HTTP, so it is meant for your home network. Logging in keeps o
 page; it is not protection against someone already listening on your WiFi. The printer-menu
 buttons never need a login: they come from Klipper on the Pi itself.
 
+## Automatic mode
+
+Press **Automatic** on the Run tab (or *Screw sorter → Automatic* on the printer). The machine
+then runs by itself until you press Stop:
+
+1. **Standby:** the bed stays all the way out at the photo position (`printer.photo_position`)
+   and the motors are switched off, so it's quiet (`standby.motors_off`). Every minute
+   (`standby.interval_s`) the camera looks at the plate. With the motors off nothing moves:
+   the bed is still parked where the camera was calibrated.
+2. **Parts seen:** it waits `standby.settle_s` seconds and looks again. Only if the parts lie in
+   the same places, with no hand still throwing or spreading them, does it start.
+3. **Sorting:** it homes (see below), finds the bins, and sorts the largest group first, until
+   the plate is empty. Then it goes back to standby, and complete bins are marked ready.
+4. **Stuck parts** (a clump that shaking can't spread) are left alone. It tries again as soon
+   as they've been moved.
+
+Automatic mode **stays on after a restart** or power cut: when `screwpick serve` starts, it
+carries on. Stop (or STOP) switches it off. After `standby.max_errors` errors in a row (printer
+off, camera unplugged…) it switches itself off and says why on the page.
+
+## Homing
+
+Two dangers when homing a sorter that a plain `G28` doesn't handle:
+
+- **Bins on the bed.** An Ender 3 homes Z at the front-left corner, which is a bin. The tool would
+  come down onto the bin's rim.
+- **The picker tip may reach lower than the nozzle did.** The Z switch triggers on the gantry
+  height, so with a longer tool the tip touches the plate before the switch triggers.
+
+**What screwpick does** (`klipper/screwpick.cfg`, `[homing_override]`):
+
+1. Lift Z by 30 mm first (more than the bins are tall).
+2. Home X, then Y.
+3. Move the tip over the **middle of the working area**: flat TPU, no bins. screwpick sets this
+   spot from the layout before every homing.
+4. Home Z there, then lift again.
+
+**For the tip that reaches lower: raise the Z switch.** Slide the Ender's Z endstop bracket up
+until the switch triggers with the picker tip **2–3 mm above the plate**. Then:
+
+1. In `printer.cfg`, allow Z a little below 0: `[stepper_z] position_min: -5`.
+2. Home, then on the **Calibrate tab → Tip height**: jog the tip down over the plate in 0.1 mm
+   steps until a sheet of paper just drags, and press **Tip touches the plate**. From then on,
+   every Z that screwpick uses counts from that point. Repeat this whenever the switch or the
+   picker is moved.
+
+The X and Y offset of the tip needs no measuring: the camera calibration already uses the tip
+itself.
+
+**Printing again with the hotend:** the raised switch would stop the nozzle above the bed.
+Either slide the switch back down when you swap tools (re-level as usual), or print a spacer
+that clips under the switch together with the picker swap, so the switch height comes with the
+tool. Choose the picker's length so that the spacer is about the same for every swap.
+
+**Motors off in standby:** Klipper forgets the homing when the motors switch off (and after its
+own `idle_timeout`, 10 minutes by default). That's fine: the bed stays where it was for the
+standby photos, and the machine homes again before the next sort.
+
 ## Strategies
 
 | Strategy | What it does |
@@ -214,8 +272,10 @@ buttons never need a login: they come from Klipper on the Pi itself.
 | **kit** | only the parts on `run.kit` (e.g. `{DIN912_M3x10: 4, DIN934_M3: 4}`) into the *kit* bin, then stop |
 
 These rules apply to every strategy:
-- Parts with free space around them are picked first, then the most confident, then the
-  nearest.
+- **The largest group first** (`run.order: largest_group`): the part number with the most
+  pieces on the plate is picked first, then the next. Within a group, parts with free space
+  around them come first, then the most confident, then the nearest. `nearest` skips the
+  grouping.
 - Detections below `run.min_score` go to the *unsure* bin.
 - UNKNOWN parts go to the *unknown* bin.
 - A part whose length decides its bin, but which can't be measured yet (tilted, covered), waits.

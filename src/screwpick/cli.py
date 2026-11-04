@@ -83,6 +83,9 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
         listener = MenuListener(m.printer.url, on_menu)
         listener.start()
+    auto, strategy = runner.saved_mode()
+    if auto:
+        print(f"automatic mode was on: {runner.command('auto', strategy)}", flush=True)
     port = server.server_address[1]
     print(f"screwpick: open http://{_address()}:{port}/ in a browser (Ctrl+C to quit)", flush=True)
     if world is not None:
@@ -92,8 +95,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
     except KeyboardInterrupt:
         print()
     finally:
-        runner.command("stop")
-        runner.wait(30)
+        runner.shutdown()  # automatic mode stays remembered for the next start
         if listener is not None:
             listener.stop()
         server.server_close()
