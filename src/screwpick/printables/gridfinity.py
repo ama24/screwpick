@@ -182,3 +182,102 @@ def build_baseplate(
         )
         out = out + lip
     return _to_mesh(out)
+
+
+def _sockets(
+    cols: int, rows: int, h: float, slim: bool, ox: float = 0.0, oy: float = 0.0
+) -> list[Manifold]:
+    """The bin sockets of a cols x rows grid whose front-left corner is at (ox, oy)."""
+    p = binspec.PITCH_MM
+    out = []
+    for i in range(cols):
+        for j in range(rows):
+            cx, cy = ox + (i + 0.5) * p, oy + (j + 0.5) * p
+            socket = [
+                _frustum([(36.3, 36.3, 1.15, -0.01), (37.7, 37.7, 1.85, 0.7)], cx, cy),
+                _frustum([(37.7, 37.7, 1.85, 0.7), (37.7, 37.7, 1.85, min(2.5, h) + 0.01)], cx, cy),
+            ]
+            if not slim:
+                socket.append(
+                    _frustum([(37.7, 37.7, 1.85, 2.5), (42.0, 42.0, 4.0, h + 0.01)], cx, cy)
+                )
+            out.append(_union(socket))
+    return out
+
+
+def bed_grid_origin(cols: int, rows: int, bed) -> tuple[float, float]:  # noqa: ANN001 - beds.Bed
+    """Where the grid's front-left corner lies on a bed plate: centred (in Y between the front
+    edge and the kept-free strip at the back)."""
+    p = binspec.PITCH_MM
+    w, d = bed.size
+    d -= bed.back_keep_mm
+    if cols * p > w or rows * p > d:
+        raise ValueError(f"a {cols} x {rows} grid does not fit on the {bed.name} bed")
+    return (w - cols * p) / 2, (d - rows * p) / 2
+
+
+def cuts(length: float, first_line: float, n_cells: int, limit: float) -> list[float]:
+    """Where to cut a plate `length` long (cell lines start at `first_line`) so that no piece is
+    longer than `limit`: always on a cell line, as few cuts as possible."""
+    p = binspec.PITCH_MM
+    lines = [first_line + k * p for k in range(1, n_cells)]
+    if length <= limit:
+        return []
+    two = [x for x in lines if x <= limit and length - x <= limit]
+    if two:  # one cut is enough: the most even one (sturdier pieces)
+        return [min(two, key=lambda x: max(x, length - x))]
+    out: list[float] = []
+    start = 0.0
+    while length - start > limit:
+        fits = [x for x in lines if start < x <= start + limit]
+        if not fits:
+            raise ValueError(f"no cell line within {limit:g} mm: the pieces cannot be printed")
+        out.append(max(fits))
+        start = out[-1]
+    return out
+
+
+def build_bed_baseplate(
+    cols: int,
+    rows: int,
+    bed,
+    slim: bool = True,
+    margin_mm: float = 6.0,  # noqa: ANN001
+) -> list[tuple[str, Mesh, tuple[float, float, float, float]]]:
+    """The grid with a border out to the bed's edges (binder clips hold it), cut on cell lines
+    into pieces that print on that bed. Returns (position name, mesh, (x0, y0, x1, y1)); all
+    pieces in bed coordinates, so they fit together as they lie."""
+    h = binspec.BASEPLATE_SLIM_MM if slim else binspec.BASEPLATE_MM
+    w = bed.size[0]
+    d = bed.size[1] - bed.back_keep_mm
+    gx, gy = bed_grid_origin(cols, rows, bed)
+    c = bed.corner_cut_mm
+    plate = _box(0, w, 0, d, 0, h)
+    if c > 0:
+        notches = [
+            _box(x0, x0 + c, y0, y0 + c, -1, h + 1)
+            for x0 in (-0.01, w - c + 0.01)
+            for y0 in (-0.01, d - c + 0.01)
+        ]
+        plate = plate - _union(notches)
+    plate = plate - _union(_sockets(cols, rows, h, slim, gx, gy))
+    xs = [0.0, *cuts(w, gx, cols, bed.printable[0] - margin_mm), w]
+    ys = [0.0, *cuts(d, gy, rows, bed.printable[1] - margin_mm), d]
+    pieces = []
+    for j in range(len(ys) - 1):
+        for i in range(len(xs) - 1):
+            box = _box(xs[i] - 0.01, xs[i + 1] + 0.01, ys[j] - 0.01, ys[j + 1] + 0.01, -1, h + 1)
+            pieces.append(
+                (
+                    _piece_name(i, j, len(xs) - 1, len(ys) - 1),
+                    _to_mesh(plate ^ box),
+                    (xs[i], ys[j], xs[i + 1], ys[j + 1]),
+                )
+            )
+    return pieces
+
+
+def _piece_name(i: int, j: int, nx: int, ny: int) -> str:
+    col = {1: [""], 2: ["left", "right"]}.get(nx, [f"c{k + 1}" for k in range(nx)])[i]
+    row = {1: [""], 2: ["front", "back"]}.get(ny, [f"r{k + 1}" for k in range(ny)])[j]
+    return "-".join(x for x in (row, col) if x) or "whole"

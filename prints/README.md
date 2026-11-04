@@ -48,6 +48,20 @@ board lying in the tray, at the height the parts will lie.
   - [standard, 4.65 mm](baseplate/baseplate_5x5_standard.stl).
 
   The bins stand on the bed in both. Other sizes (e.g. 4 × 5) come from the Print bins tab.
+- **Baseplate clamped to the whole bed:** the same 5 × 5 grid with a flat border out to the
+  bed's edges, so it's held down like a glass plate. Each is cut on cell lines into 4 pieces that
+  fit the printer (no socket is cut), with notches at the corners for the bed screws, and a
+  README saying how to lay them out.
+
+  | Printer | Bed | Slim (2.5 mm) | Standard (4.65 mm) |
+  |---|---|---|---|
+  | Creality Ender 3 / Pro / V2 | 235 × 235 mm, binder clips on every outer edge | [ender3/](baseplate/ender3/) `…_slim_*.stl` | [ender3/](baseplate/ender3/) `…_standard_*.stl` |
+  | Prusa MK3 / MK3S | steel sheet 254 × 241 mm; back 10 mm free for the pins | [mk3/](baseplate/mk3/) `…_slim_*.stl` | [mk3/](baseplate/mk3/) `…_standard_*.stl` |
+
+  On the Prusa, a **spare steel sheet** works best: stick the pieces onto it with double-sided
+  tape, and the sheet snaps onto the magnetic bed in the same place every time. Binder clips also
+  work, but their jaws under the sheet keep it from lying flat. Measure your bed if it isn't
+  stock: the sizes are in `src/screwpick/printables/beds.py`.
 - **Holders for the printer's top bar** ([mounts/](mounts/)), both fixed with M5 screws and
   T-nuts in the 2020 top bar of an Ender 3:
   - [screen_holder.stl](mounts/screen_holder.stl): a thin L for the 7" Waveshare HDMI LCD (H)

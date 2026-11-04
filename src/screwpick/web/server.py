@@ -206,6 +206,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json(r.save_machine(self._body().get("values") or {}))
         elif method == "POST" and path == "/api/setup/picker":
             self._json(r.setup_picker(str(self._body()["action"])))
+        elif method == "POST" and path == "/api/setup/rotate":
+            b = self._body()
+            self._json(r.setup_rotate(b.get("angle"), bool(b.get("zero"))))
         elif method == "POST" and path == "/api/setup/confirm":
             self._json(r.setup_confirm(str(self._body()["step"])))
         elif method == "POST" and path == "/api/setup/reset":
@@ -339,8 +342,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             ctype = "model/3mf" if name.endswith(".3mf") else "model/stl"
         elif what == "baseplate":
             slim = q.get("kind", "slim") != "standard"
-            name, data = export.baseplate_file(lay, float(q.get("lip", 8.0)), slim=slim)
-            ctype = "model/stl"
+            if q.get("bed"):  # clamped to a whole printer bed: several pieces in a zip
+                kind = "slim" if slim else "standard"
+                name = f"baseplate_{q['bed']}_{kind}.zip"
+                data = export.bed_baseplate_zip(q["bed"], slim, lay.cols, lay.rows)
+                ctype = "application/zip"
+            else:
+                name, data = export.baseplate_file(lay, float(q.get("lip", 8.0)), slim=slim)
+                ctype = "model/stl"
         elif what == "mounts":  # screen holder + camera arm, from the page's measurements
             from ..printables.mounts import CameraArm, ScreenHolder, drop_for, mount_files
 

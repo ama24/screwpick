@@ -126,3 +126,45 @@ def test_pi_lock_pins_everything_with_hashes():
     assert "opencv-contrib-python-headless" in names and "opencv-python" not in names
     versions = {n: v for n, v, _ in reqs}
     assert versions["torch"].endswith("+cpu")  # the build that runs on a Pi
+
+
+@pytest.mark.parametrize("key", ["ender3", "mk3"])
+@pytest.mark.parametrize("slim", [True, False])
+def test_bed_baseplates_cover_the_bed_and_print_in_pieces(key, slim):
+    trimesh = pytest.importorskip("trimesh")
+    from screwpick.printables.beds import bed
+    from screwpick.printables.gridfinity import bed_grid_origin, build_bed_baseplate
+
+    b = bed(key)
+    pieces = build_bed_baseplate(5, 5, b, slim=slim)
+    assert len(pieces) == 4
+    h = binspec.BASEPLATE_SLIM_MM if slim else binspec.BASEPLATE_MM
+    lo = np.min([trimesh.Trimesh(*m).bounds[0] for _, m, _ in pieces], axis=0)
+    hi = np.max([trimesh.Trimesh(*m).bounds[1] for _, m, _ in pieces], axis=0)
+    assert lo == pytest.approx([0, 0, 0], abs=0.02)
+    assert hi == pytest.approx([b.size[0], b.size[1] - b.back_keep_mm, h], abs=0.02)
+    gx, gy = bed_grid_origin(5, 5, b)
+    for name, mesh, (x0, y0, x1, y1) in pieces:
+        m = trimesh.Trimesh(*mesh)
+        assert m.is_watertight, name
+        assert x1 - x0 <= b.printable[0] - 6 and y1 - y0 <= b.printable[1] - 6  # prints
+        # cut on cell lines of the grid, never through a socket
+        for edge in (x0, x1):
+            assert edge in (0.0, b.size[0]) or ((edge - gx) / 42.0) % 1 == pytest.approx(0)
+        for edge in (y0, y1):
+            assert edge in (0.0, b.size[1] - b.back_keep_mm) or (
+                (edge - gy) / 42.0
+            ) % 1 == pytest.approx(0)
+    names = sorted(n for n, _, _ in pieces)
+    assert names == ["back-left", "back-right", "front-left", "front-right"]
+
+
+def test_bed_baseplate_zip():
+    from screwpick.printables.export import bed_baseplate_zip
+
+    with zipfile.ZipFile(BytesIO(bed_baseplate_zip("ender3", slim=True))) as z:
+        names = z.namelist()
+        assert len([n for n in names if n.endswith(".stl")]) == 4
+        assert "12.5 mm from the left edge" in z.read("baseplate_ender3_slim_README.txt").decode()
+    with pytest.raises(ValueError, match="unknown bed"):
+        bed_baseplate_zip("voron")

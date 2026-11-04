@@ -137,7 +137,9 @@ The steps below are the same work in more detail.
    come as two-part 3MF files, the bin (white) and its code (black). With one extruder, add a
    colour change at the rim height (21 mm for 3-unit bins).
 3. Put the baseplate anywhere on the bed, the tray and the bins anywhere on it (turned any way),
-   and a TPU sheet cut to size in the tray.
+   and a TPU sheet cut to size in the tray. To hold the baseplate down, print the version that
+   **covers the whole bed** (Ender 3 or Prusa MK3, slim or standard, in 4 pieces that fit the
+   printer) and clamp it with binder clips, or on the Prusa stick it onto a spare steel sheet.
 4. Mount the picker and run `TOOL_PICKER`. Set `tool.offset` in
    [configs/machine.yaml](configs/machine.yaml) if the picker tip is not where the nozzle was.
 5. Set `printer.photo_position`: where the head waits during photos, out of the picture.
@@ -245,6 +247,58 @@ The page needs a user name and password (`web.require_login`, on by default):
 The page is plain HTTP, so it is meant for your home network. Logging in keeps others off the
 page; it is not protection against someone already listening on your WiFi. The printer-menu
 buttons never need a login: they come from Klipper on the Pi itself.
+
+## Where a part is taken: grip point, direction, centre of mass
+
+For every part the program knows **which way it lies**, **how long it is** and **where its
+centre of mass is**. From these it picks the **grip point**.
+
+- **Screws, standoffs, threaded rod:** the model already finds three points on each screw: the
+  head's top, the underside of the head, and the tip. Together they give the direction and the
+  length. With the head's size from the catalogue (diameter and height), the centre of mass
+  follows: the head is heavy, so on short screws it lies near or even inside the head. The
+  tweezers close on the **shank**, at the centre of mass, but never on the head (at least
+  `picker.grip_from_head_mm` below it) and not on the very tip. Headless parts (set screws, rod,
+  standoffs) are taken in the middle.
+- **Everything else** (nuts, washers, brackets, unknown parts): the centre and the long axis of
+  the outline.
+
+**No new training data is needed for this.** The three keypoints are already in the training
+set (`head_top`, `bearing`, `tip`), and the head sizes are in the catalogue. Should a part ever
+need its own grip point (e.g. odd brackets), a fourth keypoint could be added to the dataset
+later.
+
+## Tweezers on a Z rotation axis
+
+Instead of the hotend, the toolhead carries **tweezers that turn around Z**
+(`picker.mode: tweezers`):
+- before every pick they turn so their jaws close **across** the part, at the grip point;
+- they close at the height of the shank's middle;
+- they drop the part in the bin at whatever angle they hold it.
+
+`klipper/screwpick.cfg` has two ways to drive the rotation:
+- **A, the extruder's motor driver** (the hotend still prints after a tool swap): the angle is
+  remembered; set 0° once in the Setup tab.
+- **B, a spare driver with a small 0° switch:** the axis finds 0° by itself before every sort.
+
+The jaws open and close with a servo or solenoid, through the same `SCREWPICK_GRAB` and
+`SCREWPICK_RELEASE` macros. In the **Setup tab → Picker**: *Turn to 0°* (the jaws must close
+along the printer's X axis), *Turn to 90°*, *Set zero*.
+
+## The console
+
+The Run tab has a **console**: one short line per thing the machine sees or decides, e.g.
+
+```
+14:02:11 sorting: sort
+14:02:13 7 on the plate: 3 DIN912_M4x16 · 2 DIN934_M4 · 1 DIN125A_M4 · 1 UNKNOWN
+14:02:13 pick DIN912_M4x16 at X102 Y88, jaws 35° → bin 105
+14:02:19 bin 105 now holds DIN912_M4x16
+14:02:19 dropped in bin 105
+14:03:40 missed DIN934_M4: try again
+14:05:02 bin 105 complete (DIN912_M4x16): take it out
+14:05:02 done: the working area is empty
+```
 
 ## One cycle
 

@@ -240,6 +240,8 @@ def cmd_print(args: argparse.Namespace) -> int:
                 marker=mk, x=0, y=0, w=args.w, d=args.d, height_u=args.height
             )
             files.append(export.bin_file(b, args.fmt))
+    elif args.what == "baseplate" and args.bed:
+        files += export.bed_baseplate_files(args.bed, not args.standard, lay.cols, lay.rows)
     elif args.what == "baseplate":
         files.append(export.baseplate_file(lay, args.lip, slim=not args.standard))
     elif args.what == "mounts":  # screen holder and camera arm for the printer's top bar
@@ -319,6 +321,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--height", type=int, default=3, help="height units (7 mm), at least 3")
     p.add_argument(
         "--lip", type=float, default=8.0, help="baseplate: lip height around the working area"
+    )
+    p.add_argument(
+        "--bed", choices=["ender3", "mk3"], help="baseplate clamped to that whole printer bed"
     )
     p.add_argument(
         "--standard", action="store_true", help="baseplate: standard 4.65 mm (default: slim 2.5 mm)"

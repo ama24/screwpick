@@ -117,6 +117,7 @@ class SimPrinter:
         self.relative = False
         self.log: list[str] = []
         self.rng = random.Random(1)
+        self.jaw_angle: float | None = None  # last tweezer rotation
 
     def _tip(self) -> list[float]:
         return [p + o for p, o in zip(self.pos, self.m.tool.offset, strict=True)]
@@ -151,9 +152,13 @@ class SimPrinter:
             elif word in ("M84", "M18"):
                 self.homed = ""  # motors off: the axes are no longer homed
             elif word in ("M400", "G4", "M117", "SET_GCODE_VARIABLE") or (
-                pk.rotate and word == pk.rotate.upper()
+                (pk.rotate and word == pk.rotate.upper())
+                or (pk.rotate_home and word == pk.rotate_home.upper())
+                or (pk.rotate_zero and word == pk.rotate_zero.upper())
             ):
-                pass
+                if pk.rotate and word == pk.rotate.upper():
+                    m = re.search(r"ANGLE=(-?\d+(?:\.\d+)?)", line.upper())
+                    self.jaw_angle = float(m.group(1)) if m else self.jaw_angle
             else:
                 raise PrinterError(f"simulated printer: unknown command {line!r}")
         if shaking >= 2:
