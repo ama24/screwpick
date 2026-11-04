@@ -69,7 +69,9 @@ class Runner:
             self.calib_pairs = list(cal.pairs)
         self.last_shot: Shot | None = None
         self._claims_lock = threading.RLock()
-        self.claims: dict[int, str] = self._load_claims()  # wild bin marker -> what it collects
+        # wild bin marker -> what it collects; bin marker -> parts in it since it was emptied
+        self.claims, self.bin_counts = self._load_claims()
+        self.ready: dict[int, dict[str, Any]] = {}  # bins that can be taken out
 
     # ------------------------------------------------------------------ files
     @property
@@ -131,7 +133,7 @@ class Runner:
             "calibrated": self.transform_path.is_file(),
             "calib_pairs": self.calib_pairs,
             "driver": self.m.printer.driver,
-            "claims": {str(k): v for k, v in sorted(self.claims.items())},
+            **self.bins_state(),
         }
 
     # ------------------------------------------------------------------ commands
@@ -305,11 +307,17 @@ class Runner:
                     self.note(
                         f"pick of {prev.part.cls if prev.part else '?'} failed: the part is still there"
                     )
+                if ok and prev is not None and prev.kind == "pick" and prev.bin is not None:
+                    with self._claims_lock:
+                        mk = prev.bin.marker
+                        self.bin_counts[mk] = self.bin_counts.get(mk, 0) + 1
+                        self._save_claims()
                 self._set(
                     counts=dict(planner.sorted_count),
                     failed_picks=planner.failed_picks,
                     picks=sum(planner.sorted_count.values()),
                 )
+                self._update_ready(planner, layout, shot.parts)
                 if steps is not None and done_steps >= steps:
                     break
                 here = tuple(self.motion.current_tip()[:2])
@@ -489,24 +497,63 @@ class Runner:
         assert p is not None
         return p
 
-    def _load_claims(self) -> dict[int, str]:
+    def _load_claims(self) -> tuple[dict[int, str], dict[int, int]]:
+        """(what each wild bin collects, how many parts each bin received)."""
         if not self.claims_path.is_file():
-            return {}
-        return {int(k): str(v) for k, v in (read_json(self.claims_path) or {}).items()}
+            return {}, {}
+        d = read_json(self.claims_path) or {}
+        claims = d.get("claims", {}) if "claims" in d else d  # older files: claims only
+        return (
+            {int(k): str(v) for k, v in claims.items()},
+            {int(k): int(v) for k, v in d.get("counts", {}).items()},
+        )
 
     def _save_claims(self) -> None:
-        write_json(self.claims_path, {str(k): v for k, v in sorted(self.claims.items())})
+        write_json(
+            self.claims_path,
+            {
+                "claims": {str(k): v for k, v in sorted(self.claims.items())},
+                "counts": {str(k): v for k, v in sorted(self.bin_counts.items())},
+            },
+        )
 
-    def release_wild(self, marker: int | None) -> dict[str, str]:
-        """Forget what a wild bin collects (after emptying it); None = every wild bin."""
+    def _update_ready(self, planner: Planner, layout: Layout, parts: list[Any]) -> None:
+        """Mark filled bins that nothing on the plate goes to any more: they can be taken out."""
+        need = planner.needed_bins(parts)
         with self._claims_lock:
-            if marker is None:
-                self.claims.clear()
-                self.note("all wild bins released")
-            elif self.claims.pop(int(marker), None) is not None:
-                self.note(f"wild bin {marker} released")
+            filled = {mk for mk, n in self.bin_counts.items() if n > 0} | set(self.claims)
+            ready: dict[int, dict[str, Any]] = {}
+            for mk in sorted(filled - need):
+                b = layout.bin_by_marker(mk)
+                if b is None:
+                    continue
+                what = self.claims.get(mk) or b.label or ", ".join(b.holds) or b.role
+                ready[mk] = {"marker": mk, "what": what, "count": self.bin_counts.get(mk, 0)}
+            for mk in sorted(set(ready) - set(self.ready)):
+                self.note(f"bin {mk} ({ready[mk]['what']}) is complete: it can be taken out")
+                self.motion.message(f"bin {mk} ready")
+            self.ready = ready
+
+    def bin_emptied(self, marker: int | None) -> dict[str, Any]:
+        """The bin was taken out and emptied: forget its contents (a wild bin becomes free).
+        None = every bin marked ready."""
+        with self._claims_lock:
+            markers = list(self.ready) if marker is None else [int(marker)]
+            for mk in markers:
+                self.claims.pop(mk, None)
+                self.bin_counts.pop(mk, None)
+                self.ready.pop(mk, None)
             self._save_claims()
-            return {str(k): v for k, v in self.claims.items()}
+            if markers:
+                self.note(f"emptied: bin {', '.join(map(str, markers))}")
+            return self.bins_state()
+
+    def bins_state(self) -> dict[str, Any]:
+        return {
+            "claims": {str(k): v for k, v in sorted(self.claims.items())},
+            "bin_counts": {str(k): v for k, v in sorted(self.bin_counts.items())},
+            "ready": list(self.ready.values()),
+        }
 
     # ------------------------------------------------------------------ models
     def _need_store(self) -> ModelStore:

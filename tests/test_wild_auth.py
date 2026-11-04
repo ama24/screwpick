@@ -101,7 +101,8 @@ def test_sorts_with_only_wild_bins_and_keeps_claims(machine):
     machine.run.shake.enabled = False
     lay = Layout.default()
     lay.bins = [b for b in lay.bins if b.role == "wild"]  # 13 wild bins, nothing else
-    runner, world = make(machine, lay, n=12)
+    assert lay.wild_by == "part"  # the default: one part number (class + length) per bin
+    runner, world = make(machine, lay, n=10)
     runner.command("start", "sort")
     runner.wait(60)
     assert runner.state.status == "done", runner.state.message
@@ -120,15 +121,40 @@ def test_sorts_with_only_wild_bins_and_keeps_claims(machine):
             <= xy[1]
             <= lay.cells_rect(b.x, b.y, b.w, b.d)[3]
         )
-        by_bin.setdefault(mk, set()).add(sp.cls)
+        by_bin.setdefault(mk, set()).add(sp.cls + (f"x{sp.length:g}" if sp.length else ""))
     assert all(len(v) == 1 for v in by_bin.values())
     assert {mk: next(iter(v)) for mk, v in by_bin.items()} == claims
-    # kept on disk, and released from the page
+    # the plate is empty: every filled bin is ready to be taken out
+    assert {r["marker"] for r in runner.bins_state()["ready"]} == set(claims)
+    assert sum(r["count"] for r in runner.bins_state()["ready"]) == len(world.dropped)
+    # kept on disk, emptied from the page
     saved = json.loads(runner.claims_path.read_text())
-    assert {int(k): v for k, v in saved.items()} == claims
+    assert {int(k): v for k, v in saved["claims"].items()} == claims
     mk = next(iter(claims))
-    assert str(mk) not in runner.release_wild(mk)
-    assert runner.release_wild(None) == {}
+    state = runner.bin_emptied(mk)
+    assert str(mk) not in state["claims"] and mk not in {r["marker"] for r in state["ready"]}
+    assert runner.bin_emptied(None)["ready"] == []
+    assert runner.claims == {} and runner.bin_counts == {}
+
+
+def test_a_bin_is_ready_only_when_nothing_on_the_plate_goes_there(machine):
+    lay = wild_layout(2, "part")
+    lay.work.x, lay.work.y = 1, 1
+    lay.cols = lay.rows = 5
+    lay.bins = [Bin(marker=100, x=0, y=0), Bin(marker=101, x=1, y=0)]
+    pl = Planner(lay, machine, "sort")
+    pl.claims.update({100: "DIN912_M4x16", 101: "DIN934_M4"})
+    plate = [P("DIN912_M4", 16.0)]
+    assert pl.needed_bins(plate) == {100}
+    assert pl.needed_bins([P("DIN912_M4", None, has_length=True)]) == {100}  # may be an M4x16
+    assert pl.needed_bins([P("DIN912_M4", 16.0, xy=(10.0, 10.0))]) == set()  # not on the plate
+
+
+def test_old_claims_file_still_loads(machine):
+    path = machine.path(machine.paths.claims)
+    path.write_text('{"105": "DIN912_M4"}')
+    runner, _ = make(machine, Layout.default(), n=0)
+    assert runner.claims == {105: "DIN912_M4"} and runner.bin_counts == {}
 
 
 def test_bins_the_camera_finds_join_as_wild_and_unseen_ones_are_skipped(machine):

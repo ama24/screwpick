@@ -141,6 +141,32 @@ class Planner:
             return Plan("done", reason=f"{len(no_bin)} part(s) left: no bin holds them")
         return Plan("done", reason="nothing left for this strategy")
 
+    def needed_bins(self, parts: list[Part]) -> set[int]:
+        """Bins that parts in the working area still go to (or may go to, once a missing length
+        is measured). A filled bin outside this set is complete for now."""
+        need: set[int] = set()
+        margin = self.machine.run.work_margin_mm
+        for p in parts:
+            if not self.layout.in_work(p.bed_xy, margin):
+                continue
+            dec, _ = self._decide(p)
+            if dec is None:
+                continue
+            if dec.bin is not None:
+                need.add(dec.bin.marker)
+            elif dec.waiting:
+                cls = p.cls.upper()
+                for b in self.layout.bins:
+                    key = self.claims.get(b.marker, "").upper()
+                    if (
+                        key == cls
+                        or key.startswith(cls + "X")
+                        or b.role == "unsure"
+                        or any(r.strip().upper().startswith(cls) for r in b.holds)
+                    ):
+                        need.add(b.marker)
+        return need
+
     # ------------------------------------------------------------------ feedback
     def report(self, plan: Plan, parts_now: list[Part]) -> bool:
         """After the next photo: did `plan` (a pick) work? Updates the counters."""

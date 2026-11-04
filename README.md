@@ -156,8 +156,9 @@ A **wild** bin has no rules. The first part of a kind that no other bin takes **
 wild bin, and from then on that bin collects that kind. The Layout tab sets what "a kind" is for
 all wild bins:
 
-- **part number** (DIN912_M4x16). Screws wait until their length is measured.
-- **class** (DIN912_M4): the default.
+- **part number** (DIN912_M4x16): the default, one class and length per bin. Screws wait
+  until their length is measured; nuts and washers (no length) go one class per bin.
+- **class** (DIN912_M4): any length.
 - **family** (DIN912).
 
 - **A layout of only wild bins** sorts by itself, with no setup. New bins start out wild, and a
@@ -166,7 +167,16 @@ all wild bins:
   When every wild bin is taken, new kinds go to *overflow*, or stay on the plate.
 - **Claims are kept** across runs and restarts (`data/wild_bins.json`). Each bin shows on the
   Run and Layout tabs what it collects.
-- **After emptying a bin, press Release**, so it can take a new kind.
+
+**Ready to take out.** After every photo screwpick checks each filled bin. When nothing left on
+the plate goes into that bin, the bin is marked:
+- in soft green with a check mark in the Layout tab;
+- in a notice at the top of every tab;
+- with a line on the printer display.
+
+Take the bin out, empty it, and press **Emptied**. A wild bin is then free for the next new
+kind. If you throw in more of its parts, the mark goes away again. In a later version the
+machine could move complete bins aside by itself.
 
 **Bins the camera sees.** At the start of every run the camera reads the bin markers
 (`run.scan_bins_on_start`):

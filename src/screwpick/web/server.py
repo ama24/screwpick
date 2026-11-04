@@ -16,7 +16,7 @@ POST /api/models/upload?filename=…&name=…   body = the file (zip, .onnx, .pt
 POST /api/models/activate   {"role": stage1|stage2|classifier, "id": … or null}
 POST /api/models/weights    {"id", "path"};  /rename {"id", "name"};  /delete {"id"}
 POST /api/models/test       {"id"}: run it on the last photo, nothing is switched
-POST /api/wild/release      {"marker": id or null}: forget what a wild bin collects
+POST /api/bins/emptied      {"marker": id or null}: a bin was emptied (null: all ready ones)
 GET  /api/session           who is logged in; POST /api/login, /api/setup (first account),
 POST /api/logout;  GET /api/users, POST /api/users/add, /api/users/remove, /api/users/password
 
@@ -129,15 +129,22 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         return False
 
     def _body(self) -> dict[str, Any]:
-        n = int(self.headers.get("Content-Length") or 0)
-        if not n:
-            return {}
-        data = json.loads(self.rfile.read(n).decode() or "{}")
+        data = json.loads(self._raw.decode() or "{}") if self._raw else {}
         return data if isinstance(data, dict) else {}
 
     def _route(self, method: str) -> None:
         url = urllib.parse.urlparse(self.path)
         q = {k: v[-1] for k, v in urllib.parse.parse_qs(url.query).items()}
+        # read every request's body before answering (uploads stream later): an unread body
+        # makes the client see a reset connection
+        self._raw = b""
+        n = int(self.headers.get("Content-Length") or 0)
+        if url.path != "/api/models/upload":
+            if n > 1 << 20:
+                self.close_connection = True
+                self._json({"error": "request too large"}, 413)
+                return
+            self._raw = self.rfile.read(n) if n else b""
         try:
             if self._session(method, url.path):
                 return
@@ -145,7 +152,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             if acc is not None and (method, url.path) not in PUBLIC:
                 self.user = acc.user_for(self._token())
                 if self.user is None:
-                    self.close_connection = True  # an upload body may still be on its way
+                    if url.path == "/api/models/upload":
+                        self.close_connection = True  # do not read a whole upload for nothing
                     self._json({"error": "please log in", "login": True}, 401)
                     return
             self._dispatch(method, url.path, q)
@@ -225,9 +233,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json(r.models_state())
         elif method == "POST" and path == "/api/models/test":
             self._json(r.test_model(str(self._body()["id"])))
-        elif method == "POST" and path == "/api/wild/release":
+        elif method == "POST" and path == "/api/bins/emptied":
             m = self._body().get("marker")
-            self._json({"claims": r.release_wild(None if m in (None, "") else int(m))})
+            self._json(r.bin_emptied(None if m in (None, "") else int(m)))
         elif path.startswith("/api/users"):
             self._users(method, path)
         else:

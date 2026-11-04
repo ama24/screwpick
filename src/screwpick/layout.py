@@ -56,7 +56,7 @@ class Layout:
     rows: int = 5
     plate_thickness_mm: float = 1.75  # TPU plate in the working area (plate frame z = 0 on top)
     bin_floor_mm: float = 0.0  # height of a bin's bottom above the bed (baseplate seat)
-    wild_by: str = "class"  # a wild bin collects one: part (number) | class | family
+    wild_by: str = "part"  # a wild bin collects one: part (class + length) | class | family
     work: WorkArea = field(default_factory=WorkArea)
     bins: list[Bin] = field(default_factory=list)
 

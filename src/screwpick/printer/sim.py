@@ -240,16 +240,17 @@ class SimVision:
         s = 4.0  # px per mm
         W = int(lay.origin[0] * 2 + lay.cols * lay.pitch) + 1
         H = int(lay.origin[1] * 2 + lay.rows * lay.pitch) + 1
-        img = np.full((int(H * s), int(W * s), 3), 40, np.uint8)
+        img = np.full((int(H * s), int(W * s), 3), (243, 246, 246), np.uint8)  # BGR, light
 
         def px(x: float, y: float) -> tuple[int, int]:
             return int(x * s), int((H - y) * s)  # printer Y up in the picture
 
         x0, y0, x1, y1 = lay.work_rect()
-        cv2.rectangle(img, px(x0, y0), px(x1, y1), (150, 90, 30), -1)
+        cv2.rectangle(img, px(x0, y0), px(x1, y1), (244, 242, 237), -1)
         for b in lay.bins:
             bx0, by0, bx1, by1 = lay.cells_rect(b.x, b.y, b.w, b.d)
-            cv2.rectangle(img, px(bx0 + 1, by0 + 1), px(bx1 - 1, by1 - 1), (200, 200, 200), 2)
+            cv2.rectangle(img, px(bx0 + 2, by0 + 2), px(bx1 - 2, by1 - 2), (255, 255, 255), -1)
+            cv2.rectangle(img, px(bx0 + 2, by0 + 2), px(bx1 - 2, by1 - 2), (210, 216, 217), 1)
             n = sum(
                 1 for _, xy in self.world.dropped if bx0 <= xy[0] <= bx1 and by0 <= xy[1] <= by1
             )
@@ -258,22 +259,24 @@ class SimVision:
                 f"{b.marker}:{n}",
                 px(bx0 + 3, by1 - 10),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (230, 230, 230),
+                0.5,
+                (141, 138, 135),
                 1,
+                cv2.LINE_AA,
             )
         for sp in self.world.parts:
             poly = np.array([px(*p) for p in _rect(sp.x, sp.y, sp.size[0], sp.size[1], sp.angle)])
-            colour = (180, 0, 180) if sp.cls == "UNKNOWN" else (60, 200, 230)
-            cv2.fillPoly(img, [poly.astype(np.int32)], colour)
+            colour = (201, 163, 184) if sp.cls == "UNKNOWN" else (176, 169, 143)
+            cv2.fillPoly(img, [poly.astype(np.int32)], colour, cv2.LINE_AA)
             cv2.putText(
                 img,
                 sp.cls + (f"x{sp.length:g}" if sp.length else ""),
                 px(sp.x + 4, sp.y + 4),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.4,
-                (255, 255, 255),
+                (51, 49, 47),
                 1,
+                cv2.LINE_AA,
             )
         path = self.out / f"{name}_vis.jpg"
         cv2.imwrite(str(path), img)
