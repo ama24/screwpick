@@ -1,0 +1,185 @@
+"""A small HTTP server (standard library only) for the page in index.html and its JSON API.
+
+GET  /                      the page
+GET  /api/state             sorter state, latest picture, parts, events
+POST /api/command           {"command": start|step|pause|resume|stop|estop, "strategy": ...}
+GET  /api/layout            layout + problems;  POST /api/layout  save a layout
+POST /api/scan              photo -> move bins to where their markers are
+POST /api/calib/photo       photo -> markers;   POST /api/calib/record {"marker": id}
+POST /api/calib/fit         fit + save;         POST /api/calib/clear
+POST /api/calib/goto        {"marker": id};     POST /api/jog {"dx","dy","dz"};  GET /api/tip
+GET  /api/print/bin?marker=100&fmt=3mf|stl, /api/print/baseplate, /api/print/labels,
+     /api/print/all          printable files
+GET  /runs/<file>           photos
+"""
+
+from __future__ import annotations
+
+import http.server
+import json
+import logging
+import threading
+import urllib.parse
+from importlib import resources
+from pathlib import Path
+from typing import Any
+
+from ..layout import Bin, Layout
+from ..printables import export
+from ..printer import PrinterError
+from ..runner import Runner
+
+log = logging.getLogger("screwpick.web")
+
+
+def _page() -> bytes:
+    return resources.files("screwpick.web").joinpath("index.html").read_bytes()
+
+
+class _Handler(http.server.BaseHTTPRequestHandler):
+    runner: Runner  # set by make_server
+
+    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 - base class signature
+        log.debug("web: " + format, *args)
+
+    # ------------------------------------------------------------------ helpers
+    def _send(self, code: int, body: bytes, ctype: str, filename: str | None = None) -> None:
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        if filename:
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _json(self, data: Any, code: int = 200) -> None:
+        self._send(code, json.dumps(data).encode(), "application/json")
+
+    def _body(self) -> dict[str, Any]:
+        n = int(self.headers.get("Content-Length") or 0)
+        if not n:
+            return {}
+        data = json.loads(self.rfile.read(n).decode() or "{}")
+        return data if isinstance(data, dict) else {}
+
+    def _route(self, method: str) -> None:
+        url = urllib.parse.urlparse(self.path)
+        q = {k: v[-1] for k, v in urllib.parse.parse_qs(url.query).items()}
+        try:
+            self._dispatch(method, url.path, q)
+        except (PrinterError, ValueError, KeyError, TypeError) as exc:
+            self._json({"error": str(exc)}, 400)
+        except Exception as exc:  # noqa: BLE001 - report it on the page
+            log.exception("web request %s %s", method, url.path)
+            self._json({"error": f"{type(exc).__name__}: {exc}"}, 500)
+
+    def do_GET(self) -> None:  # noqa: N802 - base class name
+        self._route("GET")
+
+    def do_POST(self) -> None:  # noqa: N802 - base class name
+        self._route("POST")
+
+    # ------------------------------------------------------------------ routes
+    def _dispatch(self, method: str, path: str, q: dict[str, str]) -> None:
+        r = self.runner
+        if method == "GET" and path in ("/", "/index.html"):
+            self._send(200, _page(), "text/html; charset=utf-8")
+        elif method == "GET" and path == "/api/state":
+            self._json(r.snapshot())
+        elif method == "POST" and path == "/api/command":
+            b = self._body()
+            self._json({"result": r.command(str(b.get("command", "")), b.get("strategy"))})
+        elif method == "GET" and path == "/api/layout":
+            lay = r.layout()
+            self._json({"layout": lay.to_dict(), "problems": lay.problems()})
+        elif method == "POST" and path == "/api/layout":
+            lay = Layout.from_dict(self._body().get("layout") or {})
+            lay.save(r.layout_path)
+            self._json({"layout": lay.to_dict(), "problems": lay.problems()})
+        elif method == "POST" and path == "/api/scan":
+            self._json(r.scan_bins())
+        elif method == "POST" and path == "/api/calib/photo":
+            self._json({"markers": r.calib_photo(), "shot": r.state.shot})
+        elif method == "POST" and path == "/api/calib/record":
+            self._json(
+                {"pair": r.calib_record(int(self._body()["marker"])), "pairs": r.calib_pairs}
+            )
+        elif method == "POST" and path == "/api/calib/fit":
+            self._json(r.calib_fit())
+        elif method == "POST" and path == "/api/calib/clear":
+            r.calib_clear()
+            self._json({"pairs": []})
+        elif method == "POST" and path == "/api/calib/goto":
+            self._json({"tip": r.goto_marker(int(self._body()["marker"]))})
+        elif method == "POST" and path == "/api/jog":
+            b = self._body()
+            tip = r.jog(float(b.get("dx", 0)), float(b.get("dy", 0)), float(b.get("dz", 0)))
+            self._json({"tip": tip})
+        elif method == "GET" and path == "/api/tip":
+            self._json({"tip": r.tip()})
+        elif method == "GET" and path.startswith("/api/print/"):
+            self._print(path.rsplit("/", 1)[-1], q)
+        elif method == "GET" and path.startswith("/runs/"):
+            self._file(r.runs_dir, path[len("/runs/") :])
+        else:
+            self._json({"error": f"not found: {method} {path}"}, 404)
+
+    def _print(self, what: str, q: dict[str, str]) -> None:
+        lay = self.runner.layout()
+        if what == "bin":
+            marker = int(q["marker"])
+            b = lay.bin_by_marker(marker) or Bin(
+                marker=marker,
+                x=0,
+                y=0,
+                w=int(q.get("w", 1)),
+                d=int(q.get("d", 1)),
+                height_u=int(q.get("u", 3)),
+            )
+            name, data = export.bin_file(b, q.get("fmt", "3mf"))
+            ctype = "model/3mf" if name.endswith(".3mf") else "model/stl"
+        elif what == "baseplate":
+            name, data = export.baseplate_file(lay, float(q.get("lip", 8.0)))
+            ctype = "model/stl"
+        elif what == "labels":
+            ids = [int(v) for v in q["markers"].split(",")] if q.get("markers") else None
+            name, data = export.labels_file(lay, ids)
+            ctype = "image/svg+xml"
+        elif what == "all":
+            name, data, ctype = "screwpick_print.zip", export.everything_zip(lay), "application/zip"
+        else:
+            raise ValueError(f"nothing to print called {what!r}")
+        self._send(200, data, ctype, name)
+
+    def _file(self, folder: Path, rel: str) -> None:
+        name = urllib.parse.unquote(rel)
+        target = (folder / name).resolve()
+        if folder.resolve() not in target.parents or not target.is_file():
+            self._json({"error": "not found"}, 404)
+            return
+        ctype = (
+            "image/jpeg"
+            if target.suffix.lower() in (".jpg", ".jpeg")
+            else "application/octet-stream"
+        )
+        self._send(200, target.read_bytes(), ctype)
+
+
+def make_server(
+    runner: Runner, host: str = "", port: int = 8080
+) -> http.server.ThreadingHTTPServer:
+    handler = type("Handler", (_Handler,), {"runner": runner})
+    last: OSError | None = None
+    for p in range(port, port + 10):
+        try:
+            return http.server.ThreadingHTTPServer((host, p), handler)
+        except OSError as exc:
+            last = exc
+    raise SystemExit(f"ports {port}-{port + 9} are all taken ({last})")
+
+
+def serve_background(server: http.server.ThreadingHTTPServer) -> threading.Thread:
+    t = threading.Thread(target=server.serve_forever, name="web", daemon=True)
+    t.start()
+    return t

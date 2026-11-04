@@ -1,0 +1,63 @@
+# screwpick machine settings. Only change what differs from the defaults.
+# Lengths in mm, speeds in mm/min. Relative paths are relative to this file's folder.
+
+paths:
+  screwsynth_config: null      # screwsynth's configs/config.yaml (null: the screwsynth checkout's own)
+  calibration: null            # camera calibration.json (null: screwsynth's data/calibration/calibration.json)
+  model: null                  # stage-1 model (NCNN folder / .onnx / .pt); null: newest in screwsynth's models/
+  stage2: null                 # keypoint model; null: classical length measurement
+  layout: ../data/layout.yaml  # bins and working area (edit in the web page)
+  transform: ../data/bed_transform.json   # camera -> printer calibration (Calibrate tab)
+  runs: ../runs                # photos of every cycle
+
+camera:
+  settings: null               # screwrig lock settings json (locked focus/exposure); null: rpicam-still
+
+printer:
+  driver: moonraker            # moonraker (Klipper on this Pi) | sim (simulated, nothing moves)
+  url: http://localhost:7125   # Moonraker
+  photo_position: [0, 200, 60] # tip X Y Z for every photo: head out of the picture, bed parked
+  travel_z: 50                 # tip height for moves across the bed (above the bins)
+  feed_xy: 6000
+  feed_z: 1200
+  limits_x: [0, 220]           # toolhead limits (soft limits, checked before every move)
+  limits_y: [0, 220]
+  limits_z: [0, 120]
+  max_hotend_c: 50             # refuse to run while the hotend is hotter
+  auto_home: true              # G28 when an axis is not homed
+  tool_macro: _SCREWPICK_TOOL  # Klipper macro whose `tool` must be "picker" (null: no check)
+
+tool:
+  offset: [0, 0, 0]            # picker tip minus the toolhead position Klipper reports (X Y Z)
+
+picker:
+  mode: vacuum                 # vacuum | gripper | both
+  grab: SCREWPICK_GRAB         # macros in klipper/screwpick.cfg
+  release: SCREWPICK_RELEASE
+  rotate: null                 # SCREWPICK_ROTATE when the gripper can turn (null: it cannot)
+  approach_mm: 8               # slow descent over the last mm
+  depth_mm: 0.5                # vacuum: press this far below the part's top (spring-loaded cup)
+  grip_height: 0.5             # gripper: close at this share of the part's height
+  clearance_mm: 1.0            # parts with this much free space around them are picked first
+  drop_mm: 10                  # release this far above the bin's rim
+  dwell_s: 0.3
+  feed_z_slow: 300
+
+run:
+  strategy: sort               # sort | clear | kit
+  min_score: 0.5               # less confident detections go to the "unsure" bin
+  kit: {}                      # kit strategy, e.g. {DIN912_M3x10: 4, DIN934_M3: 4}
+  max_failed_picks: 3
+  failed_radius_mm: 4.0
+  work_margin_mm: 3.0
+  keep_photos: 300
+  shake:
+    enabled: true              # shake the bed to spread clumps when nothing can be picked
+    axis: Y                    # Y for bed-slingers (Ender 3, Prusa MK3)
+    moves: 6
+    distance_mm: 4
+    feed: 9000
+    max_in_a_row: 3
+
+web:
+  port: 8080

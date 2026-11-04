@@ -1,0 +1,6 @@
+# Raspberry Pi: install into the same virtual environment as screwrig (supreme-screw-sortering),
+# which already brings OpenCV, PyTorch (CPU) and ultralytics:
+#   pip install -r requirements-pi.txt
+websocket-client>=1.6
+manifold3d>=3.0
+-e .

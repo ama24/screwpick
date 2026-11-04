@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>screwpick</title>
+<style>
+:root{--bg:#f4f4f2;--card:#fff;--fg:#1d1d1b;--mut:#6b6b66;--line:#d8d8d2;--acc:#2563eb;--ok:#15803d;--warn:#b45309;--bad:#b91c1c;--work:#bfdbfe;--bin:#f1f1ec}
+@media (prefers-color-scheme:dark){:root{--bg:#141413;--card:#1f1f1d;--fg:#ececea;--mut:#a3a39d;--line:#3a3a36;--acc:#60a5fa;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--work:#1e3a5f;--bin:#2a2a27}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:2}
+header h1{font-size:17px;margin:0 8px 0 0}nav button{background:none;border:0;border-bottom:2px solid transparent;padding:6px 8px;color:var(--mut);font:inherit;cursor:pointer}
+nav button.on{color:var(--fg);border-color:var(--acc)}#status{margin-left:auto;font-weight:600}
+.estop{background:var(--bad);color:#fff;border:0;border-radius:6px;padding:8px 14px;font-weight:700;cursor:pointer}
+main{padding:16px;max-width:1200px;margin:0 auto}section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.grid2{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:14px}
+@media (max-width:800px){.grid2{grid-template-columns:1fr}}
+button.b{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 12px;font:inherit;cursor:pointer}
+button.b:hover{border-color:var(--acc)}button.p{background:var(--acc);border-color:var(--acc);color:#fff}
+select,input{font:inherit;padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}
+input[type=number]{width:72px}img.shot{width:100%;border-radius:6px;background:#000;display:block}
+.mut{color:var(--mut)}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:4px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+#events{font:12px/1.4 ui-monospace,monospace;max-height:260px;overflow:auto;white-space:pre-wrap}
+svg text{font:11px system-ui,sans-serif;fill:var(--fg);pointer-events:none}
+.jog{display:grid;grid-template-columns:repeat(3,52px);gap:6px}.jog button{height:44px}
+label{display:flex;gap:6px;align-items:center}h2{font-size:16px;margin:0 0 10px}
+</style></head><body>
+<header><h1>screwpick</h1>
+<nav><button data-t="run" class="on">Run</button><button data-t="layout">Layout</button><button data-t="calib">Calibrate</button><button data-t="print">Print bins</button></nav>
+<span id="status">…</span><button class="estop" onclick="cmd('estop')">STOP NOW</button></header>
+<main>
+<section id="run" class="on">
+ <div class="card row">
+  <select id="strategy"></select>
+  <button class="b p" onclick="cmd('start')">Start</button><button class="b" onclick="cmd('step')">One pick</button>
+  <button class="b" onclick="cmd('pause')">Pause</button><button class="b" onclick="cmd('resume')">Resume</button><button class="b" onclick="cmd('stop')">Stop</button>
+  <span id="msg" class="mut"></span>
+ </div>
+ <div class="grid2">
+  <div class="card"><img id="shot" class="shot" alt=""><div id="plan" class="mut" style="margin-top:8px"></div></div>
+  <div>
+   <div class="card"><h2>Sorted</h2><div id="counts" class="mut">nothing yet</div></div>
+   <div class="card"><h2>Parts in the last photo</h2><table id="parts"></table></div>
+  </div>
+ </div>
+ <div class="card"><h2>Log</h2><div id="events"></div></div>
+</section>
+
+<section id="layout">
+ <div class="card row">
+  <span>Tool:</span>
+  <label><input type="radio" name="mode" value="select" checked> select a bin</label>
+  <label><input type="radio" name="mode" value="add"> add a bin</label>
+  <label><input type="radio" name="mode" value="work"> working area (click 2 corners)</label>
+  <span class="mut">new bins:</span>
+  <label>w<input id="nw" type="number" min="1" value="1"></label><label>d<input id="nd" type="number" min="1" value="1"></label><label>height u<input id="nu" type="number" min="3" value="3"></label>
+ </div>
+ <div class="grid2">
+  <div class="card"><svg id="grid" style="width:100%;height:auto"></svg>
+   <div class="row" style="margin-top:8px"><button class="b p" onclick="saveLayout()">Save layout</button><button class="b" onclick="scan()">Find bins with the camera</button><span id="laymsg" class="mut"></span></div>
+   <ul id="problems" class="bad"></ul></div>
+  <div>
+   <div class="card" id="binpanel"><h2>Bin</h2><p class="mut">Click a bin in the grid.</p></div>
+   <div class="card"><h2>Grid</h2>
+    <div class="row"><label>columns<input id="cols" type="number" min="1"></label><label>rows<input id="rows" type="number" min="1"></label></div>
+    <div class="row" style="margin-top:6px"><label>origin X<input id="ox" type="number" step="0.1"></label><label>Y<input id="oy" type="number" step="0.1"></label></div>
+    <div class="row" style="margin-top:6px"><label>plate thickness mm<input id="pt" type="number" step="0.05"></label></div>
+    <p class="mut">Origin: printer X/Y of the grid's front-left corner. Rules: <b>DIN912_M4x16</b> (part number), <b>DIN912_M4</b> (class), <b>DIN912</b> (family), wildcards like <b>DIN912_M*</b> or <b>*</b>. The most specific rule wins.</p>
+   </div>
+  </div>
+ </div>
+</section>
+
+<section id="calib">
+ <div class="card"><h2>Camera to printer</h2>
+  <ol class="mut"><li>Put at least 3 bins (with markers) far apart on the bed, then <b>Take photo</b>.</li>
+  <li>Jog the picker tip until it touches the centre of one marker, then <b>Tip is here</b> on that marker's row.</li>
+  <li>Repeat for every marker (3 or more), then <b>Fit</b>. Errors under 0.5 mm are good.</li>
+  <li><b>Check</b> moves the tip 2 mm above a marker using the fitted calibration.</li></ol>
+  <div class="row"><button class="b p" onclick="calibPhoto()">Take photo</button><button class="b" onclick="calibFit()">Fit</button><button class="b" onclick="calibClear()">Forget points</button><span id="calmsg" class="mut"></span></div>
+ </div>
+ <div class="grid2">
+  <div class="card"><table id="markers"></table><h2 style="margin-top:14px">Recorded points</h2><table id="pairs"></table></div>
+  <div class="card"><h2>Jog the tip</h2>
+   <div class="row" style="margin-bottom:8px">step <select id="step"><option>0.1</option><option selected>1</option><option>10</option></select> mm</div>
+   <div class="row" style="gap:20px;align-items:flex-start">
+    <div class="jog"><span></span><button class="b" onclick="jog(0,1,0)">Y+</button><span></span><button class="b" onclick="jog(-1,0,0)">X−</button><span></span><button class="b" onclick="jog(1,0,0)">X+</button><span></span><button class="b" onclick="jog(0,-1,0)">Y−</button><span></span></div>
+    <div class="jog" style="grid-template-columns:52px"><button class="b" onclick="jog(0,0,1)">Z+</button><button class="b" onclick="jog(0,0,-1)">Z−</button></div>
+   </div>
+   <p>tip: <b id="tip">?</b> <button class="b" onclick="getTip()">read</button></p>
+   <p class="mut">The Y buttons move the tip over the bed; on a bed-slinger the bed itself moves.</p>
+  </div>
+ </div>
+ <div class="card"><img id="calshot" class="shot" alt=""></div>
+</section>
+
+<section id="print">
+ <div class="card"><h2>Printable files</h2>
+  <p>Everything for the current layout: <a href="api/print/all">screwpick_print.zip</a> (all bins, the baseplate, paper labels, notes) ·
+  <a href="api/print/baseplate">baseplate.stl</a> · <a href="api/print/labels">labels.svg</a></p>
+  <p class="mut">Bins come as 3MF with two parts: <b>bin</b> (white) and <b>marker</b> (black). Multi-colour printer: give each its filament. One extruder: print white and add a colour change at the rim height (height units × 7 mm, 21 mm for 3u), so only the raised marker cells come out black. STL = one colour (then glue a paper label on the shelf).</p>
+ </div>
+ <div class="card"><table id="printlist"></table></div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let S={},lay=null,sel=null,workStart=null,markers=[];
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");if(b.dataset.t!=="run")loadLayout();});
+async function api(path,body){const r=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j;}
+function flash(id,text,bad){$(id).textContent=text;$(id).className=bad?"bad":"mut";}
+async function cmd(c){try{const j=await api("api/command",{command:c,strategy:$("strategy").value});flash("msg",j.result);}catch(e){flash("msg",e.message,1);}poll();}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+let shown="";
+async function poll(){try{S=await api("api/state");}catch(e){$("status").textContent="no connection";return;}
+ const cls={running:"ok",done:"ok",error:"bad",stuck:"warn",paused:"warn"}[S.status]||"";
+ $("status").innerHTML=`<span class="${cls}">${esc(S.status)}</span> <span class="mut">${esc(S.driver==="sim"?"(simulated printer)":"")}</span>`;
+ $("msg").textContent=S.message; $("plan").textContent=S.plan||"";
+ const st=$("strategy"); if(!st.options.length){for(const[k,v]of Object.entries(S.strategies)){const o=document.createElement("option");o.value=k;o.textContent=v;st.appendChild(o);}st.value=S.strategy;}
+ if(S.shot&&S.shot!==shown){shown=S.shot;$("shot").src="runs/"+encodeURIComponent(S.shot);$("calshot").src=$("shot").src;}
+ const c=Object.entries(S.counts); $("counts").innerHTML=c.length?c.map(([m,n])=>`bin ${esc(m)}: <b>${n}</b>`).join(" · ")+` <span class="mut">(failed picks: ${S.failed_picks})</span>`:"nothing yet";
+ $("parts").innerHTML="<tr><th>class</th><th>length</th><th>score</th><th>free mm</th></tr>"+S.parts.filter(p=>p.in_work!==false).map(p=>`<tr><td>${esc(p.cls)}</td><td>${p.length??"–"}</td><td>${p.score}</td><td>${p.gap??"–"}</td></tr>`).join("");
+ $("events").textContent=S.events.slice().reverse().join("\n");
+ renderPairs(S.calib_pairs||[]);}
+setInterval(poll,1500);poll();
+
+// ---------------------------------------------------------------- layout
+const CELL=64;
+async function loadLayout(){try{const j=await api("api/layout");lay=j.layout;showProblems(j.problems);fillGridInputs();render();renderPrint();}catch(e){flash("laymsg",e.message,1);}}
+function fillGridInputs(){$("cols").value=lay.cols;$("rows").value=lay.rows;$("ox").value=lay.origin[0];$("oy").value=lay.origin[1];$("pt").value=lay.plate_thickness_mm;}
+["cols","rows","ox","oy","pt"].forEach(id=>$(id).onchange=()=>{lay.cols=+$("cols").value;lay.rows=+$("rows").value;lay.origin=[+$("ox").value,+$("oy").value];lay.plate_thickness_mm=+$("pt").value;render();});
+function showProblems(p){$("problems").innerHTML=(p||[]).map(x=>`<li>${esc(x)}</li>`).join("");}
+function mode(){return document.querySelector("input[name=mode]:checked").value;}
+function render(){const W=lay.cols*CELL,H=lay.rows*CELL,svg=$("grid");svg.setAttribute("viewBox",`-2 -2 ${W+4} ${H+4}`);
+ const Y=(y,d)=>H-(y+d)*CELL; let s="";
+ for(let x=0;x<lay.cols;x++)for(let y=0;y<lay.rows;y++)s+=`<rect x="${x*CELL}" y="${Y(y,1)}" width="${CELL}" height="${CELL}" fill="none" stroke="var(--line)" data-cx="${x}" data-cy="${y}" style="pointer-events:all"/>`;
+ const w=lay.work; s+=`<rect x="${w.x*CELL+2}" y="${Y(w.y,w.d)+2}" width="${w.w*CELL-4}" height="${w.d*CELL-4}" fill="var(--work)" rx="4" pointer-events="none"/><text x="${(w.x+w.w/2)*CELL}" y="${Y(w.y,w.d)+w.d*CELL/2}" text-anchor="middle">working area</text>`;
+ for(const b of lay.bins){const on=b.marker===sel;s+=`<g data-m="${b.marker}" style="cursor:pointer"><rect x="${b.x*CELL+3}" y="${Y(b.y,b.d)+3}" width="${b.w*CELL-6}" height="${b.d*CELL-6}" rx="5" fill="var(--bin)" stroke="${on?"var(--acc)":"var(--mut)"}" stroke-width="${on?3:1}"/>`+
+  `<text x="${b.x*CELL+8}" y="${Y(b.y,b.d)+18}">#${b.marker}${b.role!=="sort"?" "+esc(b.role):""}</text><text x="${b.x*CELL+8}" y="${Y(b.y,b.d)+34}" class="mut">${esc((b.label||b.holds.join(",")).slice(0,10*b.w))}</text></g>`;}
+ if(workStart)s+=`<rect x="${workStart[0]*CELL}" y="${Y(workStart[1],1)}" width="${CELL}" height="${CELL}" fill="none" stroke="var(--acc)" stroke-width="3"/>`;
+ svg.innerHTML=s;
+ svg.querySelectorAll("rect[data-cx]").forEach(r=>r.onclick=()=>cellClick(+r.dataset.cx,+r.dataset.cy));
+ svg.querySelectorAll("g[data-m]").forEach(g=>g.onclick=e=>{e.stopPropagation();if(mode()==="select"){sel=+g.dataset.m;render();panel();}});}
+function nextMarker(){const used=new Set(lay.bins.map(b=>b.marker));for(let m=100;m<250;m++)if(!used.has(m))return m;return null;}
+function cellClick(x,y){const m=mode();
+ if(m==="add"){const id=nextMarker();if(id===null)return;lay.bins.push({marker:id,x,y,w:+$("nw").value,d:+$("nd").value,height_u:+$("nu").value,holds:[],role:"sort",label:""});sel=id;render();panel();}
+ else if(m==="work"){if(!workStart){workStart=[x,y];render();}else{const[x0,y0]=workStart;lay.work={x:Math.min(x0,x),y:Math.min(y0,y),w:Math.abs(x-x0)+1,d:Math.abs(y-y0)+1};workStart=null;render();}}
+ else{sel=null;render();panel();}}
+function panel(){const b=lay.bins.find(b=>b.marker===sel),p=$("binpanel");
+ if(!b){p.innerHTML='<h2>Bin</h2><p class="mut">Click a bin in the grid.</p>';return;}
+ const roles=["sort","unknown","unsure","overflow","kit","all"];
+ p.innerHTML=`<h2>Bin #${b.marker}</h2>
+ <div class="row"><label>marker<input id="bm" type="number" min="100" max="249" value="${b.marker}"></label><label>role<select id="br">${roles.map(r=>`<option${r===b.role?" selected":""}>${r}</option>`).join("")}</select></label></div>
+ <p><label>holds<input id="bh" style="flex:1" value="${esc(b.holds.join(", "))}" placeholder="DIN912_M4, DIN934_M4"></label></p>
+ <p><label>label<input id="bl" style="flex:1" value="${esc(b.label)}"></label></p>
+ <div class="row"><label>w<input id="bw" type="number" min="1" value="${b.w}"></label><label>d<input id="bd" type="number" min="1" value="${b.d}"></label><label>height u<input id="bu" type="number" min="3" value="${b.height_u}"></label></div>
+ <div class="row" style="margin-top:10px"><button class="b" onclick="turnBin()">Turn 90°</button><button class="b" onclick="delBin()">Remove</button>
+ <a href="api/print/bin?marker=${b.marker}&fmt=3mf">3MF</a> <a href="api/print/bin?marker=${b.marker}&fmt=stl">STL</a></div>
+ <p class="mut">Role "sort" uses the rules in holds. "unknown", "unsure", "overflow", "all", "kit" catch what their name says.</p>`;
+ const upd=()=>{b.marker=+$("bm").value;b.role=$("br").value;b.holds=$("bh").value.split(",").map(s=>s.trim()).filter(Boolean);b.label=$("bl").value;b.w=+$("bw").value;b.d=+$("bd").value;b.height_u=+$("bu").value;sel=b.marker;render();};
+ ["bm","br","bh","bl","bw","bd","bu"].forEach(id=>$(id).onchange=upd);}
+function turnBin(){const b=lay.bins.find(b=>b.marker===sel);[b.w,b.d]=[b.d,b.w];render();panel();}
+function delBin(){lay.bins=lay.bins.filter(b=>b.marker!==sel);sel=null;render();panel();}
+async function saveLayout(){try{const j=await api("api/layout",{layout:lay});lay=j.layout;showProblems(j.problems);flash("laymsg",j.problems.length?"saved, but see the problems below":"saved");render();renderPrint();}catch(e){flash("laymsg",e.message,1);}}
+async function scan(){flash("laymsg","taking a photo…");try{const j=await api("api/scan",{});flash("laymsg",`found ${j.bins.length} bin(s)`);await loadLayout();showProblems(j.problems);}catch(e){flash("laymsg",e.message,1);}}
+function renderPrint(){$("printlist").innerHTML="<tr><th>bin</th><th>size</th><th>holds</th><th>files</th></tr>"+lay.bins.map(b=>`<tr><td>#${b.marker}</td><td>${b.w}×${b.d}×${b.height_u}u</td><td>${esc(b.label||b.holds.join(", ")||b.role)}</td><td><a href="api/print/bin?marker=${b.marker}&fmt=3mf">3MF</a> · <a href="api/print/bin?marker=${b.marker}&fmt=stl">STL</a></td></tr>`).join("");}
+
+// ---------------------------------------------------------------- calibration
+async function calibPhoto(){flash("calmsg","taking a photo…");try{const j=await api("api/calib/photo",{});markers=j.markers;renderMarkers();flash("calmsg",`${markers.length} marker(s) seen`);poll();}catch(e){flash("calmsg",e.message,1);}}
+function renderMarkers(){$("markers").innerHTML="<tr><th>marker</th><th>camera mm</th><th>printer (if calibrated)</th><th></th></tr>"+markers.map(m=>`<tr><td>#${m.marker}</td><td>${m.plate.join(", ")}</td><td>${m.bed?m.bed.join(", "):"–"}</td><td><button class="b" onclick="record(${m.marker})">Tip is here</button> <button class="b" onclick="goto_(${m.marker})">Check</button></td></tr>`).join("");}
+function renderPairs(p){$("pairs").innerHTML="<tr><th>marker</th><th>camera mm</th><th>printer mm</th></tr>"+p.map(x=>`<tr><td>#${x.marker}</td><td>${x.plate.join(", ")}</td><td>${x.bed.join(", ")}</td></tr>`).join("");}
+async function record(m){try{const j=await api("api/calib/record",{marker:m});renderPairs(j.pairs);flash("calmsg",`recorded marker ${m}`);}catch(e){flash("calmsg",e.message,1);}}
+async function calibFit(){try{const j=await api("api/calib/fit",{});flash("calmsg",`saved. errors (mm): ${j.residuals_mm.join(", ")}; rotation ${j.angle_deg}°, scale ${j.scale}`);}catch(e){flash("calmsg",e.message,1);}}
+async function calibClear(){await api("api/calib/clear",{});renderPairs([]);}
+async function goto_(m){try{const j=await api("api/calib/goto",{marker:m});$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
+async function jog(x,y,z){const s=+$("step").value;try{const j=await api("api/jog",{dx:x*s,dy:y*s,dz:z*s});$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
+async function getTip(){try{const j=await api("api/tip");$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
+</script></body></html>
