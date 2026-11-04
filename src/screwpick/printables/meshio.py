@@ -95,9 +95,14 @@ def threemf_plate_bytes(
     )
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("[Content_Types].xml", _CONTENT_TYPES)
-        z.writestr("_rels/.rels", _RELS)
-        z.writestr("3D/3dmodel.model", model)
+        for name, data in (
+            ("[Content_Types].xml", _CONTENT_TYPES),
+            ("_rels/.rels", _RELS),
+            ("3D/3dmodel.model", model),
+        ):
+            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))  # same file every time
+            info.compress_type = zipfile.ZIP_DEFLATED
+            z.writestr(info, data)
     return buf.getvalue()
 
 

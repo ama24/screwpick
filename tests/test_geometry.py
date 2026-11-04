@@ -42,21 +42,26 @@ def test_fit_rejects_a_mirror_and_reports_residuals(tmp_path):
 def test_layout_default_is_valid_and_round_trips(tmp_path):
     lay = Layout.default()
     assert lay.problems() == []
-    assert len(lay.bins) == 16
+    assert len(lay.bins) == 17  # 16 around the 3x3 tray (the plate)
+    assert lay.work_bin().marker == 220 and lay.work_bin().role == "work"
     lay.save(tmp_path / "layout.yaml")
     again = Layout.load(tmp_path / "layout.yaml")
     assert again.to_dict() == lay.to_dict()
-    assert lay.work_rect() == (5 + 42, 5 + 42, 5 + 4 * 42, 5 + 4 * 42)
+    inset = 0.25 + 1.2  # half the gap between bins, the tray's wall
+    x0, y0, x1, y1 = lay.work_rect()
+    assert (x0, y0, x1) == pytest.approx((47 + inset, 47 + inset, 173 - inset))
+    assert y1 == pytest.approx(173 - inset - 14.0)  # the marker shelf at the back is not plate
+    assert lay.surface_z() == pytest.approx(4.75 + 1.25 + 1.75)  # tray floor + TPU sheet
     assert lay.in_work((110, 110)) and not lay.in_work((20, 20))
 
 
 def test_layout_problems():
     lay = Layout.default()
-    lay.bins.append(Bin(marker=100, x=2, y=2))  # duplicate marker, inside the working area
+    lay.bins.append(Bin(marker=100, x=2, y=2))  # duplicate marker, on the plate tray
     lay.bins.append(Bin(marker=300, x=9, y=0))  # bad id, off the grid
     lay.bins.append(Bin(marker=200, x=4, y=4, height_u=2, role="nope"))
     text = " | ".join(lay.problems())
-    assert "used twice" in text and "overlaps the working area" in text
+    assert "used twice" in text and "overlaps bin 220" in text
     assert "outside the 5x5 grid" in text and "marker ids are" in text
     assert "height units" in text and "unknown role" in text
 
@@ -70,8 +75,8 @@ def test_place_from_marker_snaps_to_cells_and_turns():
     b.w, b.d = 2, 1
     nb = lay.place_from_marker(100, (5 + 42 * 3.5, 5 + 42 * 1.0), yaw_deg=91.0)
     assert (nb.w, nb.d) == (1, 2) and (nb.x, nb.y) == (3, 0)
-    new = lay.place_from_marker(222, (5 + 21, 5 + 21), yaw_deg=0)
-    assert lay.bin_by_marker(222) is new and (new.x, new.y) == (0, 0)
+    new = lay.place_from_marker(245, (5 + 21, 5 + 21), yaw_deg=0)  # a free id: 1x1
+    assert lay.bin_by_marker(245) is new and (new.x, new.y) == (0, 0)
     assert yaw_from_up((0.0, 1.0)) == pytest.approx(0.0)
     assert yaw_from_up((-1.0, 0.0)) == pytest.approx(90.0)
 

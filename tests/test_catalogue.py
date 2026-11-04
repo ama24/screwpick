@@ -24,11 +24,16 @@ def test_size_ranges():
     for s in binspec.SIZES:
         assert not seen & set(s.markers), f"{s.name} overlaps another size"
         seen |= set(s.markers)
-    assert seen == set(range(100, 220))
+    assert seen == set(range(100, 240))
+    assert (
+        binspec.size_for_marker(225).name == "3x3x3u"
+        and binspec.size_for_marker(235).name == "4x4x3u"
+    )
     assert binspec.size_for_marker(105).name == "1x1x3u"
     assert binspec.size_for_marker(185).name == "1x2x6u"
-    assert binspec.size_for_marker(230) is None
-    assert all(binspec.size_for_marker(b.marker).name == "1x1x3u" for b in Layout.default().bins)
+    assert binspec.size_for_marker(245) is None
+    names = [binspec.size_for_marker(b.marker).name for b in Layout.default().bins]
+    assert names == ["1x1x3u"] * 16 + ["3x3x3u"]  # 16 sorting bins around the plate tray
 
 
 def test_new_bins_get_their_size_from_the_marker():

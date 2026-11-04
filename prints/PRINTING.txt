@@ -15,10 +15,13 @@ The code number tells screwpick the bin's size:
   160-179: 1x1x6u   storage: small parts
   180-199: 1x2x6u   storage: long parts
   200-219: 2x2x6u   storage: large quantities
-  220-249: any other size (set it in the layout)
+  220-229: 3x3x3u   plate: the tray parts are thrown into
+  230-239: 4x4x3u   plate: a large tray for big jobs
+  240-249: any other size (set it in the layout)
 
-Baseplate: Gridfinity baseplate with the working area cut out and a lip around it. Lay the TPU
-plate inside the cut-out. The slim one is 2.5 mm thin (the standard one 4.65 mm); bins stand on
-the bed in both. A 5 x 5 baseplate is 210 x 210 mm: it fits an Ender 3 bed.
+Baseplate: a plain Gridfinity grid, any size and anywhere on the bed (Resync finds it). The
+slim one is 2.5 mm thin (the standard one 4.65 mm); bins stand on the bed in both. 5 x 5 is
+210 x 210 mm: the most an Ender 3 bed takes. The plate is a tray bin (3x3 or 4x4) on the grid:
+lay a TPU sheet cut to its floor inside; the parts are thrown in there.
 
 Labels: print at 100 % (no "fit to page"); every black cell must measure 1.6 mm.

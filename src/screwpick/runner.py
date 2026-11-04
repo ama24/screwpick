@@ -343,11 +343,13 @@ class Runner:
                 if added:
                     self.note(f"new bins seen, used as wild bins: {', '.join(map(str, added))}")
             if run.only_seen_bins:
-                missing = sorted(b.marker for b in layout.bins if b.marker not in seen)
+                # the plate stays even when a part lies on its code: it is never a target
+                keep = seen | ({layout.work_marker} if layout.work_marker is not None else set())
+                missing = sorted(b.marker for b in layout.bins if b.marker not in keep)
                 if missing:
                     self.note(f"bins not seen by the camera, not used: {missing}")
-                layout.bins = [b for b in layout.bins if b.marker in seen]
-                if not layout.bins:
+                layout.bins = [b for b in layout.bins if b.marker in keep]
+                if not [b for b in layout.bins if b.role != "work"]:
                     raise PrinterError("the camera sees no bins (markers covered or dirty?)")
         problems = layout.problems()
         if problems:
@@ -547,7 +549,7 @@ class Runner:
         with self._lock:
             pos = self.printer.status(None).position
             self.motion.tip = None
-        offset_z = round(layout.plate_thickness_mm - pos[2], 3)
+        offset_z = round(layout.surface_z() - pos[2], 3)
         p = self.m.path(self.m.paths.tool)
         assert p is not None
         write_json(
@@ -596,7 +598,7 @@ class Runner:
         p, b = plan.part, plan.bin
         assert p is not None and b is not None
         pk = self.m.picker
-        surface = layout.plate_thickness_mm
+        surface = layout.surface_z()
         if pk.mode == "gripper":
             z = surface + p.top_mm * pk.grip_height
         else:
@@ -710,15 +712,21 @@ class Runner:
         with self._lock:
             self.motion.preflight(home=False)
         shot = self.take_shot(layout, T)
-        moved = self._place_bins(layout, shot, T)
+        report = layout.resync(self._seen_bins(layout, shot, T))
         layout.save(self.layout_path)
-        self.note(f"scanned bins: {len(moved)} marker(s) seen")
+        wb = layout.work_bin()
+        plate = f"bin {wb.marker} ({wb.w}x{wb.d})" if wb else "none"
+        self.note(
+            f"resync: {len(report['found'])} bin(s), grid at {report['origin']}, plate {plate}"
+            + (f", not seen: {report['removed']}" if report["removed"] else "")
+        )
         problems = layout.problems()
-        if moved and not problems:
-            self.setup.mark("layout", f"{len(moved)} bins found")
+        if report["found"] and wb is not None and not problems:
+            self.setup.mark("layout", f"{len(report['found'])} bins, plate {wb.marker}")
         else:
             self.setup.reset("layout")
-        return {"bins": moved, "problems": problems}
+        bins = [{"marker": b.marker, "x": b.x, "y": b.y, "rot": b.rot} for b in layout.bins]
+        return {**report, "bins": bins, "problems": problems}
 
     # ------------------------------------------------------------------ the Setup tab
     MACHINE_KEYS = ("photo_position", "travel_z", "limits_x", "limits_y", "limits_z")
@@ -899,23 +907,33 @@ class Runner:
     def _place_bins(self, layout: Layout, shot: Shot, T: Transform2D) -> list[dict[str, Any]]:
         """Move every bin whose marker is in the photo to where it is; unknown markers become new
         wild bins."""
-        from .binspec import marker_offset_mm
-
         moved = []
+        for marker, centre, yaw in self._seen_bins(layout, shot, T):
+            known = layout.bin_by_marker(marker) is not None
+            nb = layout.place_from_marker(marker, centre, yaw)
+            moved.append({"marker": marker, "x": nb.x, "y": nb.y, "rot": nb.rot, "new": not known})
+        return moved
+
+    def _seen_bins(
+        self, layout: Layout, shot: Shot, T: Transform2D
+    ) -> list[tuple[int, tuple[float, float], float]]:
+        """(marker, bin centre, yaw) in printer X/Y for every bin marker in the photo."""
+        from .binspec import marker_offset_mm, size_for_marker
+
+        out = []
         for mk in shot.markers:
             up_bed = T.rotate_angle(mk.up_deg)
             yaw = yaw_from_up((math.cos(math.radians(up_bed)), math.sin(math.radians(up_bed))))
-            b = layout.bin_by_marker(mk.marker)
-            d = b.d if b is not None else 1
-            ox, oy = marker_offset_mm(d)
+            b = layout.bin_by_marker(mk.marker) or next(
+                (a for a in layout.away if a.marker == mk.marker), None
+            )
+            size = size_for_marker(mk.marker)
+            depth = b.own_size()[1] if b is not None else (size.d if size else 1)
+            ox, oy = marker_offset_mm(depth)
             c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
             mx, my = (float(v) for v in T.apply(np.asarray(mk.centre)))
-            centre = (mx - (c * ox - s * oy), my - (s * ox + c * oy))
-            nb = layout.place_from_marker(mk.marker, centre, yaw)
-            moved.append(
-                {"marker": mk.marker, "x": nb.x, "y": nb.y, "yaw": round(yaw, 1), "new": b is None}
-            )
-        return moved
+            out.append((mk.marker, (mx - (c * ox - s * oy), my - (s * ox + c * oy)), yaw))
+        return out
 
     # ------------------------------------------------------------------ wild bins
     @property

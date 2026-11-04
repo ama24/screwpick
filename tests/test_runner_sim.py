@@ -134,7 +134,7 @@ def test_web_api(machine, layout):
         state = json.loads(get("/api/state")[0])
         assert state["status"] == "idle" and "sort" in state["strategies"]
         lay = json.loads(get("/api/layout")[0])
-        assert lay["problems"] == [] and len(lay["layout"]["bins"]) == 16
+        assert lay["problems"] == [] and len(lay["layout"]["bins"]) == 17
         lay["layout"]["bins"][0]["holds"] = ["DIN933*"]
         saved = post("/api/layout", lay)
         assert saved["layout"]["bins"][0]["holds"] == ["DIN933*"]

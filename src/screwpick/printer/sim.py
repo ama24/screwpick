@@ -63,7 +63,7 @@ class SimWorld:
         rng = random.Random(self.seed if seed is None else seed)
         self.parts.clear()
         self.dropped.clear()
-        self.plate_thickness = layout.plate_thickness_mm
+        self.plate_thickness = layout.surface_z()  # where the parts lie (printer Z)
         self.layout = layout
         x0, y0, x1, y1 = layout.work_rect()
         m = 12.0
@@ -234,16 +234,13 @@ class SimVision:
                 )
             )
         markers = []
-        for b in lay.bins:
-            from ..binspec import marker_offset_mm
-
-            cx, cy = lay.bin_centre(b)
-            ox, oy = marker_offset_mm(b.d)
+        for b in lay.bins:  # each code where its bin's shelf is, its top edge towards the shelf
+            mx, my = lay.marker_centre(b)
             markers.append(
                 MarkerPose(
                     b.marker,
-                    tuple(float(v) for v in Ti.apply([cx + ox, cy + oy])),
-                    (90.0 - T.angle_deg) % 360.0,
+                    tuple(float(v) for v in Ti.apply([mx, my])),
+                    (90.0 + b.rot - T.angle_deg) % 360.0,
                 )
             )
         shot = Shot(name, parts, markers)
@@ -266,8 +263,6 @@ class SimVision:
         def px(x: float, y: float) -> tuple[int, int]:
             return int(x * s), int((H - y) * s)  # printer Y up in the picture
 
-        x0, y0, x1, y1 = lay.work_rect()
-        cv2.rectangle(img, px(x0, y0), px(x1, y1), (244, 242, 237), -1)
         for b in lay.bins:
             bx0, by0, bx1, by1 = lay.cells_rect(b.x, b.y, b.w, b.d)
             cv2.rectangle(img, px(bx0 + 2, by0 + 2), px(bx1 - 2, by1 - 2), (255, 255, 255), -1)
@@ -285,6 +280,8 @@ class SimVision:
                 1,
                 cv2.LINE_AA,
             )
+        x0, y0, x1, y1 = lay.work_rect()
+        cv2.rectangle(img, px(x0, y0), px(x1, y1), (244, 242, 237), -1)
         for sp in plate:
             poly = np.array([px(*p) for p in _rect(sp.x, sp.y, sp.size[0], sp.size[1], sp.angle)])
             colour = (201, 163, 184) if sp.cls == "UNKNOWN" else (176, 169, 143)

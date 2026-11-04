@@ -34,6 +34,7 @@ class BinSize:
     height_u: int
     markers: range  # every bin of this size carries one of these ids: its size is known
     use: str
+    in_catalogue: int | None = None  # how many go into prints/ (None: the whole range)
 
     @property
     def name(self) -> str:
@@ -41,13 +42,16 @@ class BinSize:
 
 
 # Fixed marker ranges per size: the camera knows a new bin's size (and its rim height, for the
-# drop) from its marker alone. 220-249 are free for other sizes, set in the layout by hand.
+# drop) from its marker alone. 240-249 are free for other sizes, set in the layout by hand.
+# Trays (3x3, 4x4) are the plate: the bin the parts are thrown into.
 SIZES = (
     BinSize(1, 1, 3, range(100, 140), "sorting: one part number on the printer bed"),
     BinSize(1, 2, 3, range(140, 160), "sorting: long screws, threaded rod, brackets"),
     BinSize(1, 1, 6, range(160, 180), "storage: small parts"),
     BinSize(1, 2, 6, range(180, 200), "storage: long parts"),
     BinSize(2, 2, 6, range(200, 220), "storage: large quantities"),
+    BinSize(3, 3, 3, range(220, 230), "plate: the tray parts are thrown into", 2),
+    BinSize(4, 4, 3, range(230, 240), "plate: a large tray for big jobs", 2),
 )
 
 

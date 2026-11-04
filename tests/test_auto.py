@@ -105,7 +105,7 @@ def test_tip_touches_plate(machine):
     runner, world, printer, lay = make(machine, n=0)
     printer.gcode("G28\nG1 X100 Y100 Z3.2")
     res = runner.tip_touches_plate()
-    assert res["offset_z"] == round(lay.plate_thickness_mm - 3.2, 3)
+    assert res["offset_z"] == round(lay.surface_z() - 3.2, 3)  # tray floor + TPU sheet
     assert machine.tool.offset[2] == res["offset_z"]
     machine.tool.offset[2] = 0.0
     again, _, _, _ = make(machine, n=0)  # read back at start
