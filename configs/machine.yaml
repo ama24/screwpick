@@ -10,6 +10,8 @@ paths:
   layout: ../data/layout.yaml  # bins and working area (edit in the web page)
   transform: ../data/bed_transform.json   # camera -> printer calibration (Calibrate tab)
   runs: ../runs                # photos of every cycle
+  claims: ../data/wild_bins.json  # what each wild bin collects (kept across runs)
+  users: ../data/users.json    # web page accounts (the first visit creates one)
 
 camera:
   settings: null               # screwrig lock settings json (locked focus/exposure); null: rpicam-still
@@ -52,6 +54,8 @@ run:
   failed_radius_mm: 4.0
   work_margin_mm: 3.0
   keep_photos: 300
+  scan_bins_on_start: true     # find the bins with the camera when a run starts (new markers = wild bins)
+  only_seen_bins: true         # use only the bins the camera sees in that first photo
   shake:
     enabled: true              # shake the bed to spread clumps when nothing can be picked
     axis: Y                    # Y for bed-slingers (Ender 3, Prusa MK3)
@@ -68,3 +72,5 @@ models:
 
 web:
   port: 8080
+  require_login: true          # user name + password for the page (false: open to the whole network)
+  session_days: 30             # stay logged in this long per browser
