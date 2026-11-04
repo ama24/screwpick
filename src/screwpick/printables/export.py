@@ -206,6 +206,10 @@ def catalogue(out: Path, log: Callable[[str], None] = print) -> list[Path]:
         written.append(path)
         log(f"{rel} ({len(data) / 1e6:.2f} MB)")
 
+    from .mounts import mount_files
+
+    for name, data in mount_files():  # screen holder and camera arm for the top bar
+        put(f"mounts/{name}", data)
     for size in SIZES:
         cols, rows = plate_grid(size)
         per = cols * rows

@@ -203,6 +203,11 @@ ul.plain{margin:8px 0 0;padding-left:18px}
    <tr><td><b>Prusa MK3 / MK3S</b> <span class="note">steel sheet 254 × 241 mm, 4 pieces, back 10 mm free for the pins</span></td><td><a href="api/print/baseplate?bed=mk3&kind=slim">slim</a> · <a href="api/print/baseplate?bed=mk3&kind=standard">standard</a></td></tr>
   </table>
  </div>
+ <div class="card"><h2>Holders for the top bar</h2>
+  <p class="note">A screen holder (7" Waveshare HDMI LCD (H), the Pi 4 on its back) and a camera arm (Camera Module 3, lens straight down at the bed's centre with the bed all the way out), both on the printer's 2020 top bar with M5 T-nuts. Measure your printer: <b>reach</b> = from the bar's front face forward to the plate's centre, bed out; <b>bar height</b> = from the bar's underside down to the plate (the lens goes 300 mm above the plate).</p>
+  <div class="row"><label>reach<input id="mreach" type="number" value="135">mm</label><label>bar height<input id="mbar" type="number" placeholder="364">mm</label><label>screen tilt<input id="mtilt" type="number" value="20">°</label>
+  <button class="b p s" onclick="location.href=`api/print/mounts?reach=${$('mreach').value}&tilt=${$('mtilt').value}`+($('mbar').value?`&bar_height=${$('mbar').value}`:'')">Download</button></div>
+ </div>
  <div class="card"><h2>This layout</h2>
   <p>Everything for the bins in the layout: <a href="api/print/all">screwpick_print.zip</a> · <a href="api/print/labels">paper labels</a></p>
   <table id="printlist"></table>

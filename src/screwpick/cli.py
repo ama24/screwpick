@@ -7,6 +7,7 @@ screwpick check              is everything there? (config, layout, calibration, 
 screwpick user add NAME      page account (new user or new password); user remove / list
 screwpick print bin|baseplate|labels|all    write printable files
 screwpick print catalogue --out prints      every bin size as full build plates, baseplates, labels
+screwpick print mounts --reach 135 --bar-height 364   screen holder + camera arm for the top bar
 """
 
 from __future__ import annotations
@@ -243,6 +244,13 @@ def cmd_print(args: argparse.Namespace) -> int:
         files += export.bed_baseplate_files(args.bed, not args.standard, lay.cols, lay.rows)
     elif args.what == "baseplate":
         files.append(export.baseplate_file(lay, args.lip, slim=not args.standard))
+    elif args.what == "mounts":  # screen holder and camera arm for the printer's top bar
+        from .printables.mounts import CameraArm, ScreenHolder, drop_for, mount_files
+
+        arm = CameraArm(reach=args.reach)
+        if args.bar_height is not None:
+            arm.drop = drop_for(args.bar_height, args.lens_height, arm)
+        files += mount_files(ScreenHolder(tilt_deg=args.tilt), arm)
     elif args.what == "catalogue":  # the ready-made set (prints/ in the repository)
         export.catalogue(out)
         return 0
@@ -295,7 +303,15 @@ def main(argv: list[str] | None = None) -> int:
     u.add_argument("name", nargs="?", default="")
     u.set_defaults(func=cmd_user)
     p = sub.add_parser("print", help="write printable bins, baseplate or labels")
-    p.add_argument("what", choices=["bin", "baseplate", "labels", "all", "catalogue"])
+    p.add_argument("what", choices=["bin", "baseplate", "labels", "all", "catalogue", "mounts"])
+    p.add_argument(
+        "--reach", type=float, default=135.0, help="mounts: bar front face to plate centre, bed out"
+    )
+    p.add_argument(
+        "--bar-height", type=float, default=None, help="mounts: bar underside above the plate"
+    )
+    p.add_argument("--lens-height", type=float, default=300.0, help="mounts: lens above the plate")
+    p.add_argument("--tilt", type=float, default=20.0, help="mounts: screen leans back (deg)")
     p.add_argument(
         "--marker", type=int, action="append", help="bin marker id (repeat; default: every bin)"
     )

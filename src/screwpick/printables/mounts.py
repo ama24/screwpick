@@ -1,0 +1,263 @@
+"""Holders on the printer's top bar (Ender 3: a 2020 aluminium profile), fixed with M5 screws
+and T-nuts:
+
+- screen holder: a thin L. Its foot sits on the bar (2 screws in the top slot), its upright
+  leans back so the 7" display (Waveshare 7inch HDMI LCD (H): case 191 x 115 mm, M2 holes
+  175 x 99 mm, 8 mm from the edges) faces the user; the Raspberry Pi 4 screws to the middle
+  strip (M2.5 holes 49 x 58 mm).
+- camera arm: a plate on the bar's front face (2 screws in the front slot, at the bar's centre),
+  an arm reaching forward over the bed and a post down to the Camera Module 3 (M2 holes 21 x
+  12.5 mm, as on the Camera Module 2), lens straight down at the bed's centre when the bed is
+  all the way out (where a print ends: the photo position).
+
+Every size is a parameter: measure your printer and set them (prints/mounts/README.md).
+Both are built where they sit on the printer: x along the bar, y towards the back (the bar's
+front face at y = 0), z up (the bar's top at z = 0); then turned to print flat, no supports.
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+
+import numpy as np
+from manifold3d import Manifold
+
+from .gridfinity import _box, _frustum, _to_mesh, _union
+from .meshio import Mesh
+
+SEG = 24
+
+
+def _cyl_z(r: float, z0: float, z1: float, x: float, y: float) -> Manifold:
+    return Manifold.cylinder(z1 - z0, r, r, SEG).translate([x, y, z0])
+
+
+def _cyl_y(r: float, y0: float, y1: float, x: float, z: float) -> Manifold:
+    """A cylinder along y from y0 to y1 at (x, z)."""
+    return Manifold.cylinder(y1 - y0, r, r, SEG).rotate([-90, 0, 0]).translate([x, y0, z])
+
+
+def _to_bed(body: Manifold) -> Mesh:
+    lo = np.array(body.bounding_box()[:3])
+    return _to_mesh(body.translate([-lo[0], -lo[1], -lo[2]]))
+
+
+# ---------------------------------------------------------------------- screen holder
+@dataclass
+class ScreenHolder:
+    screen_w: float = 191.0  # display case outline
+    screen_h: float = 115.0
+    screen_r: float = 5.0  # case corner radius
+    hole_dx: float = 175.0  # M2 holes, centre to centre
+    hole_dy: float = 99.0
+    hole_d: float = 2.4  # M2 clearance
+    pi_dx: float = 49.0  # Raspberry Pi 4 holes (M2.5), the Pi upright: 49 across, 58 up
+    pi_dy: float = 58.0
+    pi_hole_d: float = 2.8
+    tilt_deg: float = 20.0  # the screen leans back this much: it faces the user, a little up
+    thickness: float = 3.0
+    border: float = 16.0  # frame around the two windows
+    centre_bar: float = 62.0  # the middle strip carrying the Pi
+    foot_len: float = 60.0  # along the bar
+    foot_depth: float = 20.0  # the bar's top face (2020)
+    foot_hole_dx: float = 40.0  # 2 x M5 into the top slot, this far apart
+    foot_hole_d: float = 5.4
+    gusset: float = 18.0
+
+
+def build_screen_holder(p: ScreenHolder | None = None) -> Mesh:
+    """Print orientation: the face the screen screws to lies on the bed."""
+    return _to_bed(
+        _screen_holder_installed(p or ScreenHolder()).rotate(
+            [90 + (p or ScreenHolder()).tilt_deg, 0, 0]
+        )
+    )
+
+
+def _screen_holder_installed(p: ScreenHolder) -> Manifold:
+    t = p.thickness
+    # the upright, standing: x across, z up, front face (screen side) at y = -t, back at y = 0
+    plate = _frustum(
+        [(p.screen_w, p.screen_h, p.screen_r, -t), (p.screen_w, p.screen_h, p.screen_r, 0.0)],
+        0.0,
+        p.screen_h / 2,
+    ).rotate([90, 0, 0])  # the slab (x, y, z) -> (x, -z, y): y in [0, t] becomes z... see below
+    # rotate([90,0,0]) maps (y, z) -> (-z, y): the slab z in [-t, 0] lands at y in [0, t] and its
+    # height (old y) becomes z; mirror it to y in [-t, 0] so the back face is y = 0
+    plate = plate.mirror([0, 1, 0])
+    half_in = p.screen_w / 2 - p.border
+    cut = [
+        _box(-half_in, -p.centre_bar / 2, -t - 1, 1, p.border, p.screen_h - p.border),
+        _box(p.centre_bar / 2, half_in, -t - 1, 1, p.border, p.screen_h - p.border),
+    ]
+    for sx in (-1, 1):
+        for z in ((p.screen_h - p.hole_dy) / 2, (p.screen_h + p.hole_dy) / 2):
+            cut.append(_cyl_y(p.hole_d / 2, -t - 1, 1, sx * p.hole_dx / 2, z))
+        for z in (p.screen_h / 2 - p.pi_dy / 2, p.screen_h / 2 + p.pi_dy / 2):
+            cut.append(_cyl_y(p.pi_hole_d / 2, -t - 1, 1, sx * p.pi_dx / 2, z))
+    plate = (plate - _union(cut)).rotate([-p.tilt_deg, 0, 0])  # lean back about the bottom edge
+    # the foot on the bar's top (z = 0), from the front face (y = 0) backwards
+    foot = _frustum(
+        [(p.foot_len, p.foot_depth, 4.0, 0.0), (p.foot_len, p.foot_depth, 4.0, t)],
+        0.0,
+        p.foot_depth / 2,
+    ) - _union(
+        [
+            _cyl_z(p.foot_hole_d / 2, -1, t + 1, sx * p.foot_hole_dx / 2, p.foot_depth / 2)
+            for sx in (-1, 1)
+        ]
+    )
+    joint = _box(-p.foot_len / 2, p.foot_len / 2, -t, 1.0, 0.0, t)
+    # gussets between the foot and the leaning plate, beside the Pi strip
+    s, c = math.sin(math.radians(p.tilt_deg)), math.cos(math.radians(p.tilt_deg))
+    gussets = []
+    for sx in (-1, 1):
+        x = sx * (p.centre_bar / 2 + 3.0)
+        pts = []
+        for dx in (-t / 2, t / 2):
+            pts += [(x + dx, -1.0, t * 0.5), (x + dx, p.gusset, t * 0.9)]
+            pts += [(x + dx, p.gusset * s - 1.0, p.gusset * c)]  # up the plate's back
+        gussets.append(Manifold.hull_points(np.array(pts)))
+    return plate + foot + joint + _union(gussets)
+
+
+# ---------------------------------------------------------------------- camera arm
+@dataclass
+class CameraArm:
+    reach: float = 135.0  # bar front face -> lens, horizontally (measure with the bed out)
+    drop: float = 60.0  # the camera plate this far below the bar's underside (lens ~300 mm up)
+    bar: float = 20.0  # 2020 profile: front face height
+    plate_w: float = 50.0
+    plate_t: float = 6.0
+    screw_dx: float = 30.0  # 2 x M5 in the front slot, at the bar's centre, this far apart
+    screw_d: float = 5.4
+    arm_w: float = 16.0
+    cam_w: float = 25.0  # Camera Module 3 board (same as Camera Module 2)
+    cam_h: float = 23.86
+    cam_hole_dx: float = 21.0
+    cam_hole_rows: tuple[float, float] = (2.0, 14.5)  # from the cable edge
+    lens_from_cable_edge: float = 14.5  # the lens is about on the second row
+    cable_gap: float = 4.0  # room for the flat cable to bend up along the post
+    boss_h: float = 4.0  # room for the parts on the board's back
+    boss_d: float = 5.0
+    pilot_d: float = 1.8  # M2 screws cut their own thread
+
+
+def build_camera_arm(p: CameraArm | None = None) -> Mesh:
+    """Print orientation: upside down (the top of the arm and of the mounting plate on the
+    bed); the post and the camera plate grow upwards, no supports."""
+    return _to_bed(_camera_arm_installed(p or CameraArm()).rotate([180, 0, 0]))
+
+
+def _camera_arm_installed(p: CameraArm) -> Manifold:
+    b = p.bar
+    mount = _box(-p.plate_w / 2, p.plate_w / 2, -p.plate_t, 0.0, -b, 0.0) - _union(
+        [_cyl_y(p.screw_d / 2, -p.plate_t - 1, 1, sx * p.screw_dx / 2, -b / 2) for sx in (-1, 1)]
+    )
+    edge_y = -p.reach + p.lens_from_cable_edge  # the board's cable edge (towards the bar)
+    post_y0 = edge_y + p.cable_gap
+    post_y1 = post_y0 + p.arm_w
+    arm = _box(-p.arm_w / 2, p.arm_w / 2, post_y0, -p.plate_t + 0.01, -b, 0.0)
+    gussets = [
+        Manifold.hull_points(
+            np.array(
+                [(sx * p.arm_w / 2, -p.plate_t + 0.01, z) for z in (-b, 0.0)]
+                + [(sx * p.plate_w * 0.4, -p.plate_t + 0.01, z) for z in (-b, 0.0)]
+                + [(sx * p.arm_w / 2, -p.plate_t - 22.0, z) for z in (-b, 0.0)]
+            )
+        )
+        for sx in (-1, 1)
+    ]
+    z_cam = -b - p.drop  # underside of the camera plate (the bosses hang below it)
+    cam_plate_w = p.cam_w + 8.0
+    cam_y0, cam_y1 = edge_y - p.cam_h - 3.0, post_y1
+    rise = max((cam_plate_w - p.arm_w) / 2, (post_y0 - cam_y0)) + 1.0  # flare at <= 45 deg
+    post = _box(-p.arm_w / 2, p.arm_w / 2, post_y0, post_y1, z_cam + 3.0, -b + 0.01)
+    flare = Manifold.hull_points(
+        np.array(
+            [
+                (x, y, z_cam + 3.0)
+                for x in (-cam_plate_w / 2, cam_plate_w / 2)
+                for y in (cam_y0, cam_y1)
+            ]
+            + [
+                (x, y, min(z_cam + 3.0 + rise, -b))
+                for x in (-p.arm_w / 2, p.arm_w / 2)
+                for y in (post_y0, post_y1)
+            ]
+        )
+    )
+    cam_plate = _box(-cam_plate_w / 2, cam_plate_w / 2, cam_y0, cam_y1, z_cam, z_cam + 3.0)
+    bosses, pilots = [], []
+    for sx in (-1, 1):
+        for row in p.cam_hole_rows:
+            x, y = sx * p.cam_hole_dx / 2, edge_y - row
+            bosses.append(_cyl_z(p.boss_d / 2, z_cam - p.boss_h, z_cam + 0.01, x, y))
+            pilots.append(_cyl_z(p.pilot_d / 2, z_cam - p.boss_h - 1, z_cam + 2.0, x, y))
+    return _union([mount, arm, *gussets, post, flare, cam_plate, *bosses]) - _union(pilots)
+
+
+def lens_position(p: CameraArm | None = None) -> tuple[float, float, float]:
+    """Installed: (x, y, z) of the lens centre, at the board's front (bar top = 0)."""
+    p = p or CameraArm()
+    return 0.0, -p.reach, -p.bar - p.drop - p.boss_h
+
+
+def drop_for(
+    bar_underside_above_plate: float, lens_height: float = 300.0, p: CameraArm | None = None
+) -> float:
+    """The `drop` that puts the lens `lens_height` above the plate (the scale the model was
+    trained at: about 300 mm), given the measured height of the bar's underside."""
+    p = p or CameraArm()
+    drop = bar_underside_above_plate - lens_height - p.boss_h
+    if drop < 0:
+        raise ValueError(
+            f"the bar is only {bar_underside_above_plate:g} mm above the plate: the lens cannot be "
+            f"{lens_height:g} mm up (set scenegen.nominal_camera.height_mm to the real height)"
+        )
+    return round(drop, 1)
+
+
+MOUNT_NOTES = """screwpick holders for the printer's top bar
+============================================
+
+Both fix to the top bar (Ender 3: a 2020 aluminium profile) with M5 screws and T-nuts (drop-in
+T-nuts go in without taking the printer apart). Print in PETG or PLA, 0.2 mm layers, 4 walls,
+30 % infill, lying as the files are; no supports.
+
+screen_holder.stl: a thin L for the Waveshare 7inch HDMI LCD (H) (case 191 x 115 mm, four M2
+  holes 175 x 99 mm, 8 mm from the edges): M2 x 6 screws from the back into the case.
+  The Raspberry Pi 4 screws to the middle strip, on the back (M2.5 standoffs, holes 49 x 58 mm).
+  The foot sits on top of the bar: 2 x M5 x 8 into the top slot. The screen leans back
+  {tilt:g} degrees, so it faces you. Put it on one side of the bar; the camera is in the middle.
+
+camera_arm.stl: the plate goes on the bar's front face, at the bar's centre: 2 x M5 x 10 into
+  the front slot. The arm reaches {reach:g} mm forward and the post goes {drop:g} mm down: the
+  lens is then over the bed's centre with the bed all the way out (where a print ends, the
+  photo position), {lens:g} mm below the bar's top. The Camera Module 3 screws on with
+  4 x M2 x 6 (they cut their own thread), lens down, the flat cable towards the post.
+
+Your printer differs? Measure and make your own (web page: Print bins; or
+screwpick print mounts --help):
+  reach:      with the bed all the way out, from the front face of the top bar straight
+              forward to the centre of the plate (where the parts lie).
+  bar height: from the underside of the top bar down to the plate. The camera is placed
+              300 mm above the plate, the height the model was trained for (about 11.7 px/mm).
+  tilt:       how far the screen leans back.
+"""
+
+
+def mount_files(
+    screen: ScreenHolder | None = None, arm: CameraArm | None = None
+) -> list[tuple[str, bytes]]:
+    from .meshio import stl_bytes
+
+    screen, arm = screen or ScreenHolder(), arm or CameraArm()
+    lens = -lens_position(arm)[2]
+    notes = MOUNT_NOTES.format(tilt=screen.tilt_deg, reach=arm.reach, drop=arm.drop, lens=lens)
+    return [
+        ("screen_holder.stl", stl_bytes(build_screen_holder(screen), "screwpick screen holder")),
+        ("camera_arm.stl", stl_bytes(build_camera_arm(arm), "screwpick camera arm")),
+        ("MOUNTS.txt", notes.encode()),
+    ]

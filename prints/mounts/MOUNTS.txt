@@ -1,0 +1,26 @@
+screwpick holders for the printer's top bar
+============================================
+
+Both fix to the top bar (Ender 3: a 2020 aluminium profile) with M5 screws and T-nuts (drop-in
+T-nuts go in without taking the printer apart). Print in PETG or PLA, 0.2 mm layers, 4 walls,
+30 % infill, lying as the files are; no supports.
+
+screen_holder.stl: a thin L for the Waveshare 7inch HDMI LCD (H) (case 191 x 115 mm, four M2
+  holes 175 x 99 mm, 8 mm from the edges): M2 x 6 screws from the back into the case.
+  The Raspberry Pi 4 screws to the middle strip, on the back (M2.5 standoffs, holes 49 x 58 mm).
+  The foot sits on top of the bar: 2 x M5 x 8 into the top slot. The screen leans back
+  20 degrees, so it faces you. Put it on one side of the bar; the camera is in the middle.
+
+camera_arm.stl: the plate goes on the bar's front face, at the bar's centre: 2 x M5 x 10 into
+  the front slot. The arm reaches 135 mm forward and the post goes 60 mm down: the
+  lens is then over the bed's centre with the bed all the way out (where a print ends, the
+  photo position), 84 mm below the bar's top. The Camera Module 3 screws on with
+  4 x M2 x 6 (they cut their own thread), lens down, the flat cable towards the post.
+
+Your printer differs? Measure and make your own (web page: Print bins; or
+screwpick print mounts --help):
+  reach:      with the bed all the way out, from the front face of the top bar straight
+              forward to the centre of the plate (where the parts lie).
+  bar height: from the underside of the top bar down to the plate. The camera is placed
+              300 mm above the plate, the height the model was trained for (about 11.7 px/mm).
+  tilt:       how far the screen leans back.
