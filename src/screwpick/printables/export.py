@@ -99,6 +99,65 @@ def plate_file(
     return name, threemf_plate_bytes(objects)
 
 
+BED_NOTES = """screwpick baseplate for the {name}
+{line}
+
+The {cols} x {rows} grid with a flat border out to the bed's edges ({w:g} x {d:g} mm), so it can be
+clamped down with binder clips like a glass plate. It is cut on cell lines into {n} pieces
+that each print on this printer: lay them out as named (front-left at the bed's front-left
+corner) and put at least one clip on every outer edge of every piece.
+
+{note}.
+The grid's front-left corner lies {gx:g} mm from the left edge and {gy:g} mm from the front;
+Resync finds it anyway. Corner notches ({c:g} mm) clear the bed's corner screws.
+Slim (2.5 mm) or standard (4.65 mm): both hold the bins the same way.
+"""
+
+
+def bed_baseplate_files(
+    bed_key: str, slim: bool = True, cols: int = 5, rows: int = 5
+) -> list[tuple[str, bytes]]:
+    """The pieces of a baseplate that covers a whole printer bed, plus how to lay them out."""
+    from .beds import bed
+    from .gridfinity import bed_grid_origin, build_bed_baseplate
+
+    b = bed(bed_key)
+    kind = "slim" if slim else "standard"
+    pieces = build_bed_baseplate(cols, rows, b, slim=slim)
+    files = [
+        (
+            f"baseplate_{b.key}_{kind}_{name}.stl",
+            stl_bytes(mesh, f"screwpick {b.key} baseplate {kind} {name}"),
+        )
+        for name, mesh, _ in pieces
+    ]
+    gx, gy = bed_grid_origin(cols, rows, b)
+    title = f"{b.name} ({kind})"
+    notes = BED_NOTES.format(
+        name=title,
+        line="=" * (len(title) + 30),
+        cols=cols,
+        rows=rows,
+        w=b.size[0],
+        d=b.size[1] - b.back_keep_mm,
+        n=len(pieces),
+        note=b.note[0].upper() + b.note[1:],
+        gx=round(gx, 2),
+        gy=round(gy, 2),
+        c=b.corner_cut_mm,
+    )
+    files.append((f"baseplate_{b.key}_{kind}_README.txt", notes.encode()))
+    return files
+
+
+def bed_baseplate_zip(bed_key: str, slim: bool = True, cols: int = 5, rows: int = 5) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for name, data in bed_baseplate_files(bed_key, slim, cols, rows):
+            z.writestr(name, data)
+    return buf.getvalue()
+
+
 def baseplate_file(layout: Layout, lip_mm: float = 8.0, slim: bool = True) -> tuple[str, bytes]:
     from .gridfinity import build_baseplate
 
@@ -159,5 +218,11 @@ def catalogue(out: Path, log: Callable[[str], None] = print) -> list[Path]:
     for slim in (True, False):
         name, data = baseplate_file(lay, slim=slim)
         put(f"baseplate/{name}", data)
+    from .beds import BEDS
+
+    for key in BEDS:  # the same grid, clamped to the whole bed
+        for slim in (True, False):
+            for name, data in bed_baseplate_files(key, slim, lay.cols, lay.rows):
+                put(f"baseplate/{key}/{name}", data)
     put("PRINTING.txt", PRINT_NOTES.format(sizes=sizes_text()).encode())
     return written

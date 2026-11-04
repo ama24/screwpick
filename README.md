@@ -137,7 +137,9 @@ The steps below are the same work in more detail.
    come as two-part 3MF files, the bin (white) and its code (black). With one extruder, add a
    colour change at the rim height (21 mm for 3-unit bins).
 3. Put the baseplate anywhere on the bed, the tray and the bins anywhere on it (turned any way),
-   and a TPU sheet cut to size in the tray.
+   and a TPU sheet cut to size in the tray. To hold the baseplate down, print the version that
+   **covers the whole bed** (Ender 3 or Prusa MK3, slim or standard, in 4 pieces that fit the
+   printer) and clamp it with binder clips, or on the Prusa stick it onto a spare steel sheet.
 4. Mount the picker and run `TOOL_PICKER`. Set `tool.offset` in
    [configs/machine.yaml](configs/machine.yaml) if the picker tip is not where the nozzle was.
 5. Set `printer.photo_position`: where the head waits during photos, out of the picture.
