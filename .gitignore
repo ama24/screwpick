@@ -11,3 +11,6 @@ runs/
 print/
 data/layout.yaml
 data/bed_transform.json
+models/
+data/wild_bins.json
+data/users.json

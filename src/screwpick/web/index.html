@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>screwpick</title>
+<style>
+:root{
+ --bg:#f6f6f3;--card:#fff;--ink:#2f3133;--mut:#878a8d;--soft:#b3b5b6;--line:#e7e6e1;--line2:#f0efea;
+ --acc:#5f8f8b;--acc-soft:#e9f1ef;--ok:#5b8e66;--ok-soft:#ebf4ed;--warn:#b0873c;--warn-soft:#f8f1e3;
+ --bad:#b4553f;--bad-soft:#f8ebe7;--work:#edf2f4;--cell:#fafaf8;
+ --r:12px;--r2:8px;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font:14.5px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+code{font:12.5px ui-monospace,Menlo,Consolas,monospace;background:var(--line2);padding:1px 5px;border-radius:5px}
+
+/* header */
+header{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.bar{max-width:1180px;margin:0 auto;padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:.01em}
+.logo{display:grid;grid-template-columns:repeat(2,7px);gap:2px}.logo i{width:7px;height:7px;border-radius:2px;background:var(--acc)}.logo i:nth-child(2),.logo i:nth-child(3){background:#a9c4c1}
+nav{display:flex;flex-wrap:wrap;gap:2px}
+nav button{background:none;border:0;border-radius:999px;padding:6px 12px;color:var(--mut);font:inherit;cursor:pointer}
+nav button:hover{color:var(--ink)}nav button.on{background:var(--acc-soft);color:var(--acc);font-weight:600}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px}
+#status{display:flex;align-items:center;gap:7px;color:var(--mut)}#status b{color:var(--ink);font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--soft)}.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn)}.dot.bad{background:var(--bad)}
+#me{color:var(--mut)}
+.estop{background:var(--bad);color:#fff;border:0;border-radius:999px;padding:8px 16px;font:600 13px system-ui,sans-serif;letter-spacing:.04em;cursor:pointer}
+.estop:hover{filter:brightness(.95)}
+
+/* page */
+main{max-width:1180px;margin:0 auto;padding:22px 16px 40px}
+section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;margin-bottom:16px}
+h2{font-size:11.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--mut);margin:0 0 12px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cols{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.cols{grid-template-columns:1fr}.right{margin-left:0}}
+p{margin:0 0 10px}.mut{color:var(--mut)}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+.note{font-size:13px;color:var(--mut)}
+
+/* controls */
+button.b{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:var(--r2);padding:7px 14px;font:inherit;cursor:pointer;transition:border-color .15s,background .15s}
+button.b:hover{border-color:var(--acc);color:var(--acc)}
+button.p{background:var(--acc);border-color:var(--acc);color:#fff}button.p:hover{color:#fff;filter:brightness(1.05)}
+button.s{padding:4px 10px;font-size:13px}
+select,input{font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:var(--r2);background:var(--card);color:var(--ink);outline:none}
+select:focus,input:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+input[type=number]{width:76px}label{display:flex;gap:8px;align-items:center;color:var(--mut)}
+input[type=radio]{accent-color:var(--acc)}
+.seg{display:inline-flex;background:var(--line2);border-radius:999px;padding:3px}
+.seg label{color:var(--mut);padding:5px 12px;border-radius:999px;cursor:pointer;gap:0}.seg input{display:none}
+.seg label:has(input:checked){background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+
+/* content */
+img.shot{width:100%;display:block;border-radius:var(--r2);background:var(--line2)}
+table{border-collapse:collapse;width:100%}
+td,th{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line2);font-variant-numeric:tabular-nums;vertical-align:top}
+th{font-weight:500;color:var(--mut);font-size:12.5px}tr:last-child td{border-bottom:0}
+td small{display:block;color:var(--mut);font-size:12.5px}
+#events{font:12px/1.6 ui-monospace,Menlo,Consolas,monospace;color:var(--mut);max-height:240px;overflow:auto;white-space:pre-wrap}
+.tag{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;background:var(--line2);color:var(--mut)}
+.tag.on{background:var(--acc-soft);color:var(--acc)}
+.stat{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line2)}.stat:last-child{border:0}
+.stat b{font-weight:600}
+
+/* ready notice */
+#ready{display:none;max-width:1180px;margin:16px auto 0;padding:0 16px}#ready.on{display:block}
+.notice{background:var(--ok-soft);border:1px solid #d3e6d7;border-radius:var(--r);padding:14px 18px;display:flex;gap:14px;align-items:flex-start}
+.check{flex:none;width:22px;height:22px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:13px;margin-top:1px}
+.notice ul{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:8px}.notice li{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid #d3e6d7;border-radius:999px;padding:4px 5px 4px 12px;font-size:13px}.notice li .x{border:0;background:var(--ok-soft);color:var(--ok);border-radius:999px;padding:3px 10px;font:inherit;cursor:pointer}.notice li .x:hover{background:var(--ok);color:#fff}
+
+/* bed layout */
+svg text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;pointer-events:none}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:12.5px;color:var(--mut)}
+.legend span{display:flex;align-items:center;gap:6px}.sw{width:14px;height:14px;border-radius:4px;border:1px solid var(--soft);background:#fff}
+#drop{border:1.5px dashed var(--soft);border-radius:var(--r);padding:30px 16px;text-align:center;cursor:pointer;color:var(--mut);transition:background .15s,border-color .15s}
+#drop b{color:var(--ink);font-weight:600}#drop.over{border-color:var(--acc);background:var(--acc-soft)}
+progress{width:100%;height:6px;accent-color:var(--acc)}
+ul.plain{margin:8px 0 0;padding-left:18px}
+
+/* login */
+#login{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:9}#login.on{display:flex}
+#login form{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px;width:min(360px,100% - 32px);display:grid;gap:12px}
+#login .brand{margin-bottom:6px}#login h3{margin:0;font-size:17px;font-weight:600}#login input{width:100%}
+
+.jog{display:grid;grid-template-columns:repeat(3,54px);gap:6px}.jog button{height:44px;padding:0}
+</style></head><body>
+<header><div class="bar">
+ <div class="brand"><span class="logo"><i></i><i></i><i></i><i></i></span>screwpick</div>
+ <nav><button data-t="run" class="on">Run</button><button data-t="layout">Layout</button><button data-t="calib">Calibrate</button><button data-t="print">Print bins</button><button data-t="models">Models</button><button data-t="users">Users</button></nav>
+ <div class="right"><span id="status"><span class="dot"></span>…</span><span id="me"></span><button class="estop" onclick="cmd('estop')">STOP</button></div>
+</div></header>
+<div id="ready"><div class="notice"><span class="check">✓</span><div><b>Ready to take out</b><span class="note"> · nothing on the plate goes into these bins any more. Empty them, then press Emptied.</span><ul id="readylist"></ul></div></div></div>
+
+<div id="login"><form onsubmit="doLogin(event)">
+ <div class="brand"><span class="logo"><i></i><i></i><i></i><i></i></span>screwpick</div>
+ <h3 id="logtitle">Log in</h3>
+ <p id="loghelp" class="note" hidden>No account yet. Choose a user name and a password (6 characters or more). This account can add others later in Users.</p>
+ <input id="luser" placeholder="User name" autocomplete="username" required>
+ <input id="lpass" type="password" placeholder="Password" autocomplete="current-password" required>
+ <input id="lpass2" type="password" placeholder="Password again" autocomplete="new-password" hidden>
+ <button class="b p" type="submit">Continue</button><span id="logmsg" class="bad"></span>
+</form></div>
+
+<main>
+<section id="run" class="on">
+ <div class="card row" style="gap:10px">
+  <select id="strategy"></select>
+  <button class="b p" onclick="cmd('auto')" title="Standby: looks for parts every minute and sorts them, until Stop. Stays on after a restart.">Automatic</button><button class="b" onclick="cmd('start')">Sort once</button><button class="b" onclick="cmd('step')">One pick</button>
+  <button class="b" onclick="cmd('pause')">Pause</button><button class="b" onclick="cmd('resume')">Resume</button><button class="b" onclick="cmd('stop')">Stop</button>
+  <span id="msg" class="note" style="margin-left:6px"></span>
+ </div>
+ <div class="cols">
+  <div class="card"><h2>Last photo</h2><img id="shot" class="shot" alt=""><p id="plan" class="note" style="margin:10px 0 0"></p></div>
+  <div>
+   <div class="card"><h2>This run</h2><div id="counts" class="note">nothing sorted yet</div></div>
+   <div class="card"><h2>Bins in use</h2><div id="binsuse" class="note">no bin filled yet</div></div>
+   <div class="card"><h2>On the plate</h2><table id="parts"></table></div>
+  </div>
+ </div>
+ <div class="card"><h2>Log</h2><div id="events"></div></div>
+</section>
+
+<section id="layout">
+ <div class="card row" style="gap:14px">
+  <span class="seg"><label><input type="radio" name="mode" value="select" checked>Select</label><label><input type="radio" name="mode" value="add">Add bin</label><label><input type="radio" name="mode" value="work">Working area</label></span>
+  <span class="note" id="modehelp">Click a bin to see and edit it.</span>
+  <span class="row" style="margin-left:auto"><label>size<input id="nw" type="number" min="1" value="1" style="width:56px">×<input id="nd" type="number" min="1" value="1" style="width:56px"></label><label>height<input id="nu" type="number" min="3" value="3" style="width:56px">u</label></span>
+ </div>
+ <div class="cols">
+  <div class="card"><svg id="grid" style="width:100%;height:auto;display:block"></svg>
+   <div class="legend"><span><i class="sw" style="border-style:dashed"></i>free wild bin</span><span><i class="sw"></i>collecting</span><span><i class="sw" style="background:var(--ok-soft);border-color:var(--ok)"></i>ready to take out</span><span><i class="sw" style="background:var(--cell)"></i>special</span><span><i class="sw" style="background:var(--work);border-color:var(--work)"></i>working area</span></div>
+   <div class="row" style="margin-top:16px"><button class="b p" onclick="saveLayout()">Save layout</button><button class="b" onclick="scan()">Find bins with the camera</button><span id="laymsg" class="note"></span></div>
+   <ul id="problems" class="plain bad"></ul></div>
+  <div>
+   <div class="card" id="binpanel"><h2>Bin</h2><p class="note">Click a bin in the grid.</p></div>
+   <div class="card"><h2>Sorting</h2>
+    <label style="display:grid;gap:6px">Each wild bin collects one
+     <select id="wildby"><option value="part">part number: class and length (DIN912_M4x16)</option><option value="class">class, any length (DIN912_M4)</option><option value="family">family (DIN912)</option></select></label>
+    <p class="note" style="margin-top:12px">Wild bins have no rules: the first part of a new kind takes a free one, and it collects that kind until it is emptied. Bins with rules come first: <b>DIN912_M4x16</b>, <b>DIN912_M4</b>, <b>DIN912</b>, or wildcards like <b>DIN912_M*</b>.</p>
+   </div>
+   <div class="card"><h2>Grid</h2>
+    <div class="row"><label>columns<input id="cols" type="number" min="1"></label><label>rows<input id="rows" type="number" min="1"></label></div>
+    <div class="row" style="margin-top:8px"><label>origin X<input id="ox" type="number" step="0.1"></label><label>Y<input id="oy" type="number" step="0.1"></label></div>
+    <div class="row" style="margin-top:8px"><label>plate thickness<input id="pt" type="number" step="0.05">mm</label></div>
+    <p class="note" style="margin-top:10px">Origin: printer X/Y of the grid's front-left corner.</p>
+   </div>
+  </div>
+ </div>
+</section>
+
+<section id="calib">
+ <div class="card"><h2>Camera to printer</h2>
+  <ol class="note" style="padding-left:18px;margin:0 0 14px"><li>Put at least 3 bins far apart on the bed, then <b>Take photo</b>.</li>
+  <li>Jog the picker tip onto the centre of a marker, then <b>Tip is here</b> on its row.</li>
+  <li>Repeat for 3 or more markers, then <b>Fit</b>. Errors under 0.5 mm are good.</li>
+  <li><b>Check</b> moves the tip 2 mm above a marker with the fitted calibration.</li></ol>
+  <div class="row"><button class="b p" onclick="calibPhoto()">Take photo</button><button class="b" onclick="calibFit()">Fit</button><button class="b" onclick="calibClear()">Forget points</button><span id="calmsg" class="note"></span></div>
+ </div>
+ <div class="cols">
+  <div class="card"><h2>Markers seen</h2><table id="markers"></table><h2 style="margin-top:18px">Recorded points</h2><table id="pairs"></table></div>
+  <div class="card"><h2>Jog the tip</h2>
+   <div class="row" style="margin-bottom:12px"><label>step<select id="step"><option>0.1</option><option selected>1</option><option>10</option></select>mm</label></div>
+   <div class="row" style="gap:22px;align-items:flex-start">
+    <div class="jog"><span></span><button class="b" onclick="jog(0,1,0)">Y+</button><span></span><button class="b" onclick="jog(-1,0,0)">X−</button><span></span><button class="b" onclick="jog(1,0,0)">X+</button><span></span><button class="b" onclick="jog(0,-1,0)">Y−</button><span></span></div>
+    <div class="jog" style="grid-template-columns:54px"><button class="b" onclick="jog(0,0,1)">Z+</button><button class="b" onclick="jog(0,0,-1)">Z−</button></div>
+   </div>
+   <p style="margin-top:14px">tip <b id="tip">–</b> <button class="b s" onclick="getTip()">read</button></p>
+   <p class="note">On a bed-slinger the Y buttons move the bed.</p>
+  </div>
+ </div>
+ <div class="card"><h2>Tip height</h2>
+  <p class="note">Do this after homing, whenever the picker or the Z switch was moved. Jog the tip down over the TPU plate (0.1 mm steps at the end) until a sheet of paper just drags under it, then press the button. Everything screwpick does in Z counts from this.</p>
+  <div class="row"><button class="b p" onclick="tipTouch()">Tip touches the plate</button><span class="note">tip offset <b id="tipz">–</b></span><span id="tipmsg" class="note"></span></div></div>
+ <div class="card"><h2>Photo</h2><img id="calshot" class="shot" alt=""></div>
+</section>
+
+<section id="print">
+ <div class="card"><h2>Bin sizes</h2>
+  <p class="note">Each size has its own range of codes, so the camera knows a bin's size from its code. Every plate is a full build plate of one size for a 220 × 220 bed: all the same height, so one colour change at the rim (21 mm for 3u, 42 mm for 6u) makes all the codes black. The same files are in the repository under <code>prints/</code>.</p>
+  <table id="sizelist"></table>
+ </div>
+ <div class="card"><h2>Baseplate</h2>
+  <p><a href="api/print/baseplate?kind=slim">slim baseplate (2.5 mm)</a> · <a href="api/print/baseplate?kind=standard">standard baseplate (4.65 mm)</a> <span class="note">· for this layout, working area cut out with a lip around it</span></p>
+ </div>
+ <div class="card"><h2>This layout</h2>
+  <p>Everything for the bins in the layout: <a href="api/print/all">screwpick_print.zip</a> · <a href="api/print/labels">paper labels</a></p>
+  <table id="printlist"></table>
+ </div>
+</section>
+
+<section id="users">
+ <div class="cols">
+  <div class="card"><h2>Users</h2><table id="ulist"></table>
+   <div class="row" style="margin-top:14px"><input id="nuser" placeholder="New user name"><input id="npass" type="password" placeholder="Password"><button class="b p" onclick="addUser()">Add user</button></div>
+   <p class="note" style="margin-top:10px">Everyone with an account can do everything. Lost every password? On the Pi: <code>screwpick user add NAME</code>.</p><span id="umsg" class="note"></span></div>
+  <div class="card"><h2>My password</h2><div style="display:grid;gap:8px"><input id="oldpw" type="password" placeholder="Current password"><input id="newpw" type="password" placeholder="New password"><div class="row"><button class="b" onclick="changePw()">Change</button><button class="b" onclick="logout()">Log out</button></div></div></div>
+ </div>
+</section>
+
+<section id="models">
+ <div class="card"><h2>In use</h2><div id="loaded" class="note">…</div></div>
+ <div class="card"><h2>Add a model</h2>
+  <div id="drop" onclick="$('file').click()"><b>Drop a model here</b> or click to choose<br>
+   <span class="note">model-trainer package (.zip), a zipped NCNN folder, or a single .onnx / .pt</span></div>
+  <input id="file" type="file" accept=".zip,.onnx,.pt" hidden>
+  <div class="row" style="margin-top:12px"><label>name<input id="mname" placeholder="optional, e.g. v3 more nuts"></label><span id="upmsg" class="note"></span></div>
+  <progress id="upbar" value="0" max="1" hidden></progress>
+  <p class="note" style="margin-top:10px">Best on the Pi: the package with an <b>NCNN</b> export inside. Every upload is kept. Upload only models you trust: .pt files can contain code.</p>
+ </div>
+ <div class="card"><h2>Stored models</h2><table id="mlist"></table><div id="mmsg" class="note" style="margin-top:8px"></div></div>
+ <div class="card" id="testcard" hidden><h2>Test result</h2><p id="testinfo" class="note"></p><img id="testimg" class="shot" alt=""></div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let S={},lay=null,sel=null,workStart=null,markers=[];
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");history.replaceState(null,"","#"+b.dataset.t);if(b.dataset.t==="models")loadModels();else if(b.dataset.t==="print")loadLayout();else if(b.dataset.t==="users")loadUsers();else if(b.dataset.t!=="run")loadLayout();});
+setTimeout(()=>{const t=location.hash.slice(1),b=t&&document.querySelector(`nav button[data-t="${t}"]`);if(b)b.click();window.scrollTo(0,0);});
+if("scrollRestoration" in history)history.scrollRestoration="manual";
+async function api(path,body){const r=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json();if(r.status===401){showLogin(false);}if(!r.ok)throw new Error(j.error||r.status);return j;}
+function flash(id,text,bad){$(id).textContent=text;$(id).className=bad?"note bad":"note";}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+// ---------------------------------------------------------------- login
+let first=false;
+function showLogin(isFirst){first=isFirst;$("login").classList.add("on");$("logtitle").textContent=isFirst?"Create the first account":"Log in";$("loghelp").hidden=!isFirst;$("lpass2").hidden=!isFirst;$("lpass2").required=isFirst;}
+async function session(){try{const j=await api("api/session");$("me").textContent=j.user||"";if(j.login&&!j.user)showLogin(j.first_account);else{$("login").classList.remove("on");poll();}}catch(e){}}
+async function doLogin(e){e.preventDefault();if(first&&$("lpass").value!==$("lpass2").value){flash("logmsg","the passwords differ",1);return;}
+ try{await api(first?"api/setup":"api/login",{user:$("luser").value,password:$("lpass").value});$("lpass").value=$("lpass2").value="";flash("logmsg","");session();}catch(err){flash("logmsg",err.message,1);}}
+async function logout(){await api("api/logout",{});location.reload();}
+async function loadUsers(){try{const j=await api("api/users");$("ulist").innerHTML=j.users.map(u=>`<tr><td>${esc(u)} ${u===j.me?'<span class="tag on">you</span>':""}</td><td style="text-align:right">${u===j.me?"":`<button class="b s" onclick="delUser('${esc(u)}')">Remove</button>`}</td></tr>`).join("");}catch(e){flash("umsg",e.message,1);}}
+async function addUser(){try{await api("api/users/add",{user:$("nuser").value,password:$("npass").value});$("nuser").value=$("npass").value="";flash("umsg","added");loadUsers();}catch(e){flash("umsg",e.message,1);}}
+async function delUser(u){if(!confirm("Remove "+u+"?"))return;try{await api("api/users/remove",{user:u});loadUsers();}catch(e){flash("umsg",e.message,1);}}
+async function changePw(){try{await api("api/users/password",{old:$("oldpw").value,password:$("newpw").value});$("oldpw").value=$("newpw").value="";flash("umsg","password changed");}catch(e){flash("umsg",e.message,1);}}
+
+// ---------------------------------------------------------------- run
+async function cmd(c){try{const j=await api("api/command",{command:c,strategy:$("strategy").value});flash("msg",j.result);}catch(e){flash("msg",e.message,1);}poll();}
+async function emptied(m){try{const j=await api("api/bins/emptied",{marker:m});Object.assign(S,j);renderBins();if(lay)render();if(sel!==null&&lay)panel();}catch(e){flash("msg",e.message,1);}}
+function readyMap(){const r={};for(const x of S.ready||[])r[x.marker]=x;return r;}
+function renderBins(){
+ const ready=S.ready||[];
+ $("ready").classList.toggle("on",ready.length>0);
+ $("readylist").innerHTML=ready.map(x=>`<li><b>${x.marker}</b><span>${esc(x.what)}</span><span class="mut">${x.count}</span><button class="x" onclick="emptied(${x.marker})">Emptied</button></li>`).join("")+(ready.length>1?`<li style="padding-left:5px"><button class="x" onclick="emptied(null)">All emptied</button></li>`:"");
+ const claims=S.claims||{},counts=S.bin_counts||{},rm=readyMap();
+ const ids=[...new Set([...Object.keys(claims),...Object.keys(counts)])].sort((a,b)=>a-b);
+ $("binsuse").innerHTML=ids.length?ids.map(m=>`<div class="stat"><span>Bin ${esc(m)} <span class="mut">${esc(claims[m]||"")}</span> ${rm[m]?'<span class="tag on">ready</span>':""}</span><b>${counts[m]||0}</b></div>`).join(""):"no bin filled yet";}
+let shown="";
+async function poll(){try{S=await api("api/state");}catch(e){$("status").innerHTML='<span class="dot bad"></span>no connection';return;}
+ const cls={running:"ok",done:"ok",standby:"ok",error:"bad",stuck:"warn",paused:"warn",stopping:"warn"}[S.status]||"";
+ $("status").innerHTML=`<span class="dot ${cls}"></span><b>${esc(S.status)}</b>${S.auto?" · automatic":""}${S.driver==="sim"?" · simulation":""}`;$("tipz").textContent=(S.tip_offset_z>=0?"+":"")+(+S.tip_offset_z).toFixed(2)+" mm";
+ $("msg").textContent=S.message;$("plan").textContent=S.plan||"";
+ const st=$("strategy");if(!st.options.length){for(const[k,v]of Object.entries(S.strategies)){const o=document.createElement("option");o.value=k;o.textContent=v;st.appendChild(o);}st.value=S.strategy;}
+ if(S.shot&&S.shot!==shown){shown=S.shot;$("shot").src="runs/"+encodeURIComponent(S.shot);$("calshot").src=$("shot").src;}
+ const T=S.timing||{};$("counts").innerHTML=S.picks?`<div class="stat"><span>sorted</span><b>${S.picks}</b></div><div class="stat"><span>failed picks</span><b>${S.failed_picks}</b></div>`+(T.cycle_s?`<div class="stat"><span>last cycle</span><b>${T.cycle_s} s</b></div><div class="stat"><span title="time the machine waited for the photo analysis after dropping the part">waited for the Pi</span><b>${T.waited_for_analysis_s} s</b></div>`:""):"nothing sorted yet";
+ const parts=S.parts.filter(p=>p.in_work!==false);
+ $("parts").innerHTML=parts.length?"<tr><th>part</th><th>length</th><th>score</th><th>free</th></tr>"+parts.map(p=>`<tr><td>${esc(p.cls)}</td><td>${p.length!=null?p.length+" mm":"–"}</td><td>${p.score}</td><td>${p.gap!=null?p.gap+" mm":"–"}</td></tr>`).join(""):'<tr><td class="note">empty</td></tr>';
+ $("events").textContent=S.events.slice().reverse().join("\n");
+ renderPairs(S.calib_pairs||[]);renderBins();if(lay&&$("layout").classList.contains("on")&&!workStart)render();}
+setInterval(()=>{if(!$("login").classList.contains("on"))poll();},1500);session();
+
+// ---------------------------------------------------------------- layout
+const CELL=64,ROLE_TEXT={unknown:"unknown parts",unsure:"not sure",overflow:"no bin",all:"everything",kit:"kit"};
+const HELP={select:"Click a bin to see and edit it.",add:"Click an empty cell to place a new bin.",work:"Click two corner cells of the working area."};
+document.querySelectorAll("input[name=mode]").forEach(r=>r.onchange=()=>{$("modehelp").textContent=HELP[mode()];workStart=null;if(lay)render();});
+let SIZES=[];
+async function loadLayout(){try{const j=await api("api/layout");lay=j.layout;SIZES=j.sizes||[];showProblems(j.problems);fillGridInputs();render();renderPrint();renderSizes();}catch(e){flash("laymsg",e.message,1);}}
+function renderSizes(){$("sizelist").innerHTML="<tr><th>size</th><th>codes</th><th>for</th><th>plates</th></tr>"+SIZES.map(s=>{const plates=[];for(let f=s.first;f<=s.last;f+=s.per_plate)plates.push(`<a href="api/print/plate?size=${s.name}&first=${f}">${f}–${Math.min(f+s.per_plate-1,s.last)}</a>`);return `<tr><td><b>${s.w}×${s.d}</b> · ${s.height_u}u</td><td>${s.first}–${s.last}</td><td class="note">${esc(s.use)}</td><td>${plates.join(" · ")}</td></tr>`;}).join("")+'<tr><td class="note" colspan="4">220–249: any other size, set by hand in the layout</td></tr>';}
+function fillGridInputs(){$("wildby").value=lay.wild_by||"part";$("cols").value=lay.cols;$("rows").value=lay.rows;$("ox").value=lay.origin[0];$("oy").value=lay.origin[1];$("pt").value=lay.plate_thickness_mm;}
+["cols","rows","ox","oy","pt","wildby"].forEach(id=>$(id).onchange=()=>{lay.wild_by=$("wildby").value;lay.cols=+$("cols").value;lay.rows=+$("rows").value;lay.origin=[+$("ox").value,+$("oy").value];lay.plate_thickness_mm=+$("pt").value;render();});
+function showProblems(p){$("problems").innerHTML=(p||[]).map(x=>`<li>${esc(x)}</li>`).join("");}
+function mode(){return document.querySelector("input[name=mode]:checked").value;}
+function twoLines(t){if(!t)return["",""];const i=t.lastIndexOf("_");return i>0?[t.slice(0,i),t.slice(i+1)]:[t,""];}
+function binText(b){const claim=(S.claims||{})[b.marker];
+ if(b.role==="wild")return claim?{top:"wild",lines:twoLines(claim),free:false}:{top:"wild",lines:["free",""],free:true};
+ if(b.role==="sort"){const h=b.label||b.holds.join(", ");return{top:"rules",lines:twoLines(h.length>18?h.slice(0,17)+"…":h),free:false};}
+ return{top:b.role,lines:[b.label||ROLE_TEXT[b.role]||b.role,""],free:false,special:true};}
+function render(){const W=lay.cols*CELL,H=lay.rows*CELL,svg=$("grid"),rm=readyMap(),pad=4;svg.setAttribute("viewBox",`${-pad} ${-pad} ${W+2*pad} ${H+2*pad}`);
+ const Y=(y,d)=>H-(y+d)*CELL;let s="";
+ for(let x=0;x<lay.cols;x++)for(let y=0;y<lay.rows;y++)s+=`<rect x="${x*CELL+1.5}" y="${Y(y,1)+1.5}" width="${CELL-3}" height="${CELL-3}" rx="6" fill="var(--cell)" stroke="var(--line2)" data-cx="${x}" data-cy="${y}" style="cursor:${mode()==="select"?"default":"pointer"}"/>`;
+ const w=lay.work;s+=`<rect x="${w.x*CELL+3}" y="${Y(w.y,w.d)+3}" width="${w.w*CELL-6}" height="${w.d*CELL-6}" rx="9" fill="var(--work)" pointer-events="none"/>`+
+  `<text x="${(w.x+w.w/2)*CELL}" y="${Y(w.y,w.d)+w.d*CELL/2+2}" text-anchor="middle" font-size="6.2" letter-spacing="1.2" fill="#9aa9ae">WORKING AREA</text>`;
+ for(const b of lay.bins){const on=b.marker===sel,r=rm[b.marker],t=binText(b),x0=b.x*CELL+4,y0=Y(b.y,b.d)+4,bw=b.w*CELL-8,bh=b.d*CELL-8;
+  const fill=r?"var(--ok-soft)":t.special?"var(--cell)":"#fff",stroke=on?"var(--acc)":r?"var(--ok)":"#d9d8d2";
+  s+=`<g data-m="${b.marker}" style="cursor:pointer"><rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="${on?1.6:0.8}" ${t.free&&!on?'stroke-dasharray="3 2.5"':""}/>`+
+   `<text x="${x0+7}" y="${y0+11}" font-size="5.6" fill="var(--soft)">${b.marker}</text>`+
+   `<text x="${x0+bw-7}" y="${y0+11}" font-size="5.6" fill="var(--soft)" text-anchor="end">${esc(r?"":t.top)}</text>`+
+   `<text x="${x0+7}" y="${y0+bh/2+3}" font-size="7.6" font-weight="600" fill="${t.free?"var(--soft)":"var(--ink)"}">${esc(t.lines[0].slice(0,11*b.w))}</text>`+
+   `<text x="${x0+7}" y="${y0+bh/2+13}" font-size="7.6" fill="var(--mut)">${esc(t.lines[1].slice(0,11*b.w))}</text>`;
+  if(r)s+=`<circle cx="${x0+bw-11}" cy="${y0+9}" r="5" fill="var(--ok)"/><path d="M${x0+bw-13.4} ${y0+9.2} l1.8 1.8 l3.2 -3.4" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`+
+   `<text x="${x0+7}" y="${y0+bh-7}" font-size="5.6" fill="var(--ok)">ready · ${r.count}</text>`;
+  else if((S.bin_counts||{})[b.marker])s+=`<text x="${x0+7}" y="${y0+bh-7}" font-size="5.6" fill="var(--soft)">${(S.bin_counts||{})[b.marker]} in it</text>`;
+  s+="</g>";}
+ if(workStart)s+=`<rect x="${workStart[0]*CELL+2}" y="${Y(workStart[1],1)+2}" width="${CELL-4}" height="${CELL-4}" rx="7" fill="none" stroke="var(--acc)" stroke-width="1.6"/>`;
+ svg.innerHTML=s;
+ svg.querySelectorAll("rect[data-cx]").forEach(r=>r.onclick=()=>cellClick(+r.dataset.cx,+r.dataset.cy));
+ svg.querySelectorAll("g[data-m]").forEach(g=>g.onclick=e=>{e.stopPropagation();if(mode()==="select"){sel=+g.dataset.m;render();panel();}});}
+function nextMarker(w,d,u){const used=new Set(lay.bins.map(b=>b.marker));const s=SIZES.find(s=>s.height_u===u&&((s.w===w&&s.d===d)||(s.w===d&&s.d===w)));
+ const [a,z]=s?[s.first,s.last]:[220,249];for(let m=a;m<=z;m++)if(!used.has(m))return m;return null;}
+function cellClick(x,y){const m=mode();
+ if(m==="add"){const w=+$("nw").value,d=+$("nd").value,u=+$("nu").value,id=nextMarker(w,d,u);if(id===null){flash("laymsg","no free code left for that size",1);return;}lay.bins.push({marker:id,x,y,w,d,height_u:u,holds:[],role:"wild",label:""});sel=id;render();panel();}
+ else if(m==="work"){if(!workStart){workStart=[x,y];render();}else{const[x0,y0]=workStart;lay.work={x:Math.min(x0,x),y:Math.min(y0,y),w:Math.abs(x-x0)+1,d:Math.abs(y-y0)+1};workStart=null;render();}}
+ else{sel=null;render();panel();}}
+function panel(){const b=lay.bins.find(b=>b.marker===sel),p=$("binpanel");
+ if(!b){p.innerHTML='<h2>Bin</h2><p class="note">Click a bin in the grid.</p>';return;}
+ const roles=["wild","sort","unknown","unsure","overflow","kit","all"],claim=(S.claims||{})[b.marker],r=readyMap()[b.marker],n=(S.bin_counts||{})[b.marker]||0;
+ p.innerHTML=`<h2>Bin ${b.marker}</h2>
+ ${r?`<div class="notice" style="margin-bottom:14px;padding:10px 12px"><span class="check">✓</span><div><b>Ready to take out</b><br><span class="note">${esc(r.what)} · ${r.count} part${r.count===1?"":"s"}</span></div></div>`:""}
+ ${b.role==="wild"?`<p>${claim?`Collects <b>${esc(claim)}</b>`:'<span class="mut">Free: the next new kind goes here.</span>'}</p>`:""}
+ ${n?`<p class="note">${n} part${n===1?"":"s"} in it since it was last emptied.</p>`:""}
+ ${n||claim?`<p><button class="b s" onclick="emptied(${b.marker})">Emptied</button></p>`:""}
+ <div style="display:grid;gap:10px;margin-top:6px">
+ <label>role<select id="br">${roles.map(x=>`<option${x===b.role?" selected":""}>${x}</option>`).join("")}</select></label>
+ <label>rules<input id="bh" style="flex:1" value="${esc(b.holds.join(", "))}" placeholder="none: wild"></label>
+ <label>label<input id="bl" style="flex:1" value="${esc(b.label)}" placeholder="optional"></label>
+ <div class="row"><label>marker<input id="bm" type="number" min="100" max="249" value="${b.marker}"></label></div>
+ <div class="row"><label>size<input id="bw" type="number" min="1" value="${b.w}" style="width:56px">×<input id="bd" type="number" min="1" value="${b.d}" style="width:56px"></label><label>height<input id="bu" type="number" min="3" value="${b.height_u}" style="width:56px">u</label></div></div>
+ <div class="row" style="margin-top:14px"><button class="b s" onclick="turnBin()">Turn 90°</button><button class="b s" onclick="delBin()">Remove</button><span class="note">print: <a href="api/print/bin?marker=${b.marker}&fmt=3mf">3MF</a> · <a href="api/print/bin?marker=${b.marker}&fmt=stl">STL</a></span></div>
+ <p class="note" style="margin-top:12px">Typing rules turns a wild bin into a rule bin; clearing them makes it wild again.</p>`;
+ const upd=()=>{b.marker=+$("bm").value;b.role=$("br").value;b.holds=$("bh").value.split(",").map(s=>s.trim()).filter(Boolean);if(b.holds.length&&b.role==="wild")b.role="sort";else if(!b.holds.length&&b.role==="sort")b.role="wild";b.label=$("bl").value;b.w=+$("bw").value;b.d=+$("bd").value;b.height_u=+$("bu").value;sel=b.marker;render();panel();};
+ ["bm","br","bh","bl","bw","bd","bu"].forEach(id=>$(id).onchange=upd);}
+function turnBin(){const b=lay.bins.find(b=>b.marker===sel);[b.w,b.d]=[b.d,b.w];render();panel();}
+function delBin(){lay.bins=lay.bins.filter(b=>b.marker!==sel);sel=null;render();panel();}
+async function saveLayout(){try{const j=await api("api/layout",{layout:lay});lay=j.layout;showProblems(j.problems);flash("laymsg",j.problems.length?"saved, but see below":"saved");render();renderPrint();}catch(e){flash("laymsg",e.message,1);}}
+async function scan(){flash("laymsg","taking a photo…");try{const j=await api("api/scan",{});flash("laymsg",`found ${j.bins.length} bin(s)`);await loadLayout();showProblems(j.problems);}catch(e){flash("laymsg",e.message,1);}}
+function renderPrint(){$("printlist").innerHTML="<tr><th>bin</th><th>size</th><th>holds</th><th>files</th></tr>"+lay.bins.map(b=>`<tr><td>${b.marker}</td><td>${b.w}×${b.d} · ${b.height_u}u</td><td>${esc(b.label||b.holds.join(", ")||b.role)}</td><td><a href="api/print/bin?marker=${b.marker}&fmt=3mf">3MF</a> · <a href="api/print/bin?marker=${b.marker}&fmt=stl">STL</a></td></tr>`).join("");}
+
+// ---------------------------------------------------------------- calibration
+async function calibPhoto(){flash("calmsg","taking a photo…");try{const j=await api("api/calib/photo",{});markers=j.markers;renderMarkers();flash("calmsg",`${markers.length} marker(s) seen`);poll();}catch(e){flash("calmsg",e.message,1);}}
+function renderMarkers(){$("markers").innerHTML="<tr><th>marker</th><th>camera mm</th><th>printer</th><th></th></tr>"+markers.map(m=>`<tr><td>${m.marker}</td><td>${m.plate.join(", ")}</td><td>${m.bed?m.bed.join(", "):"–"}</td><td style="text-align:right"><button class="b s" onclick="record(${m.marker})">Tip is here</button> <button class="b s" onclick="goto_(${m.marker})">Check</button></td></tr>`).join("");}
+function renderPairs(p){$("pairs").innerHTML=p.length?"<tr><th>marker</th><th>camera mm</th><th>printer mm</th></tr>"+p.map(x=>`<tr><td>${x.marker}</td><td>${x.plate.join(", ")}</td><td>${x.bed.join(", ")}</td></tr>`).join(""):'<tr><td class="note">none yet</td></tr>';}
+async function record(m){try{const j=await api("api/calib/record",{marker:m});renderPairs(j.pairs);flash("calmsg",`recorded marker ${m}`);}catch(e){flash("calmsg",e.message,1);}}
+async function calibFit(){try{const j=await api("api/calib/fit",{});flash("calmsg",`saved · errors ${j.residuals_mm.join(", ")} mm · rotation ${j.angle_deg}° · scale ${j.scale}`);}catch(e){flash("calmsg",e.message,1);}}
+async function calibClear(){await api("api/calib/clear",{});renderPairs([]);}
+async function goto_(m){try{const j=await api("api/calib/goto",{marker:m});$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
+async function jog(x,y,z){const s=+$("step").value;try{const j=await api("api/jog",{dx:x*s,dy:y*s,dz:z*s});$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
+async function tipTouch(){try{const j=await api("api/calib/tip",{});flash("tipmsg",`saved: the plate is at toolhead Z ${j.toolhead_z}`);poll();}catch(e){flash("tipmsg",e.message,1);}}
+async function getTip(){try{const j=await api("api/tip");$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
+
+// ---------------------------------------------------------------- models
+const ROLE={stage1:"finds parts",stage2:"measures length",classifier:"re-checks classes"};
+let M={models:[],active:{},loaded:{}};
+async function loadModels(){try{M=await api("api/models");renderModels();}catch(e){flash("mmsg",e.message,1);}}
+function renderModels(){
+ const L=M.loaded||{};
+ $("loaded").innerHTML=L.error?`<span class="warn">${esc(L.error)}</span>`:
+  `<b style="color:var(--ink)">${esc(L.label)}</b> · ${esc(L.task)} · ${L.classes} classes · ${L.imgsz} px · confidence ${L.conf} · length model ${L.stage2?"yes":"no"} · classifier ${L.classifier?"yes":"no"}`+
+  (L.warnings&&L.warnings.length?`<ul class="plain warn">${L.warnings.map(w=>`<li>${esc(w)}</li>`).join("")}</ul>`:"");
+ const act=M.active||{};
+ $("mlist").innerHTML="<tr><th>model</th><th>kind</th><th>score</th><th>weights</th><th></th></tr>"+M.models.map(m=>{
+  const on=m.role&&act[m.role]===m.id;
+  const fmts=m.formats.length>1?`<select onchange="chooseWeights('${m.id}',this.value)">${m.formats.map(f=>`<option value="${esc(f.path)}"${f.path===m.weights?" selected":""}>${esc(f.format)}: ${esc(f.path)}</option>`).join("")}</select>`:esc(m.weights||"–");
+  const notes=[...m.problems.map(p=>`<span class="bad">${esc(p)}</span>`),...m.warnings.map(w=>esc(w))].map(x=>`<small>${x}</small>`).join("");
+  const btn=m.role&&!m.problems.length?(on?(m.role==="stage1"?"":`<button class="b s" onclick="activate('${m.role}',null)">Stop using</button>`):`<button class="b p s" onclick="activate('${m.role}','${m.id}')">Use</button>`):"";
+  return `<tr><td><b>${esc(m.name)}</b> ${on?'<span class="tag on">in use</span>':""}<small>${esc(m.uploaded)} · ${esc(m.source)}</small>${notes}</td>`+
+   `<td>${esc(m.task)}<small>${esc(ROLE[m.role]||"not usable")} · ${m.classes.length} classes${m.imgsz?` · ${m.imgsz} px`:""}</small></td>`+
+   `<td>${m.metric_value!=null?(+m.metric_value).toFixed(3):"–"}<small>${esc(m.metric||"")}</small></td><td>${fmts}</td>`+
+   `<td style="text-align:right;white-space:nowrap">${btn} ${m.role&&!m.problems.length?`<button class="b s" onclick="testModel('${m.id}')">Test</button>`:""} <button class="b s" onclick="renameModel('${m.id}')">Rename</button> ${on?"":`<button class="b s" onclick="deleteModel('${m.id}')">Delete</button>`}</td></tr>`;}).join("")||"<tr><td class='note'>No models yet: drop one above.</td></tr>";}
+async function activate(role,id){flash("mmsg","loading the model…");try{M=await api("api/models/activate",{role,id});renderModels();flash("mmsg","switched");}catch(e){flash("mmsg",e.message,1);}}
+async function chooseWeights(id,path){try{M=await api("api/models/weights",{id,path});renderModels();flash("mmsg","weights chosen (press Use again if it is in use, to reload)");}catch(e){flash("mmsg",e.message,1);}}
+async function renameModel(id){const n=prompt("New name");if(!n)return;try{M=await api("api/models/rename",{id,name:n});renderModels();}catch(e){flash("mmsg",e.message,1);}}
+async function deleteModel(id){if(!confirm("Delete this model for good?"))return;try{M=await api("api/models/delete",{id});renderModels();}catch(e){flash("mmsg",e.message,1);}}
+async function testModel(id){flash("mmsg","running the model on the last photo…");try{const j=await api("api/models/test",{id});$("testcard").hidden=false;
+ $("testinfo").textContent=`${j.model.label}: ${j.objects} object(s) in ${j.seconds} s`;$("testimg").src="runs/"+encodeURIComponent(j.image)+"?"+Date.now();flash("mmsg","");}catch(e){flash("mmsg",e.message,1);}}
+function upload(file){
+ const max=(M.max_upload_mb||2000)*1024*1024;if(file.size>max){flash("upmsg",`too big (limit ${M.max_upload_mb} MB)`,1);return;}
+ const xhr=new XMLHttpRequest(),bar=$("upbar");
+ xhr.open("POST",`api/models/upload?filename=${encodeURIComponent(file.name)}&name=${encodeURIComponent($("mname").value)}`);
+ xhr.upload.onprogress=e=>{if(e.lengthComputable){bar.value=e.loaded/e.total;flash("upmsg",`uploading ${(e.loaded/1e6).toFixed(1)} / ${(e.total/1e6).toFixed(1)} MB`);}};
+ xhr.upload.onload=()=>flash("upmsg","uploaded, checking the model…");
+ xhr.onload=()=>{bar.hidden=true;let j={};try{j=JSON.parse(xhr.responseText);}catch(e){}
+  if(xhr.status===401)showLogin(false);
+  if(xhr.status>=400){flash("upmsg",j.error||("upload failed: "+xhr.status),1);return;}
+  M=j;renderModels();$("mname").value="";flash("upmsg",`stored: ${j.model.name} (${j.model.task})`);};
+ xhr.onerror=()=>{bar.hidden=true;flash("upmsg","upload failed (connection lost?)",1);};
+ bar.hidden=false;bar.value=0;xhr.send(file);}
+const drop=$("drop");
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)upload(f);});
+$("file").onchange=()=>{const f=$("file").files[0];if(f)upload(f);$("file").value="";};
+</script></body></html>

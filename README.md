@@ -35,8 +35,9 @@ pip install -e ".[dev]"
 screwpick serve --sim
 ```
 
-Open the address it prints. Everything works with a simulated printer, parts and camera: edit
-the layout, give bins their rules, press **Start** and watch the parts get sorted.
+Open the address it prints and create an account. Everything works with a simulated printer,
+parts and camera: edit the layout, give bins rules (or leave them wild), press **Start** and
+watch the parts get sorted.
 
 ## What you need
 
@@ -69,16 +70,27 @@ switches the heaters off.
 
 ## Install on the Pi
 
-screwpick uses the model and camera code from supreme-screw-sortering, so install it into the
-**same virtual environment** as `screwrig`:
+A Raspberry Pi **4 or 5** (4 GB or more) with 64-bit Raspberry Pi OS (Bookworm or Trixie). A
+Pi 3B has too little memory for Klipper, the camera and the model together.
 
 ```bash
-source ~/screwrig/bin/activate               # the venv screwrig runs in
-cd ~ && git clone https://github.com/ama24/screwpick.git
-cd ~/screwpick && pip install -r requirements-pi.txt
+git clone https://github.com/ama24/screwpick.git ~/screwpick
+~/screwpick/install-pi.sh --service      # --service: start screwpick at every boot
 cp ~/screwpick/klipper/screwpick.cfg ~/printer_data/config/
 echo "[include screwpick.cfg]" >> ~/printer_data/config/printer.cfg
 ```
+
+**Everything is pinned**, so installing again in a year gives exactly the same programs:
+- [requirements-pi.lock.txt](requirements-pi.lock.txt) lists every Python package with its
+  exact version **and a checksum of the file**. It's installed with `--no-deps --require-hashes`,
+  so pip installs nothing else and refuses a file that differs in any way.
+- supreme-screw-sortering, the model and camera code, is checked out at a fixed commit
+  (`SUPREME_COMMIT` in [install-pi.sh](install-pi.sh)).
+- The script puts everything in the same Python environment as `screwrig` (`~/screwrig`),
+  checks that OpenCV has ArUco and that PyTorch is the CPU build, and says what to do next.
+
+To upgrade on purpose: run `python scripts/lock_pi.py` and change `SUPREME_COMMIT`, test it on
+the Pi, then commit.
 
 Then restart Klipper (`FIRMWARE_RESTART`), and adapt the *PICKER HARDWARE* part of
 `screwpick.cfg` to your wiring. Check everything with:
@@ -87,7 +99,8 @@ Then restart Klipper (`FIRMWARE_RESTART`), and adapt the *PICKER HARDWARE* part 
 cd ~/screwpick && screwpick check
 ```
 
-Start it with `screwpick serve`, and open `http://<pi>:8080` on the PC or phone.
+Start it with `screwpick serve`, and open `http://<pi>:8080` on the PC or phone. The first
+visit asks you to create an account (see [Login](#login)).
 
 > **Note:** `screwrig capture` parks the bed by talking to the printer's USB port directly.
 > With Klipper running, Klipper owns that port, so use screwpick (which goes through Klipper)
@@ -97,9 +110,11 @@ Start it with `screwpick serve`, and open `http://<pi>:8080` on the PC or phone.
 
 1. **Layout tab**: set the grid (5 x 5 cells fit an Ender 3 bed), drag out the working area, and
    add bins. Give each bin its rules (*holds*) or a role. Save.
-2. **Print bins tab**: download `screwpick_print.zip` (every bin, the baseplate, paper labels,
-   printing notes). Bins come as two-part 3MF files: the bin (white) and its marker (black).
-   With one extruder, add a colour change at the rim height (21 mm for 3-unit bins).
+2. **Print the bins and the baseplate:** ready-made plates of every size are in
+   [prints/](prints/) (16 small bins per Ender 3 plate, with codes, and the slim 2.5 mm
+   baseplate). The web page's **Print bins** tab makes the same for any other layout. Bins
+   come as two-part 3MF files, the bin (white) and its code (black). With one extruder, add a
+   colour change at the rim height (21 mm for 3-unit bins).
 3. Put the baseplate on the bed, the TPU plate in the cut-out, and the bins around it.
 4. Mount the picker and run `TOOL_PICKER`. Set `tool.offset` in
    [configs/machine.yaml](configs/machine.yaml) if the picker tip is not where the nozzle was.
@@ -110,17 +125,190 @@ Start it with `screwpick serve`, and open `http://<pi>:8080` on the PC or phone.
 7. **Layout tab → Find bins with the camera**: every bin moves to where its marker really is.
 8. **Run tab**: pick a strategy and press **Start**, or use the printer menu.
 
+## Models: upload over WiFi, keep the old ones
+
+The **Models** tab (`http://<pi>:8080/#models`) is where models arrive. Drag a file onto the drop
+zone, or click it to choose one. It takes:
+
+| File | What it is |
+|---|---|
+| **package zip** (recommended) | model-trainer's whole `package` folder zipped: `best.pt`, `model_card.json`, `exports/…` |
+| zipped NCNN folder | e.g. `best_ncnn_model.zip` (contains `model.ncnn.param`, `model.ncnn.bin`, `metadata.yaml`) |
+| `.onnx` or `.pt` | a single weights file |
+
+Every upload is checked:
+- **what kind of model it is** (from the model card or the NCNN metadata);
+- **its classes**, compared with the catalogue: a model knowing none of them is refused, and
+  missing or extra classes are listed;
+- **its image size and score**.
+
+Each upload is stored in its own folder (`models/`). **Old models are never replaced**: press
+**Use** on any of them to switch back. The switch happens without a restart, and if the new
+model fails to load, the old one stays in use. **Test** runs a stored model on the last photo
+and shows its outlines, without switching. The first model of each kind is put in use by itself.
+
+When a package holds several formats, the Pi uses **NCNN** (fastest on its CPU), full precision
+first. You can pick another one from the list.
+
+Kinds of models and what they do here:
+
+| Model task | Role | What you get |
+|---|---|---|
+| **segment** | finds parts (stage 1) | outlines, classes, positions, lengths: everything |
+| **obb** / **detect** | finds parts (stage 1) | classes and positions only; lengths are not measured, so part-number rules send parts to *unsure* |
+| **pose** | measures length (stage 2, optional) | keypoints for a more precise length |
+| **classify** | re-checks classes (optional) | looks at a close-up of every part and corrects the class when it is at least `models.classifier_conf` sure |
+
+If the card has a recommended confidence, it is used for stage 1 (`models.use_recommended_conf`).
+
+> Only upload models you trust: `.pt` files are Python pickles and can contain code.
+
+## Wild bins
+
+A **wild** bin has no rules. The first part of a kind that no other bin takes **claims** a free
+wild bin, and from then on that bin collects that kind. The Layout tab sets what "a kind" is for
+all wild bins:
+
+- **part number** (DIN912_M4x16): the default, one class and length per bin. Screws wait
+  until their length is measured; nuts and washers (no length) go one class per bin.
+- **class** (DIN912_M4): any length.
+- **family** (DIN912).
+
+- **A layout of only wild bins** sorts by itself, with no setup. New bins start out wild, and a
+  wild bin becomes a rule bin as soon as you type rules into it.
+- **Rules come first.** Bins with rules (and the unknown/unsure roles) are tried before wild bins.
+  When every wild bin is taken, new kinds go to *overflow*, or stay on the plate.
+- **Claims are kept** across runs and restarts (`data/wild_bins.json`). Each bin shows on the
+  Run and Layout tabs what it collects.
+
+**Ready to take out.** After every photo screwpick checks each filled bin. When nothing left on
+the plate goes into that bin, the bin is marked:
+- in soft green with a check mark in the Layout tab;
+- in a notice at the top of every tab;
+- with a line on the printer display.
+
+Take the bin out, empty it, and press **Emptied**. A wild bin is then free for the next new
+kind. If you throw in more of its parts, the mark goes away again. In a later version the
+machine could move complete bins aside by itself.
+
+**Bins the camera sees.** At the start of every run the camera reads the bin markers
+(`run.scan_bins_on_start`):
+- bins that moved are updated in the layout;
+- markers the layout doesn't know join as new **wild** bins;
+- bins the camera can't see (covered, removed) are not used in that run (`run.only_seen_bins`).
+
+So you can put a new printed bin on the bed and it's used straight away.
+
+## Login
+
+The page needs a user name and password (`web.require_login`, on by default):
+
+- The **first visit** creates the first account.
+- The **Users** tab adds or removes users and changes your password. Every user can do
+  everything.
+- **Passwords** are stored only as salted, slow hashes in `data/users.json`, which is readable
+  only by the Pi's user.
+- **Sessions** last `web.session_days` (30) per browser. **Log out** ends one, and changing a
+  password ends all sessions of that user.
+- **Ten wrong passwords** from one address block it for 5 minutes.
+- **Locked out?** On the Pi: `screwpick user add NAME` sets a new password, and
+  `screwpick user list` / `remove` manage the accounts.
+
+The page is plain HTTP, so it is meant for your home network. Logging in keeps others off the
+page; it is not protection against someone already listening on your WiFi. The printer-menu
+buttons never need a login: they come from Klipper on the Pi itself.
+
+## One cycle
+
+1. **Pick** the part chosen from the last photo and lift it.
+2. **Photo:** go to the photo position, holding the part, and take the photo (about 1 s). The
+   part is in the picker, so the photo also shows whether the pick worked: if the part is still
+   on the plate, the pick failed and is tried again.
+3. **Drop:** carry the part to its bin and release it. **Meanwhile the Pi analyses the photo**,
+   so its 1–3 s of thinking hide behind the move.
+4. The next part is chosen from that photo. Back to 1.
+
+The Run tab shows how long the last cycle took and how long the machine had to wait for the Pi
+after the drop. On a Pi 4 or Pi 5 that wait should be about 0. A Pi 3B (1 GB) is too small for
+Klipper and the model together.
+
+- **The photo position must keep the head, and the part it holds, outside the working area in
+  the picture**, ideally off the plate.
+- **Loose parts and quick bed moves:** after the photo the bed moves to the bin and back, and
+  fast moves can nudge loose parts. `printer.accel` sets a gentler acceleration while sorting.
+- **Turning it off:** `run.pipeline: false` photographs only with an empty picker (slower).
+
+## Automatic mode
+
+Press **Automatic** on the Run tab (or *Screw sorter → Automatic* on the printer). The machine
+then runs by itself until you press Stop:
+
+1. **Standby:** the bed stays all the way out at the photo position (`printer.photo_position`)
+   and the motors are switched off, so it's quiet (`standby.motors_off`). Every minute
+   (`standby.interval_s`) the camera looks at the plate. With the motors off nothing moves:
+   the bed is still parked where the camera was calibrated.
+2. **Parts seen:** it waits `standby.settle_s` seconds and looks again. Only if the parts lie in
+   the same places, with no hand still throwing or spreading them, does it start.
+3. **Sorting:** it homes (see below), finds the bins, and sorts the largest group first, until
+   the plate is empty. Then it goes back to standby, and complete bins are marked ready.
+4. **Stuck parts** (a clump that shaking can't spread) are left alone. It tries again as soon
+   as they've been moved.
+
+Automatic mode **stays on after a restart** or power cut: when `screwpick serve` starts, it
+carries on. Stop (or STOP) switches it off. After `standby.max_errors` errors in a row (printer
+off, camera unplugged…) it switches itself off and says why on the page.
+
+## Homing
+
+Two dangers when homing a sorter that a plain `G28` doesn't handle:
+
+- **Bins on the bed.** An Ender 3 homes Z at the front-left corner, which is a bin. The tool would
+  come down onto the bin's rim.
+- **The picker tip may reach lower than the nozzle did.** The Z switch triggers on the gantry
+  height, so with a longer tool the tip touches the plate before the switch triggers.
+
+**What screwpick does** (`klipper/screwpick.cfg`, `[homing_override]`):
+
+1. Lift Z by 30 mm first (more than the bins are tall).
+2. Home X, then Y.
+3. Move the tip over the **middle of the working area**: flat TPU, no bins. screwpick sets this
+   spot from the layout before every homing.
+4. Home Z there, then lift again.
+
+**For the tip that reaches lower: raise the Z switch.** Slide the Ender's Z endstop bracket up
+until the switch triggers with the picker tip **2–3 mm above the plate**. Then:
+
+1. In `printer.cfg`, allow Z a little below 0: `[stepper_z] position_min: -5`.
+2. Home, then on the **Calibrate tab → Tip height**: jog the tip down over the plate in 0.1 mm
+   steps until a sheet of paper just drags, and press **Tip touches the plate**. From then on,
+   every Z that screwpick uses counts from that point. Repeat this whenever the switch or the
+   picker is moved.
+
+The X and Y offset of the tip needs no measuring: the camera calibration already uses the tip
+itself.
+
+**Printing again with the hotend:** the raised switch would stop the nozzle above the bed.
+Either slide the switch back down when you swap tools (re-level as usual), or print a spacer
+that clips under the switch together with the picker swap, so the switch height comes with the
+tool. Choose the picker's length so that the spacer is about the same for every swap.
+
+**Motors off in standby:** Klipper forgets the homing when the motors switch off (and after its
+own `idle_timeout`, 10 minutes by default). That's fine: the bed stays where it was for the
+standby photos, and the machine homes again before the next sort.
+
 ## Strategies
 
 | Strategy | What it does |
 |---|---|
-| **sort** | every part goes to the bin whose rule matches it best: part number > class > family > `*` |
+| **sort** | every part goes to the bin whose rule matches it best (part number > class > family > `*`), else to a wild bin |
 | **clear** | everything into the bin with role *all* (or *overflow*), no sorting |
 | **kit** | only the parts on `run.kit` (e.g. `{DIN912_M3x10: 4, DIN934_M3: 4}`) into the *kit* bin, then stop |
 
 These rules apply to every strategy:
-- Parts with free space around them are picked first, then the most confident, then the
-  nearest.
+- **The largest group first** (`run.order: largest_group`): the part number with the most
+  pieces on the plate is picked first, then the next. Within a group, parts with free space
+  around them come first, then the most confident, then the nearest. `nearest` skips the
+  grouping.
 - Detections below `run.min_score` go to the *unsure* bin.
 - UNKNOWN parts go to the *unknown* bin.
 - A part whose length decides its bin, but which can't be measured yet (tilted, covered), waits.

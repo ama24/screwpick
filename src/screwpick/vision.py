@@ -1,0 +1,277 @@
+"""Photo -> parts and bin markers, with the screwsynth model and the camera calibration.
+
+The model runs on the calibrated region of interest exactly as it was trained (same scale), and
+the sorter then keeps only the parts inside the working area: parts inside bins are ignored.
+"""
+
+from __future__ import annotations
+
+import logging
+import re
+import subprocess
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Protocol
+
+import numpy as np
+
+from .analysis import Analyzer, ModelChoice
+from .config import Machine
+from .markers import MarkerPose, detect, marker_pose
+from .models import ModelStore
+from .parts import Part
+
+log = logging.getLogger("screwpick.vision")
+
+
+@dataclass
+class Shot:
+    name: str
+    parts: list[Part]
+    markers: list[MarkerPose] = field(default_factory=list)  # plate frame
+    photo: Path | None = None
+    vis: Path | None = None  # photo with the outlines drawn
+    result: dict[str, Any] = field(default_factory=dict)
+
+
+class Vision(Protocol):
+    def capture(self, name: str, marker_height: Callable[[int], float]) -> Shot:
+        """Take a photo, find parts and markers; `marker_height(id)` = plate-frame height of a
+        marker (bins differ in height)."""
+
+    def snap(self, name: str) -> Any:
+        """Only take the photo (fast); `analyse` it later, e.g. while the machine moves."""
+
+    def analyse(self, photo: Any, name: str, marker_height: Callable[[int], float]) -> Shot: ...
+
+    def close(self) -> None: ...
+
+
+_M = re.compile(r"_M(\d+(?:\.\d+)?)")
+
+
+def top_height_mm(cls: str, screw_head_radius: float | None) -> float:
+    """Highest point of a lying part above the plate, for the picker's descent.
+
+    Screws and standoffs: from the measurement geometry (the head or hex body lying on its side).
+    Other parts: a rule of thumb from the thread size; the spring-loaded cup absorbs the rest."""
+    if screw_head_radius is not None:
+        return 2.0 * screw_head_radius
+    m = _M.search(cls)
+    d = float(m.group(1)) if m else 4.0
+    if cls.startswith("BRACKET_"):
+        return float(cls.split("_")[1][:2])  # lying on a leg: about the profile size
+    if cls.startswith("TNUT_"):
+        return 4.0
+    if cls.startswith(("DIN125", "DIN9021", "DIN127", "ISO7089", "ISO7093")):
+        return max(0.5, 0.2 * d)  # washers
+    if cls.startswith("UNKNOWN"):
+        return 3.0
+    return 0.8 * d  # nuts and the like, lying flat
+
+
+def parts_from_result(
+    result: dict[str, Any],
+    to_plate: Callable[[np.ndarray, float], np.ndarray],
+    head_radius: Callable[[str], float | None],
+) -> list[Part]:
+    """screwsynth-infer output -> Parts (outline in plate mm at the part's mid height)."""
+    out = []
+    for o in result.get("objects", []):
+        cls = str(o["class"])
+        hr = head_radius(cls)
+        top = top_height_mm(cls, hr)
+        poly_px = np.asarray(o.get("polygon") or [], dtype=float).reshape(-1, 2)
+        poly = to_plate(poly_px, top / 2)[:, :2] if len(poly_px) else np.zeros((0, 2))
+        length = (o.get("length") or {}).get("length_mm")
+        out.append(
+            Part(
+                id=int(o["id"]),
+                cls=cls,
+                score=float(o.get("score", 0.0)),
+                plate_xy=(float(o["position_mm"][0]), float(o["position_mm"][1])),
+                plate_angle=float(o.get("orientation_deg", 0.0)),
+                polygon=poly,
+                top_mm=top,
+                length_mm=None if length is None else float(length),
+                measurable=bool(o.get("measurable", False)),
+                unknown=bool(o.get("unknown", False)),
+                has_length=hr is not None,
+            )
+        )
+    return out
+
+
+class CameraVision:
+    """The real thing: Pi camera + the active models from the model store + screwsynth's
+    calibration and length measurement. Models can be swapped while idle (use_models)."""
+
+    def __init__(self, m: Machine, out_dir: Path, store: ModelStore | None = None) -> None:
+        import cv2  # noqa: F401 - fail early when OpenCV is missing
+        from screwsynth.calibration.geometry import Camera, nominal_from_config
+        from screwsynth.common.config import load_config
+        from screwsynth.common.io import read_json
+        from screwsynth.common.paths import resolve
+        from screwsynth.measure.geometry import Geometry
+        from screwsynth.measure.infer import Settings
+
+        self.m = m
+        self.out = out_dir
+        self.out.mkdir(parents=True, exist_ok=True)
+        self.store = store
+        cfg = load_config(m.path(m.paths.screwsynth_config))
+        calib_path = m.path(m.paths.calibration) or resolve(
+            Path(cfg.get("paths.calibration_dir", "data/calibration")) / "calibration.json"
+        )
+        self.calibration = read_json(calib_path) if calib_path.is_file() else None
+        if self.calibration is None:
+            log.warning("no camera calibration (%s): using the nominal camera", calib_path)
+        self.nominal = nominal_from_config(cfg)
+        self.cam_full = (
+            Camera.from_calibration(self.calibration) if self.calibration else self.nominal
+        )
+        self.geometry = Geometry.from_config(cfg)
+        self.settings = Settings.from_config(cfg.to_dict())
+        self.classes_yaml = resolve(cfg.get("paths.classes", "configs/classes.yaml"))
+        self._head_r = {name: g.head_radius for name, g in self.geometry.classes.items()}
+        self.analyzer: Analyzer | None = None
+        self.model_error: str | None = None
+        try:
+            self.use_models(active_choice(m, store))
+        except (FileNotFoundError, ValueError) as exc:
+            self.model_error = str(exc)
+            log.error("no usable model: %s", exc)
+        cam_settings = m.path(m.camera.settings)
+        self.cam = None
+        if cam_settings:
+            from screwrig.camera import Camera as RigCamera
+
+            self.cam = RigCamera(read_json(cam_settings))
+
+    def load(self, choice: ModelChoice) -> Analyzer:
+        return Analyzer(
+            choice, self.geometry, self.settings, self.classes_yaml, self.m.models.classifier_conf
+        )
+
+    def use_models(self, choice: ModelChoice) -> dict[str, Any]:
+        """Load and switch to these models (the old ones stay in use if loading fails)."""
+        self.analyzer = self.load(choice)
+        self.model_error = None
+        log.info("models: %s (%s)", choice.label, self.analyzer.task)
+        return self.analyzer.describe()
+
+    def models_info(self) -> dict[str, Any]:
+        if self.analyzer is None:
+            return {"error": self.model_error or "no model loaded"}
+        return self.analyzer.describe()
+
+    def _scene(self, photo: Path) -> Any:
+        from screwsynth.measure.infer import load_scene
+
+        return load_scene(photo, self.calibration, self.nominal)
+
+    def _snap(self, path: Path) -> None:
+        import cv2
+
+        if self.cam is not None:
+            img, _ = self.cam.grab()
+            if not cv2.imwrite(str(path), img, [cv2.IMWRITE_JPEG_QUALITY, 95]):
+                raise OSError(f"could not write {path}")
+            return
+        cmd = ["rpicam-still", "-n", "-t", "500", "--width", "4608", "--height", "2592"]
+        subprocess.run([*cmd, "-q", "95", "-o", str(path)], check=True, capture_output=True)
+
+    def capture(self, name: str, marker_height: Callable[[int], float]) -> Shot:
+        return self.analyse(self.snap(name), name, marker_height)
+
+    def snap(self, name: str) -> Path:
+        if self.analyzer is None:
+            raise FileNotFoundError(
+                f"no model: upload one in the Models tab ({self.model_error or 'none loaded'})"
+            )
+        photo = self.out / f"{name}.jpg"
+        self._snap(photo)
+        return photo
+
+    def analyse(self, photo: Path, name: str, marker_height: Callable[[int], float]) -> Shot:
+        import cv2
+        from screwsynth.measure.infer import draw
+
+        assert self.analyzer is not None
+        scene = self._scene(photo)
+        result = self.analyzer.analyse(scene, str(photo))
+        parts = parts_from_result(
+            result,
+            lambda px, h: scene.cam.pixel_to_plate(px, h),
+            self._head_r.get,
+        )
+        full = cv2.imread(str(photo), cv2.IMREAD_GRAYSCALE)
+        markers = [
+            marker_pose(
+                s, lambda px, mid=s.marker: self.cam_full.pixel_to_plate(px, marker_height(mid))
+            )
+            for s in detect(full)
+        ]
+        vis = self.out / f"{name}_vis.jpg"
+        cv2.imwrite(str(vis), draw(scene, result, max_side=1600), [cv2.IMWRITE_JPEG_QUALITY, 85])
+        return Shot(name, parts, markers, photo, vis, result)
+
+    def test_models(self, choice: ModelChoice, photo: Path, out_name: str) -> dict[str, Any]:
+        """Run other models on an existing photo, without switching to them."""
+        import cv2
+        from screwsynth.measure.infer import draw
+
+        an = self.load(choice)
+        scene = self._scene(photo)
+        result = an.analyse(scene, str(photo))
+        vis = self.out / out_name
+        cv2.imwrite(str(vis), draw(scene, result, max_side=1600), [cv2.IMWRITE_JPEG_QUALITY, 85])
+        return {
+            "image": vis.name,
+            "objects": len(result["objects"]),
+            "model": an.describe(),
+            "seconds": result["timing_s"]["total"],
+        }
+
+    def close(self) -> None:
+        if self.cam is not None:
+            self.cam.close()
+
+
+def find_model(models_dir: Path) -> Path | None:
+    """The newest model in a models/ folder: an NCNN folder, .onnx or .pt (as screwrig detect)."""
+    if not models_dir.is_dir():
+        return None
+    found = [p for p in models_dir.rglob("*_ncnn_model") if p.is_dir()]
+    found += [p for p in models_dir.rglob("*") if p.suffix in (".onnx", ".pt")]
+    return max(found, key=lambda p: p.stat().st_mtime) if found else None
+
+
+def active_choice(m: Machine, store: ModelStore | None) -> ModelChoice:
+    """The models to use: the active ones in the store; without one, paths.model in machine.yaml
+    or the newest model in screwsynth's models/ folder."""
+    s1 = store.active_model("stage1") if store else None
+    if s1 is not None and store is not None:
+        choice = ModelChoice(
+            store.weights_path(s1),
+            imgsz=s1.imgsz,
+            conf=s1.recommended_conf if m.models.use_recommended_conf else None,
+            label=s1.name,
+        )
+    else:
+        path = m.path(m.paths.model)
+        if path is None:
+            from screwsynth.common.paths import resolve
+
+            path = find_model(resolve("models"))
+        if path is None:
+            raise FileNotFoundError("no model: upload one in the Models tab")
+        choice = ModelChoice(path, label=path.name)
+    for role in ("stage2", "classifier"):
+        sm = store.active_model(role) if store else None
+        if sm is not None and store is not None:
+            setattr(choice, role, store.weights_path(sm))
+    if choice.stage2 is None:
+        choice.stage2 = m.path(m.paths.stage2)
+    return choice
