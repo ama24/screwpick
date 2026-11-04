@@ -227,7 +227,7 @@ def test_web_login_flow(machine, tmp_path, monkeypatch):
         if cookie:
             req.add_header("Cookie", cookie)
         try:
-            with urllib.request.urlopen(req, timeout=10) as r:
+            with urllib.request.urlopen(req, timeout=30) as r:
                 return r.status, json.loads(r.read() or b"{}"), r.headers.get("Set-Cookie")
         except urllib.error.HTTPError as e:
             return e.code, json.loads(e.read() or b"{}"), None

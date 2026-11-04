@@ -29,11 +29,13 @@ from __future__ import annotations
 
 import http.cookies
 import http.server
+import io
 import json
 import logging
 import threading
 import urllib.parse
 import uuid
+import zipfile
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -339,6 +341,18 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             slim = q.get("kind", "slim") != "standard"
             name, data = export.baseplate_file(lay, float(q.get("lip", 8.0)), slim=slim)
             ctype = "model/stl"
+        elif what == "mounts":  # screen holder + camera arm, from the page's measurements
+            from ..printables.mounts import CameraArm, ScreenHolder, drop_for, mount_files
+
+            arm = CameraArm(reach=float(q.get("reach", 135.0)))
+            if q.get("bar_height"):
+                arm.drop = drop_for(float(q["bar_height"]), float(q.get("lens_height", 300.0)), arm)
+            screen = ScreenHolder(tilt_deg=float(q.get("tilt", 20.0)))
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+                for fname, fdata in mount_files(screen, arm):
+                    z.writestr(fname, fdata)
+            name, data, ctype = "screwpick_mounts.zip", buf.getvalue(), "application/zip"
         elif what == "plate":
             size = binspec.size_named(q["size"])
             cols, rows = export.plate_grid(size)
