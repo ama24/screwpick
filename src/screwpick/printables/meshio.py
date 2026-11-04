@@ -58,22 +58,40 @@ def _mesh_xml(mesh: Mesh) -> str:
 def threemf_bytes(parts: Sequence[tuple[str, Mesh]], name: str = "screwpick") -> bytes:
     """One object made of several parts (e.g. "bin" and "marker"), so a slicer keeps them
     together and each part can get its own filament."""
-    objs = []
-    for i, (pname, mesh) in enumerate(parts, start=1):
-        objs.append(
-            f'<object id="{i}" name="{_esc(pname)}" type="model">{_mesh_xml(mesh)}</object>'
+    return threemf_plate_bytes([(name, parts, (0.0, 0.0))])
+
+
+def threemf_plate_bytes(
+    objects: Sequence[tuple[str, Sequence[tuple[str, Mesh]], tuple[float, float]]],
+) -> bytes:
+    """Several objects on one build plate, each made of parts and placed at (x, y) mm: a whole
+    plate of bins to print at once."""
+    res: list[str] = []
+    items: list[str] = []
+    next_id = 1
+    for name, parts, (tx, ty) in objects:
+        ids = []
+        for pname, mesh in parts:
+            res.append(
+                f'<object id="{next_id}" name="{_esc(pname)}" type="model">{_mesh_xml(mesh)}</object>'
+            )
+            ids.append(next_id)
+            next_id += 1
+        comps = "".join(f'<component objectid="{i}"/>' for i in ids)
+        res.append(
+            f'<object id="{next_id}" name="{_esc(name)}" type="model">'
+            f"<components>{comps}</components></object>"
         )
-    comp_id = len(parts) + 1
-    comps = "".join(f'<component objectid="{i}"/>' for i in range(1, len(parts) + 1))
-    objs.append(
-        f'<object id="{comp_id}" name="{_esc(name)}" type="model"><components>{comps}</components></object>'
-    )
+        items.append(
+            f'<item objectid="{next_id}" transform="1 0 0 0 1 0 0 0 1 {tx:.3f} {ty:.3f} 0"/>'
+        )
+        next_id += 1
     model = (
         '<?xml version="1.0" encoding="UTF-8"?>'
         '<model unit="millimeter" xml:lang="en-US" '
         'xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">'
-        f"<resources>{''.join(objs)}</resources>"
-        f'<build><item objectid="{comp_id}"/></build></model>'
+        f"<resources>{''.join(res)}</resources>"
+        f"<build>{''.join(items)}</build></model>"
     )
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:

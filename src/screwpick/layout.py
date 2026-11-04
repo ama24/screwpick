@@ -111,7 +111,11 @@ class Layout:
         axis, printer frame) of the bin. A bin turned by 90 degrees swaps its width and depth."""
         b = self.bin_by_marker(marker)
         if b is None:
-            b = Bin(marker=marker, x=0, y=0, height_u=height_u or binspec.MIN_HEIGHT_U)
+            size = binspec.size_for_marker(marker)  # printed bins: the size goes with the id
+            if size is not None:
+                b = Bin(marker=marker, x=0, y=0, w=size.w, d=size.d, height_u=size.height_u)
+            else:
+                b = Bin(marker=marker, x=0, y=0, height_u=height_u or binspec.MIN_HEIGHT_U)
             self.bins.append(b)
         quarter = round(yaw_deg / 90.0) % 2
         if quarter and b.w != b.d:
@@ -153,6 +157,14 @@ class Layout:
                 out.append(f"{who}: marker ids are {MARKER_IDS.start}-{MARKER_IDS.stop - 1}")
             if b.role not in ROLES:
                 out.append(f"{who}: unknown role {b.role!r} (one of {', '.join(ROLES)})")
+            size = binspec.size_for_marker(b.marker)
+            if size is not None and (
+                sorted((b.w, b.d)) != sorted((size.w, size.d)) or b.height_u != size.height_u
+            ):
+                out.append(
+                    f"{who}: markers {size.markers.start}-{size.markers.stop - 1} are printed on "
+                    f"{size.name} bins (this one is {b.w}x{b.d}x{b.height_u}u)"
+                )
             if b.height_u < binspec.MIN_HEIGHT_U:
                 out.append(
                     f"{who}: at least {binspec.MIN_HEIGHT_U} height units (the marker shelf)"

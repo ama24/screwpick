@@ -6,6 +6,7 @@ screwpick run --strategy sort [--steps N]   sort without the web page (logs to t
 screwpick check              is everything there? (config, layout, calibration, printer)
 screwpick user add NAME      page account (new user or new password); user remove / list
 screwpick print bin|baseplate|labels|all    write printable files
+screwpick print catalogue --out prints      every bin size as full build plates, baseplates, labels
 """
 
 from __future__ import annotations
@@ -239,7 +240,10 @@ def cmd_print(args: argparse.Namespace) -> int:
             )
             files.append(export.bin_file(b, args.fmt))
     elif args.what == "baseplate":
-        files.append(export.baseplate_file(lay, args.lip))
+        files.append(export.baseplate_file(lay, args.lip, slim=not args.standard))
+    elif args.what == "catalogue":  # the ready-made set (prints/ in the repository)
+        export.catalogue(out)
+        return 0
     elif args.what == "labels":
         files.append(export.labels_file(lay, args.marker or None))
     else:
@@ -289,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
     u.add_argument("name", nargs="?", default="")
     u.set_defaults(func=cmd_user)
     p = sub.add_parser("print", help="write printable bins, baseplate or labels")
-    p.add_argument("what", choices=["bin", "baseplate", "labels", "all"])
+    p.add_argument("what", choices=["bin", "baseplate", "labels", "all", "catalogue"])
     p.add_argument(
         "--marker", type=int, action="append", help="bin marker id (repeat; default: every bin)"
     )
@@ -299,6 +303,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--height", type=int, default=3, help="height units (7 mm), at least 3")
     p.add_argument(
         "--lip", type=float, default=8.0, help="baseplate: lip height around the working area"
+    )
+    p.add_argument(
+        "--standard", action="store_true", help="baseplate: standard 4.65 mm (default: slim 2.5 mm)"
     )
     p.add_argument("--out", default="print")
     p.set_defaults(func=cmd_print)

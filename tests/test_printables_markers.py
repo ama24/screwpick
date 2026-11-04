@@ -100,7 +100,13 @@ def test_export_zip_and_3mf():
     data = export.everything_zip(lay)
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         names = set(z.namelist())
-        assert {"bin_100.3mf", "bin_101.3mf", "baseplate.stl", "labels.svg", "README.txt"} <= names
+        assert {
+            "bin_100.3mf",
+            "bin_101.3mf",
+            "baseplate_5x5_slim_work3x3.stl",
+            "labels.svg",
+            "README.txt",
+        } <= names
         with zipfile.ZipFile(io.BytesIO(z.read("bin_100.3mf"))) as z3:
             model = z3.read("3D/3dmodel.model").decode()
     assert 'name="bin"' in model and 'name="marker"' in model and "<components>" in model

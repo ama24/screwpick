@@ -70,16 +70,27 @@ switches the heaters off.
 
 ## Install on the Pi
 
-screwpick uses the model and camera code from supreme-screw-sortering, so install it into the
-**same virtual environment** as `screwrig`:
+A Raspberry Pi **4 or 5** (4 GB or more) with 64-bit Raspberry Pi OS (Bookworm or Trixie). A
+Pi 3B has too little memory for Klipper, the camera and the model together.
 
 ```bash
-source ~/screwrig/bin/activate               # the venv screwrig runs in
-cd ~ && git clone https://github.com/ama24/screwpick.git
-cd ~/screwpick && pip install -r requirements-pi.txt
+git clone https://github.com/ama24/screwpick.git ~/screwpick
+~/screwpick/install-pi.sh --service      # --service: start screwpick at every boot
 cp ~/screwpick/klipper/screwpick.cfg ~/printer_data/config/
 echo "[include screwpick.cfg]" >> ~/printer_data/config/printer.cfg
 ```
+
+**Everything is pinned**, so installing again in a year gives exactly the same programs:
+- [requirements-pi.lock.txt](requirements-pi.lock.txt) lists every Python package with its
+  exact version **and a checksum of the file**. It's installed with `--no-deps --require-hashes`,
+  so pip installs nothing else and refuses a file that differs in any way.
+- supreme-screw-sortering, the model and camera code, is checked out at a fixed commit
+  (`SUPREME_COMMIT` in [install-pi.sh](install-pi.sh)).
+- The script puts everything in the same Python environment as `screwrig` (`~/screwrig`),
+  checks that OpenCV has ArUco and that PyTorch is the CPU build, and says what to do next.
+
+To upgrade on purpose: run `python scripts/lock_pi.py` and change `SUPREME_COMMIT`, test it on
+the Pi, then commit.
 
 Then restart Klipper (`FIRMWARE_RESTART`), and adapt the *PICKER HARDWARE* part of
 `screwpick.cfg` to your wiring. Check everything with:
@@ -99,9 +110,11 @@ visit asks you to create an account (see [Login](#login)).
 
 1. **Layout tab**: set the grid (5 x 5 cells fit an Ender 3 bed), drag out the working area, and
    add bins. Give each bin its rules (*holds*) or a role. Save.
-2. **Print bins tab**: download `screwpick_print.zip` (every bin, the baseplate, paper labels,
-   printing notes). Bins come as two-part 3MF files: the bin (white) and its marker (black).
-   With one extruder, add a colour change at the rim height (21 mm for 3-unit bins).
+2. **Print the bins and the baseplate:** ready-made plates of every size are in
+   [prints/](prints/) (16 small bins per Ender 3 plate, with codes, and the slim 2.5 mm
+   baseplate). The web page's **Print bins** tab makes the same for any other layout. Bins
+   come as two-part 3MF files, the bin (white) and its code (black). With one extruder, add a
+   colour change at the rim height (21 mm for 3-unit bins).
 3. Put the baseplate on the bed, the TPU plate in the cut-out, and the bins around it.
 4. Mount the picker and run `TOOL_PICKER`. Set `tool.offset` in
    [configs/machine.yaml](configs/machine.yaml) if the picker tip is not where the nozzle was.

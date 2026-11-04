@@ -139,13 +139,18 @@ def build_baseplate(
     work: tuple[int, int, int, int] | None = None,
     lip_mm: float = 8.0,
     lip_wall_mm: float = 2.0,
+    slim: bool = False,
 ) -> Mesh:
     """Open-bottom baseplate of cols x rows cells; `work` = (x, y, w, d) cells cut out for the
     working area, with a lip `lip_mm` tall (from the bed) just inside the cut-out.
 
+    slim: only 2.5 mm tall. It keeps the bottom chamfer and the straight part of each socket,
+    which is what holds a bin's foot in place; the flared top (2.15 mm) is left out. The bins
+    stand on the bed either way (open bottom), so their height does not change.
+
     Origin: the front-left corner on the bed."""
     p = binspec.PITCH_MM
-    h = 4.65
+    h = binspec.BASEPLATE_SLIM_MM if slim else binspec.BASEPLATE_MM
     W, D = cols * p, rows * p
     plate = _frustum([(W, D, 4.0, 0.0), (W, D, 4.0, h)], W / 2, D / 2)
     holes = []
@@ -158,15 +163,15 @@ def build_baseplate(
             if (i, j) in work_cells:
                 continue
             cx, cy = (i + 0.5) * p, (j + 0.5) * p
-            holes.append(
-                _union(
-                    [
-                        _frustum([(36.3, 36.3, 1.15, -0.01), (37.7, 37.7, 1.85, 0.7)], cx, cy),
-                        _frustum([(37.7, 37.7, 1.85, 0.7), (37.7, 37.7, 1.85, 2.5)], cx, cy),
-                        _frustum([(37.7, 37.7, 1.85, 2.5), (42.0, 42.0, 4.0, h + 0.01)], cx, cy),
-                    ]
+            socket = [
+                _frustum([(36.3, 36.3, 1.15, -0.01), (37.7, 37.7, 1.85, 0.7)], cx, cy),
+                _frustum([(37.7, 37.7, 1.85, 0.7), (37.7, 37.7, 1.85, min(2.5, h) + 0.01)], cx, cy),
+            ]
+            if not slim:
+                socket.append(
+                    _frustum([(37.7, 37.7, 1.85, 2.5), (42.0, 42.0, 4.0, h + 0.01)], cx, cy)
                 )
-            )
+            holes.append(_union(socket))
     out = plate - _union(holes) if holes else plate
     if work is not None:
         wx, wy, ww, wd = work

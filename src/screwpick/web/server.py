@@ -37,6 +37,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
+from .. import binspec
 from ..auth import COOKIE, Accounts, AuthError
 from ..layout import Bin, Layout
 from ..printables import export
@@ -183,7 +184,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json({"result": r.command(str(b.get("command", "")), b.get("strategy"))})
         elif method == "GET" and path == "/api/layout":
             lay = r.layout()
-            self._json({"layout": lay.to_dict(), "problems": lay.problems()})
+            self._json({"layout": lay.to_dict(), "problems": lay.problems(), "sizes": _sizes()})
         elif method == "POST" and path == "/api/layout":
             lay = Layout.from_dict(self._body().get("layout") or {})
             lay.save(r.layout_path)
@@ -316,8 +317,18 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             name, data = export.bin_file(b, q.get("fmt", "3mf"))
             ctype = "model/3mf" if name.endswith(".3mf") else "model/stl"
         elif what == "baseplate":
-            name, data = export.baseplate_file(lay, float(q.get("lip", 8.0)))
+            slim = q.get("kind", "slim") != "standard"
+            name, data = export.baseplate_file(lay, float(q.get("lip", 8.0)), slim=slim)
             ctype = "model/stl"
+        elif what == "plate":
+            size = binspec.size_named(q["size"])
+            cols, rows = export.plate_grid(size)
+            first = int(q.get("first", size.markers.start))
+            ids = [m for m in range(first, first + cols * rows) if m in size.markers]
+            if not ids:
+                raise ValueError(f"no {size.name} markers from {first}")
+            name, data = export.plate_file(size, ids)
+            ctype = "model/3mf"
         elif what == "labels":
             ids = [int(v) for v in q["markers"].split(",")] if q.get("markers") else None
             name, data = export.labels_file(lay, ids)
@@ -340,6 +351,25 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             else "application/octet-stream"
         )
         self._send(200, target.read_bytes(), ctype)
+
+
+def _sizes() -> list[dict[str, Any]]:
+    out = []
+    for s in binspec.SIZES:
+        cols, rows = export.plate_grid(s)
+        out.append(
+            {
+                "name": s.name,
+                "w": s.w,
+                "d": s.d,
+                "height_u": s.height_u,
+                "first": s.markers.start,
+                "last": s.markers.stop - 1,
+                "per_plate": cols * rows,
+                "use": s.use,
+            }
+        )
+    return out
 
 
 def make_server(

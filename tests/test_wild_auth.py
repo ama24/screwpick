@@ -162,13 +162,13 @@ def test_bins_the_camera_finds_join_as_wild_and_unseen_ones_are_skipped(machine)
     lay = Layout.default()
     lay.bins = [b for b in lay.bins if b.role == "wild"][:3]
     seen = Layout.from_dict(lay.to_dict())
-    seen.bins = seen.bins[1:] + [Bin(marker=199, x=4, y=4)]  # 100.. is covered, 199 is new
+    seen.bins = seen.bins[1:] + [Bin(marker=135, x=4, y=4)]  # 100.. is covered, 135 is new
     runner, world = make(machine, lay, n=4, seen=seen)
     runner.command("start", "sort")
     runner.wait(60)
     assert runner.state.status == "done", runner.state.message
     saved = runner.layout()
-    assert saved.bin_by_marker(199) is not None and saved.bin_by_marker(199).role == "wild"
+    assert saved.bin_by_marker(135) is not None and saved.bin_by_marker(135).role == "wild"
     used = {int(k) for k in runner.state.counts}
     first = lay.bins[0].marker
     assert first not in used and used <= {b.marker for b in seen.bins}
