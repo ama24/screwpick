@@ -32,9 +32,10 @@ Bins: two parts, "bin" and "marker" (the code on the shelf).
 The code number tells screwpick the bin's size:
 {sizes}
 
-Baseplate: Gridfinity baseplate with the working area cut out and a lip around it. Lay the TPU
-plate inside the cut-out. The slim one is 2.5 mm thin (the standard one 4.65 mm); bins stand on
-the bed in both. A 5 x 5 baseplate is 210 x 210 mm: it fits an Ender 3 bed.
+Baseplate: a plain Gridfinity grid, any size and anywhere on the bed (Resync finds it). The
+slim one is 2.5 mm thin (the standard one 4.65 mm); bins stand on the bed in both. 5 x 5 is
+210 x 210 mm: the most an Ender 3 bed takes. The plate is a tray bin (3x3 or 4x4) on the grid:
+lay a TPU sheet cut to its floor inside; the parts are thrown in there.
 
 Labels: print at 100 % (no "fit to page"); every black cell must measure 1.6 mm.
 """
@@ -43,7 +44,7 @@ Labels: print at 100 % (no "fit to page"); every black cell must measure 1.6 mm.
 def sizes_text() -> str:
     return (
         "\n".join(f"  {s.markers.start}-{s.markers.stop - 1}: {s.name:8s} {s.use}" for s in SIZES)
-        + "\n  220-249: any other size (set it in the layout)"
+        + "\n  240-249: any other size (set it in the layout)"
     )
 
 
@@ -101,11 +102,15 @@ def plate_file(
 def baseplate_file(layout: Layout, lip_mm: float = 8.0, slim: bool = True) -> tuple[str, bytes]:
     from .gridfinity import build_baseplate
 
-    w = layout.work
-    mesh = build_baseplate(layout.cols, layout.rows, (w.x, w.y, w.w, w.d), lip_mm, slim=slim)
     kind = "slim" if slim else "standard"
-    name = f"baseplate_{layout.cols}x{layout.rows}_{kind}_work{w.w}x{w.d}.stl"
-    return name, stl_bytes(mesh, f"screwpick baseplate {kind}")
+    name = f"baseplate_{layout.cols}x{layout.rows}_{kind}"
+    cut = None
+    if layout.work_bin() is None:  # an older layout: the working area is cut out of the plate
+        w = layout.work
+        cut = (w.x, w.y, w.w, w.d)
+        name += f"_work{w.w}x{w.d}"
+    mesh = build_baseplate(layout.cols, layout.rows, cut, lip_mm, slim=slim)
+    return name + ".stl", stl_bytes(mesh, f"screwpick baseplate {kind}")
 
 
 def labels_file(layout: Layout, markers: list[int] | None = None) -> tuple[str, bytes]:
@@ -145,12 +150,12 @@ def catalogue(out: Path, log: Callable[[str], None] = print) -> list[Path]:
     for size in SIZES:
         cols, rows = plate_grid(size)
         per = cols * rows
-        ids = list(size.markers)
+        ids = list(size.markers)[: size.in_catalogue]  # trays: a couple are plenty
         for k in range(0, len(ids), per):
             name, data = plate_file(size, ids[k : k + per])
             put(f"bins/{size.name}/{name}", data)
-        put(f"labels/labels_{size.name}.svg", labels_sheet_svg(ids).encode())
-    lay = Layout.default()
+        put(f"labels/labels_{size.name}.svg", labels_sheet_svg(list(size.markers)).encode())
+    lay = Layout.default()  # 5 x 5: the most an Ender 3 bed takes; the page makes any size
     for slim in (True, False):
         name, data = baseplate_file(lay, slim=slim)
         put(f"baseplate/{name}", data)

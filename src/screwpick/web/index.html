@@ -135,14 +135,14 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 
 <section id="layout">
  <div class="card row" style="gap:14px">
-  <span class="seg"><label><input type="radio" name="mode" value="select" checked>Select</label><label><input type="radio" name="mode" value="add">Add bin</label><label><input type="radio" name="mode" value="work">Working area</label></span>
+  <span class="seg"><label><input type="radio" name="mode" value="select" checked>Select</label><label><input type="radio" name="mode" value="add">Add bin</label><label id="workmode"><input type="radio" name="mode" value="work">Working area</label></span>
   <span class="note" id="modehelp">Click a bin to see and edit it.</span>
   <span class="row" style="margin-left:auto"><label>size<input id="nw" type="number" min="1" value="1" style="width:56px">×<input id="nd" type="number" min="1" value="1" style="width:56px"></label><label>height<input id="nu" type="number" min="3" value="3" style="width:56px">u</label></span>
  </div>
  <div class="cols">
   <div class="card"><svg id="grid" style="width:100%;height:auto;display:block"></svg>
-   <div class="legend"><span><i class="sw" style="border-style:dashed"></i>free wild bin</span><span><i class="sw"></i>collecting</span><span><i class="sw" style="background:var(--ok-soft);border-color:var(--ok)"></i>ready to take out</span><span><i class="sw" style="background:var(--cell)"></i>special</span><span><i class="sw" style="background:var(--work);border-color:var(--work)"></i>working area</span></div>
-   <div class="row" style="margin-top:16px"><button class="b p" onclick="saveLayout()">Save layout</button><button class="b" onclick="scan()">Find bins with the camera</button><span id="laymsg" class="note"></span></div>
+   <div class="legend"><span><i class="sw" style="border-style:dashed"></i>free wild bin</span><span><i class="sw"></i>collecting</span><span><i class="sw" style="background:var(--ok-soft);border-color:var(--ok)"></i>ready to take out</span><span><i class="sw" style="background:var(--cell)"></i>special</span><span><i class="sw" style="background:var(--work);border-color:#c9d6db"></i>plate (parts are thrown in here)</span></div>
+   <div class="row" style="margin-top:16px"><button class="b p" onclick="saveLayout()">Save layout</button><button class="b" onclick="scan()" title="Photo: where the baseplate lies, which bins stand where and which way round; the biggest bin becomes the plate unless you chose one">Resync with the camera</button><span id="laymsg" class="note"></span></div>
    <ul id="problems" class="plain bad"></ul></div>
   <div>
    <div class="card" id="binpanel"><h2>Bin</h2><p class="note">Click a bin in the grid.</p></div>
@@ -151,11 +151,11 @@ ul.plain{margin:8px 0 0;padding-left:18px}
      <select id="wildby"><option value="part">part number: class and length (DIN912_M4x16)</option><option value="class">class, any length (DIN912_M4)</option><option value="family">family (DIN912)</option></select></label>
     <p class="note" style="margin-top:12px">Wild bins have no rules: the first part of a new kind takes a free one, and it collects that kind until it is emptied. Bins with rules come first: <b>DIN912_M4x16</b>, <b>DIN912_M4</b>, <b>DIN912</b>, or wildcards like <b>DIN912_M*</b>.</p>
    </div>
-   <div class="card"><h2>Grid</h2>
-    <div class="row"><label>columns<input id="cols" type="number" min="1"></label><label>rows<input id="rows" type="number" min="1"></label></div>
-    <div class="row" style="margin-top:8px"><label>origin X<input id="ox" type="number" step="0.1"></label><label>Y<input id="oy" type="number" step="0.1"></label></div>
-    <div class="row" style="margin-top:8px"><label>plate thickness<input id="pt" type="number" step="0.05">mm</label></div>
-    <p class="note" style="margin-top:10px">Origin: printer X/Y of the grid's front-left corner.</p>
+   <div class="card"><h2>Baseplate</h2>
+    <div class="row"><label>size<input id="cols" type="number" min="1" style="width:56px">×<input id="rows" type="number" min="1" style="width:56px">cells</label></div>
+    <div class="row" style="margin-top:8px"><label>front-left corner X<input id="ox" type="number" step="0.1"></label><label>Y<input id="oy" type="number" step="0.1"></label></div>
+    <div class="row" style="margin-top:8px"><label>TPU sheet in the plate<input id="pt" type="number" step="0.05">mm</label></div>
+    <p class="note" style="margin-top:10px">Lay the baseplate anywhere on the bed and put the bins where you like: <b>Resync</b> finds all of it and makes the biggest bin the plate. To choose another plate, give a bin the role <b>work</b>; Resync then keeps your choice. The baseplate for this size is in Print bins.</p>
    </div>
   </div>
  </div>
@@ -278,7 +278,7 @@ const HELP={select:"Click a bin to see and edit it.",add:"Click an empty cell to
 document.querySelectorAll("input[name=mode]").forEach(r=>r.onchange=()=>{$("modehelp").textContent=HELP[mode()];workStart=null;if(lay)render();});
 let SIZES=[];
 async function loadLayout(){try{const j=await api("api/layout");lay=j.layout;SIZES=j.sizes||[];showProblems(j.problems);fillGridInputs();render();renderPrint();renderSizes();}catch(e){flash("laymsg",e.message,1);}}
-function renderSizes(){$("sizelist").innerHTML="<tr><th>size</th><th>codes</th><th>for</th><th>plates</th></tr>"+SIZES.map(s=>{const plates=[];for(let f=s.first;f<=s.last;f+=s.per_plate)plates.push(`<a href="api/print/plate?size=${s.name}&first=${f}">${f}–${Math.min(f+s.per_plate-1,s.last)}</a>`);return `<tr><td><b>${s.w}×${s.d}</b> · ${s.height_u}u</td><td>${s.first}–${s.last}</td><td class="note">${esc(s.use)}</td><td>${plates.join(" · ")}</td></tr>`;}).join("")+'<tr><td class="note" colspan="4">220–249: any other size, set by hand in the layout</td></tr>';}
+function renderSizes(){$("sizelist").innerHTML="<tr><th>size</th><th>codes</th><th>for</th><th>plates</th></tr>"+SIZES.map(s=>{const plates=[];for(let f=s.first;f<=s.last;f+=s.per_plate)plates.push(`<a href="api/print/plate?size=${s.name}&first=${f}">${f}–${Math.min(f+s.per_plate-1,s.last)}</a>`);return `<tr><td><b>${s.w}×${s.d}</b> · ${s.height_u}u</td><td>${s.first}–${s.last}</td><td class="note">${esc(s.use)}</td><td>${plates.join(" · ")}</td></tr>`;}).join("")+'<tr><td class="note" colspan="4">240–249: any other size, set by hand in the layout</td></tr>';}
 function fillGridInputs(){$("wildby").value=lay.wild_by||"part";$("cols").value=lay.cols;$("rows").value=lay.rows;$("ox").value=lay.origin[0];$("oy").value=lay.origin[1];$("pt").value=lay.plate_thickness_mm;}
 ["cols","rows","ox","oy","pt","wildby"].forEach(id=>$(id).onchange=()=>{lay.wild_by=$("wildby").value;lay.cols=+$("cols").value;lay.rows=+$("rows").value;lay.origin=[+$("ox").value,+$("oy").value];lay.plate_thickness_mm=+$("pt").value;render();});
 function showProblems(p){$("problems").innerHTML=(p||[]).map(x=>`<li>${esc(x)}</li>`).join("");}
@@ -287,15 +287,19 @@ function twoLines(t){if(!t)return["",""];const i=t.lastIndexOf("_");return i>0?[
 function binText(b){const claim=(S.claims||{})[b.marker];
  if(b.role==="wild")return claim?{top:"wild",lines:twoLines(claim),free:false}:{top:"wild",lines:["free",""],free:true};
  if(b.role==="sort"){const h=b.label||b.holds.join(", ");return{top:"rules",lines:twoLines(h.length>18?h.slice(0,17)+"…":h),free:false};}
+ if(b.role==="work")return{top:"plate",lines:[`${b.w}×${b.d} tray`,"parts go here"],free:false,plate:true};
  return{top:b.role,lines:[b.label||ROLE_TEXT[b.role]||b.role,""],free:false,special:true};}
 function render(){const W=lay.cols*CELL,H=lay.rows*CELL,svg=$("grid"),rm=readyMap(),pad=4;svg.setAttribute("viewBox",`${-pad} ${-pad} ${W+2*pad} ${H+2*pad}`);
  const Y=(y,d)=>H-(y+d)*CELL;let s="";
  for(let x=0;x<lay.cols;x++)for(let y=0;y<lay.rows;y++)s+=`<rect x="${x*CELL+1.5}" y="${Y(y,1)+1.5}" width="${CELL-3}" height="${CELL-3}" rx="6" fill="var(--cell)" stroke="var(--line2)" data-cx="${x}" data-cy="${y}" style="cursor:${mode()==="select"?"default":"pointer"}"/>`;
- const w=lay.work;s+=`<rect x="${w.x*CELL+3}" y="${Y(w.y,w.d)+3}" width="${w.w*CELL-6}" height="${w.d*CELL-6}" rx="9" fill="var(--work)" pointer-events="none"/>`+
+ $("workmode").hidden=lay.work_marker!=null;
+ const w=lay.work;if(lay.work_marker==null)s+=`<rect x="${w.x*CELL+3}" y="${Y(w.y,w.d)+3}" width="${w.w*CELL-6}" height="${w.d*CELL-6}" rx="9" fill="var(--work)" pointer-events="none"/>`+
   `<text x="${(w.x+w.w/2)*CELL}" y="${Y(w.y,w.d)+w.d*CELL/2+2}" text-anchor="middle" font-size="6.2" letter-spacing="1.2" fill="#9aa9ae">WORKING AREA</text>`;
  for(const b of lay.bins){const on=b.marker===sel,r=rm[b.marker],t=binText(b),x0=b.x*CELL+4,y0=Y(b.y,b.d)+4,bw=b.w*CELL-8,bh=b.d*CELL-8;
-  const fill=r?"var(--ok-soft)":t.special?"var(--cell)":"#fff",stroke=on?"var(--acc)":r?"var(--ok)":"#d9d8d2";
+  const fill=t.plate?"var(--work)":r?"var(--ok-soft)":t.special?"var(--cell)":"#fff",stroke=on?"var(--acc)":r?"var(--ok)":t.plate?"#c9d6db":"#d9d8d2";
   s+=`<g data-m="${b.marker}" style="cursor:pointer"><rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="${on?1.6:0.8}" ${t.free&&!on?'stroke-dasharray="3 2.5"':""}/>`+
+   (()=>{const k=CELL*14/42,rot=(b.rot||0)%360,sh={0:[x0,y0,bw,k],180:[x0,y0+bh-k,bw,k],90:[x0,y0,k,bh],270:[x0+bw-k,y0,k,bh]}[rot];
+     return `<rect x="${sh[0]+1}" y="${sh[1]+1}" width="${sh[2]-2}" height="${sh[3]-2}" rx="5" fill="${t.plate?"#dfe7ea":"var(--line2)"}" opacity="${t.plate?1:0.55}"/>`;})()+
    `<text x="${x0+7}" y="${y0+11}" font-size="5.6" fill="var(--soft)">${b.marker}</text>`+
    `<text x="${x0+bw-7}" y="${y0+11}" font-size="5.6" fill="var(--soft)" text-anchor="end">${esc(r?"":t.top)}</text>`+
    `<text x="${x0+7}" y="${y0+bh/2+3}" font-size="7.6" font-weight="600" fill="${t.free?"var(--soft)":"var(--ink)"}">${esc(t.lines[0].slice(0,11*b.w))}</text>`+
@@ -309,14 +313,14 @@ function render(){const W=lay.cols*CELL,H=lay.rows*CELL,svg=$("grid"),rm=readyMa
  svg.querySelectorAll("rect[data-cx]").forEach(r=>r.onclick=()=>cellClick(+r.dataset.cx,+r.dataset.cy));
  svg.querySelectorAll("g[data-m]").forEach(g=>g.onclick=e=>{e.stopPropagation();if(mode()==="select"){sel=+g.dataset.m;render();panel();}});}
 function nextMarker(w,d,u){const used=new Set(lay.bins.map(b=>b.marker));const s=SIZES.find(s=>s.height_u===u&&((s.w===w&&s.d===d)||(s.w===d&&s.d===w)));
- const [a,z]=s?[s.first,s.last]:[220,249];for(let m=a;m<=z;m++)if(!used.has(m))return m;return null;}
+ const [a,z]=s?[s.first,s.last]:[240,249];for(let m=a;m<=z;m++)if(!used.has(m))return m;return null;}
 function cellClick(x,y){const m=mode();
  if(m==="add"){const w=+$("nw").value,d=+$("nd").value,u=+$("nu").value,id=nextMarker(w,d,u);if(id===null){flash("laymsg","no free code left for that size",1);return;}lay.bins.push({marker:id,x,y,w,d,height_u:u,holds:[],role:"wild",label:""});sel=id;render();panel();}
  else if(m==="work"){if(!workStart){workStart=[x,y];render();}else{const[x0,y0]=workStart;lay.work={x:Math.min(x0,x),y:Math.min(y0,y),w:Math.abs(x-x0)+1,d:Math.abs(y-y0)+1};workStart=null;render();}}
  else{sel=null;render();panel();}}
 function panel(){const b=lay.bins.find(b=>b.marker===sel),p=$("binpanel");
  if(!b){p.innerHTML='<h2>Bin</h2><p class="note">Click a bin in the grid.</p>';return;}
- const roles=["wild","sort","unknown","unsure","overflow","kit","all"],claim=(S.claims||{})[b.marker],r=readyMap()[b.marker],n=(S.bin_counts||{})[b.marker]||0;
+ const roles=["wild","sort","work","unknown","unsure","overflow","kit","all"],claim=(S.claims||{})[b.marker],r=readyMap()[b.marker],n=(S.bin_counts||{})[b.marker]||0;
  p.innerHTML=`<h2>Bin ${b.marker}</h2>
  ${r?`<div class="notice" style="margin-bottom:14px;padding:10px 12px"><span class="check">✓</span><div><b>Ready to take out</b><br><span class="note">${esc(r.what)} · ${r.count} part${r.count===1?"":"s"}</span></div></div>`:""}
  ${b.role==="wild"?`<p>${claim?`Collects <b>${esc(claim)}</b>`:'<span class="mut">Free: the next new kind goes here.</span>'}</p>`:""}
@@ -330,12 +334,16 @@ function panel(){const b=lay.bins.find(b=>b.marker===sel),p=$("binpanel");
  <div class="row"><label>size<input id="bw" type="number" min="1" value="${b.w}" style="width:56px">×<input id="bd" type="number" min="1" value="${b.d}" style="width:56px"></label><label>height<input id="bu" type="number" min="3" value="${b.height_u}" style="width:56px">u</label></div></div>
  <div class="row" style="margin-top:14px"><button class="b s" onclick="turnBin()">Turn 90°</button><button class="b s" onclick="delBin()">Remove</button><span class="note">print: <a href="api/print/bin?marker=${b.marker}&fmt=3mf">3MF</a> · <a href="api/print/bin?marker=${b.marker}&fmt=stl">STL</a></span></div>
  <p class="note" style="margin-top:12px">Typing rules turns a wild bin into a rule bin; clearing them makes it wild again.</p>`;
- const upd=()=>{b.marker=+$("bm").value;b.role=$("br").value;b.holds=$("bh").value.split(",").map(s=>s.trim()).filter(Boolean);if(b.holds.length&&b.role==="wild")b.role="sort";else if(!b.holds.length&&b.role==="sort")b.role="wild";b.label=$("bl").value;b.w=+$("bw").value;b.d=+$("bd").value;b.height_u=+$("bu").value;sel=b.marker;render();panel();};
+ const upd=()=>{const was=b.role;b.marker=+$("bm").value;b.role=$("br").value;
+  if(b.role==="work"&&was!=="work"){for(const o of lay.bins)if(o!==b&&o.role==="work")o.role="wild";lay.work_marker=b.marker;lay.work_auto=false;}
+  else if(was==="work"&&b.role!=="work"){lay.work_marker=null;lay.work_auto=true;}
+  else if(b.role==="work")lay.work_marker=b.marker;b.holds=$("bh").value.split(",").map(s=>s.trim()).filter(Boolean);if(b.holds.length&&b.role==="wild")b.role="sort";else if(!b.holds.length&&b.role==="sort")b.role="wild";if(b.role==="work")b.holds=[];b.label=$("bl").value;b.w=+$("bw").value;b.d=+$("bd").value;b.height_u=+$("bu").value;sel=b.marker;render();panel();};
  ["bm","br","bh","bl","bw","bd","bu"].forEach(id=>$(id).onchange=upd);}
-function turnBin(){const b=lay.bins.find(b=>b.marker===sel);[b.w,b.d]=[b.d,b.w];render();panel();}
+function turnBin(){const b=lay.bins.find(b=>b.marker===sel);[b.w,b.d]=[b.d,b.w];b.rot=((b.rot||0)+90)%360;render();panel();}
 function delBin(){lay.bins=lay.bins.filter(b=>b.marker!==sel);sel=null;render();panel();}
 async function saveLayout(){try{const j=await api("api/layout",{layout:lay});lay=j.layout;showProblems(j.problems);flash("laymsg",j.problems.length?"saved, but see below":"saved");render();renderPrint();}catch(e){flash("laymsg",e.message,1);}}
-async function scan(){flash("laymsg","taking a photo…");try{const j=await api("api/scan",{});flash("laymsg",`found ${j.bins.length} bin(s)`);await loadLayout();showProblems(j.problems);}catch(e){flash("laymsg",e.message,1);}}
+async function scan(){flash("laymsg","taking a photo…");try{const j=await api("api/scan",{});await loadLayout();showProblems(j.problems);
+ const wb=lay.bins.find(b=>b.marker===j.work);flash("laymsg",`${j.found.length} bin(s) · baseplate at ${j.origin.map(v=>v.toFixed(1)).join(", ")} · plate: ${wb?`bin ${wb.marker} (${wb.w}×${wb.d})${j.work_auto?", the biggest":", your choice"}`:"none"}`+(j.removed.length?` · not seen: ${j.removed.join(", ")}`:""));}catch(e){flash("laymsg",e.message,1);}}
 function renderPrint(){$("printlist").innerHTML="<tr><th>bin</th><th>size</th><th>holds</th><th>files</th></tr>"+lay.bins.map(b=>`<tr><td>${b.marker}</td><td>${b.w}×${b.d} · ${b.height_u}u</td><td>${esc(b.label||b.holds.join(", ")||b.role)}</td><td><a href="api/print/bin?marker=${b.marker}&fmt=3mf">3MF</a> · <a href="api/print/bin?marker=${b.marker}&fmt=stl">STL</a></td></tr>`).join("");}
 
 // ---------------------------------------------------------------- setup
@@ -360,7 +368,7 @@ function stepBody(st){const m=SU.machine||{},redo=st.done?` <button class="b s" 
  case "picker":return `<p class="note">Runs the grab and release macros where the tool is now; nothing moves. Hold a screw against the cup or between the fingers.</p><button class="b s" onclick="setupCall('api/setup/picker',{action:'grab'})">Grab</button> <button class="b s" onclick="setupCall('api/setup/picker',{action:'release'})">Release</button>`+
   ((SU.picker_tried||[]).length===2&&!st.done?` <button class="b p s" onclick="setupCall('api/setup/confirm',{step:'picker'})">It holds and lets go</button>`:"")+redo;
  case "camera":return `<p class="note">In <b>Calibrate</b>: photo, the tip onto 3 or more markers, Fit. Checks itself when the worst error is below 1 mm.</p><button class="b s" onclick="go('calib')">Open Calibrate</button>`;
- case "layout":return `<p class="note">In <b>Layout</b>: save the layout without problems, then <b>Find bins with the camera</b>. Checks itself when bins are found.</p><button class="b s" onclick="go('layout')">Open Layout</button>`;
+ case "layout":return `<p class="note">In <b>Layout</b>: <b>Resync with the camera</b>. Checks itself when the bins and a plate are found without problems.</p><button class="b s" onclick="go('layout')">Open Layout</button>`;
  }return "";}
 function renderSetup(){const left=SU.steps.filter(x=>!x.done).length;
  $("setupsum").innerHTML=SU.required?(left?`<b>${left}</b> step${left===1?"":"s"} to go.`:'<span class="ok">All done: the machine may sort.</span>'):"(Simulation: not required.)";

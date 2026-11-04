@@ -24,7 +24,13 @@ screwpick.
   of the bed. The plate is fixed to the bed, so one 2D similarity (`transform.py`, fitted from
   marker/tip pairs) maps one to the other. Z values in screwpick are printer Z of the TIP; the
   plate top is at `layout.plate_thickness_mm`.
-- **Layout:** Gridfinity cells (42 mm), working area plus bins (`layout.py`). Bins carry ArUco
+- **Layout:** Gridfinity cells (42 mm) and bins (`layout.py`). The plate is a bin with role
+  "work" (`work_marker`; a 3x3/4x4 tray): parts lie inside its walls, minus its shelf
+  (`work_rect`), at `surface_z()` = tray floor + TPU sheet. `resync()` infers the grid origin
+  from the seen bins (any position on the bed), places bins with their `rot`, keeps unseen bins'
+  settings in `away`, and picks the biggest bin as the plate unless `work_auto` is False (chosen
+  by hand). Run start never re-chooses the plate. Old layouts without a plate bin use `work`
+  (cut-out cells). Bins carry ArUco
   DICT_4X4_250 markers, ids 100–249 (ids below 100 are left to the calibration). A marker's top
   edge = the bin's back (+Y). Bin dimensions are shared in `binspec.py` by the layout and the
   printable bins.

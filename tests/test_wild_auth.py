@@ -100,7 +100,7 @@ def make(machine, layout: Layout, n: int = 10, seed: int = 5, seen: Layout | Non
 def test_sorts_with_only_wild_bins_and_keeps_claims(machine):
     machine.run.shake.enabled = False
     lay = Layout.default()
-    lay.bins = [b for b in lay.bins if b.role == "wild"]  # 13 wild bins, nothing else
+    lay.bins = [b for b in lay.bins if b.role in ("wild", "work")]  # 13 wild bins + the plate
     assert lay.wild_by == "part"  # the default: one part number (class + length) per bin
     runner, world = make(machine, lay, n=10)
     runner.command("start", "sort")
@@ -160,7 +160,7 @@ def test_old_claims_file_still_loads(machine):
 def test_bins_the_camera_finds_join_as_wild_and_unseen_ones_are_skipped(machine):
     machine.run.shake.enabled = False
     lay = Layout.default()
-    lay.bins = [b for b in lay.bins if b.role == "wild"][:3]
+    lay.bins = [b for b in lay.bins if b.role == "wild"][:3] + [lay.work_bin()]
     seen = Layout.from_dict(lay.to_dict())
     seen.bins = seen.bins[1:] + [Bin(marker=135, x=4, y=4)]  # 100.. is covered, 135 is new
     runner, world = make(machine, lay, n=4, seen=seen)

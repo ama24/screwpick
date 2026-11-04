@@ -120,7 +120,7 @@ menu, until every step of the **Setup** tab is checked:
 4. **Tip height:** checks itself when you measure it (Calibrate tab).
 5. **Picker:** *Grab* and *Release* without moving, then confirm.
 6. **Camera to printer:** checks itself when the calibration's worst error is under 1 mm.
-7. **Layout:** checks itself when the layout has no problems and the camera finds the bins.
+7. **Layout:** checks itself when Resync finds the bins and a plate without problems.
 
 Until then the machine moves only when you ask it to in these steps. Jogging and the calibration
 photos never home by themselves. Changing the machine values, a worse calibration or a layout
@@ -129,21 +129,28 @@ required.
 
 The steps below are the same work in more detail.
 
-1. **Layout tab**: set the grid (5 x 5 cells fit an Ender 3 bed), drag out the working area, and
-   add bins. Give each bin its rules (*holds*) or a role. Save.
+1. **Choose your bed:** a baseplate of any size (5 × 5 cells is the most for an Ender 3), a
+   tray as the plate (3 × 3, or 4 × 4 for big jobs), and as many bins as you like.
 2. **Print the bins and the baseplate:** ready-made plates of every size are in
    [prints/](prints/) (16 small bins per Ender 3 plate, with codes, and the slim 2.5 mm
    baseplate). The web page's **Print bins** tab makes the same for any other layout. Bins
    come as two-part 3MF files, the bin (white) and its code (black). With one extruder, add a
    colour change at the rim height (21 mm for 3-unit bins).
-3. Put the baseplate on the bed, the TPU plate in the cut-out, and the bins around it.
+3. Put the baseplate anywhere on the bed, the tray and the bins anywhere on it (turned any way),
+   and a TPU sheet cut to size in the tray.
 4. Mount the picker and run `TOOL_PICKER`. Set `tool.offset` in
    [configs/machine.yaml](configs/machine.yaml) if the picker tip is not where the nozzle was.
 5. Set `printer.photo_position`: where the head waits during photos, out of the picture.
-6. **Calibrate tab**: take a photo, then jog the tip onto the centre of 3 or more markers
+6. **Camera calibration** (supreme-screw-sortering, tool 03): lay the ChArUco board **in the
+   tray**, where the parts will lie. Its surface is the height everything is measured from.
+   **Calibrate tab**: take a photo, then jog the tip onto the centre of 3 or more markers
    (spread over the bed), pressing **Tip is here** on each. Then **Fit**. Errors under 0.5 mm
    are good. **Check** moves the tip just above a marker to confirm.
-7. **Layout tab → Find bins with the camera**: every bin moves to where its marker really is.
+7. **Layout tab → Resync with the camera**: one photo finds where the baseplate lies, which
+   bins stand where and which way round, and makes the **biggest bin the plate**. To use
+   another bin as the plate, give it the role *work*; Resync keeps your choice from then on.
+   Bins taken off the bed keep their rules and get them back when they return. Give the other
+   bins rules (*holds*) or leave them wild.
 8. **Run tab**: pick a strategy and press **Start**, or use the printer menu.
 
 ## Models: upload over WiFi, keep the old ones
