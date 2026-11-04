@@ -340,8 +340,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             ctype = "model/3mf" if name.endswith(".3mf") else "model/stl"
         elif what == "baseplate":
             slim = q.get("kind", "slim") != "standard"
-            name, data = export.baseplate_file(lay, float(q.get("lip", 8.0)), slim=slim)
-            ctype = "model/stl"
+            if q.get("bed"):  # clamped to a whole printer bed: several pieces in a zip
+                kind = "slim" if slim else "standard"
+                name = f"baseplate_{q['bed']}_{kind}.zip"
+                data = export.bed_baseplate_zip(q["bed"], slim, lay.cols, lay.rows)
+                ctype = "application/zip"
+            else:
+                name, data = export.baseplate_file(lay, float(q.get("lip", 8.0)), slim=slim)
+                ctype = "model/stl"
         elif what == "plate":
             size = binspec.size_named(q["size"])
             cols, rows = export.plate_grid(size)
