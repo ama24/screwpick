@@ -40,6 +40,11 @@ class Vision(Protocol):
         """Take a photo, find parts and markers; `marker_height(id)` = plate-frame height of a
         marker (bins differ in height)."""
 
+    def snap(self, name: str) -> Any:
+        """Only take the photo (fast); `analyse` it later, e.g. while the machine moves."""
+
+    def analyse(self, photo: Any, name: str, marker_height: Callable[[int], float]) -> Shot: ...
+
     def close(self) -> None: ...
 
 
@@ -178,15 +183,22 @@ class CameraVision:
         subprocess.run([*cmd, "-q", "95", "-o", str(path)], check=True, capture_output=True)
 
     def capture(self, name: str, marker_height: Callable[[int], float]) -> Shot:
-        import cv2
-        from screwsynth.measure.infer import draw
+        return self.analyse(self.snap(name), name, marker_height)
 
+    def snap(self, name: str) -> Path:
         if self.analyzer is None:
             raise FileNotFoundError(
                 f"no model: upload one in the Models tab ({self.model_error or 'none loaded'})"
             )
         photo = self.out / f"{name}.jpg"
         self._snap(photo)
+        return photo
+
+    def analyse(self, photo: Path, name: str, marker_height: Callable[[int], float]) -> Shot:
+        import cv2
+        from screwsynth.measure.infer import draw
+
+        assert self.analyzer is not None
         scene = self._scene(photo)
         result = self.analyzer.analyse(scene, str(photo))
         parts = parts_from_result(

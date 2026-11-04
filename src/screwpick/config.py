@@ -67,6 +67,9 @@ class Printer:
     home_macro: str | None = "_SCREWPICK_HOME"
     tool_macro: str | None = "_SCREWPICK_TOOL"  # its variable `tool` must be "picker"; None = skip
     timeout_s: float = 120.0
+    # mm/s^2 while sorting (gentler bed moves: loose parts stay where the photo saw them);
+    # None = the printer's own setting
+    accel: float | None = None
 
 
 @dataclass
@@ -111,6 +114,9 @@ class Run:
     scan_bins_on_start: bool = True  # find the bins with the camera when a run starts
     only_seen_bins: bool = True  # use only the bins the camera sees (covered ones are skipped)
     order: str = "largest_group"  # largest_group (the most numerous kind first) | nearest
+    # photo right after the pick (the part in the picker), analysed while it is carried to
+    # its bin: the Pi's thinking time hides behind the move
+    pipeline: bool = True
     shake: Shake = field(default_factory=Shake)
 
 

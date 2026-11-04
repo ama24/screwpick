@@ -205,6 +205,26 @@ The page is plain HTTP, so it is meant for your home network. Logging in keeps o
 page; it is not protection against someone already listening on your WiFi. The printer-menu
 buttons never need a login: they come from Klipper on the Pi itself.
 
+## One cycle
+
+1. **Pick** the part chosen from the last photo and lift it.
+2. **Photo:** go to the photo position, holding the part, and take the photo (about 1 s). The
+   part is in the picker, so the photo also shows whether the pick worked: if the part is still
+   on the plate, the pick failed and is tried again.
+3. **Drop:** carry the part to its bin and release it. **Meanwhile the Pi analyses the photo**,
+   so its 1–3 s of thinking hide behind the move.
+4. The next part is chosen from that photo. Back to 1.
+
+The Run tab shows how long the last cycle took and how long the machine had to wait for the Pi
+after the drop. On a Pi 4 or Pi 5 that wait should be about 0. A Pi 3B (1 GB) is too small for
+Klipper and the model together.
+
+- **The photo position must keep the head, and the part it holds, outside the working area in
+  the picture**, ideally off the plate.
+- **Loose parts and quick bed moves:** after the photo the bed moves to the bin and back, and
+  fast moves can nudge loose parts. `printer.accel` sets a gentler acceleration while sorting.
+- **Turning it off:** `run.pipeline: false` photographs only with an empty picker (slower).
+
 ## Automatic mode
 
 Press **Automatic** on the Run tab (or *Screw sorter → Automatic* on the printer). The machine

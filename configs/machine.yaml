@@ -32,6 +32,7 @@ printer:
   auto_home: true              # G28 when an axis is not homed
   home_macro: _SCREWPICK_HOME  # Z is homed over the middle of the working area (null: plain G28)
   tool_macro: _SCREWPICK_TOOL  # Klipper macro whose `tool` must be "picker" (null: no check)
+  accel: null                  # mm/s^2 while sorting: lower = gentler bed, loose parts stay put (null: printer's)
 
 tool:
   offset: [0, 0, 0]            # picker tip minus the toolhead position Klipper reports (X Y Z)
@@ -58,6 +59,7 @@ run:
   work_margin_mm: 3.0
   keep_photos: 300
   order: largest_group         # largest_group (most numerous kind first) | nearest
+  pipeline: true               # photo right after the pick, analysed while the part goes to its bin
   scan_bins_on_start: true     # find the bins with the camera when a run starts (new markers = wild bins)
   only_seen_bins: true         # use only the bins the camera sees in that first photo
   shake:

@@ -248,7 +248,7 @@ async function poll(){try{S=await api("api/state");}catch(e){$("status").innerHT
  $("msg").textContent=S.message;$("plan").textContent=S.plan||"";
  const st=$("strategy");if(!st.options.length){for(const[k,v]of Object.entries(S.strategies)){const o=document.createElement("option");o.value=k;o.textContent=v;st.appendChild(o);}st.value=S.strategy;}
  if(S.shot&&S.shot!==shown){shown=S.shot;$("shot").src="runs/"+encodeURIComponent(S.shot);$("calshot").src=$("shot").src;}
- $("counts").innerHTML=S.picks?`<div class="stat"><span>sorted</span><b>${S.picks}</b></div><div class="stat"><span>failed picks</span><b>${S.failed_picks}</b></div>`:"nothing sorted yet";
+ const T=S.timing||{};$("counts").innerHTML=S.picks?`<div class="stat"><span>sorted</span><b>${S.picks}</b></div><div class="stat"><span>failed picks</span><b>${S.failed_picks}</b></div>`+(T.cycle_s?`<div class="stat"><span>last cycle</span><b>${T.cycle_s} s</b></div><div class="stat"><span title="time the machine waited for the photo analysis after dropping the part">waited for the Pi</span><b>${T.waited_for_analysis_s} s</b></div>`:""):"nothing sorted yet";
  const parts=S.parts.filter(p=>p.in_work!==false);
  $("parts").innerHTML=parts.length?"<tr><th>part</th><th>length</th><th>score</th><th>free</th></tr>"+parts.map(p=>`<tr><td>${esc(p.cls)}</td><td>${p.length!=null?p.length+" mm":"–"}</td><td>${p.score}</td><td>${p.gap!=null?p.gap+" mm":"–"}</td></tr>`).join(""):'<tr><td class="note">empty</td></tr>';
  $("events").textContent=S.events.slice().reverse().join("\n");

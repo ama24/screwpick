@@ -7,9 +7,11 @@ the world and draws a top view for the web page.
 
 from __future__ import annotations
 
+import copy
 import math
 import random
 import re
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -193,13 +195,28 @@ class SimVision:
         self.layout = layout
         self.transform = transform
         self.out = out_dir
+        self.snaps: list[SimPart | None] = []
+
+    delay_s: float = 0.0  # pretend the analysis takes this long (tests of the pipeline)
 
     def capture(self, name: str, marker_height: Callable[[int], float]) -> Shot:
+        return self.analyse(self.snap(name), name, marker_height)
+
+    def snap(self, name: str) -> list[SimPart]:
+        """The plate as it is now (the part in the picker is not on it)."""
+        self.snaps.append(self.world.held)  # what the picker holds at the moment of the photo
+        return [copy.copy(sp) for sp in self.world.parts]
+
+    def analyse(
+        self, plate: list[SimPart], name: str, marker_height: Callable[[int], float]
+    ) -> Shot:
+        if self.delay_s:
+            time.sleep(self.delay_s)
         T = self.transform()
         Ti = T.inverse()
         lay = self.layout()
         parts = []
-        for i, sp in enumerate(self.world.parts, start=1):
+        for i, sp in enumerate(plate, start=1):
             bed_poly = _rect(sp.x, sp.y, sp.size[0], sp.size[1], sp.angle)
             parts.append(
                 Part(
@@ -231,10 +248,10 @@ class SimVision:
             )
         shot = Shot(name, parts, markers)
         if self.out is not None:
-            shot.vis = self._draw(name, lay)
+            shot.vis = self._draw(name, lay, plate)
         return shot
 
-    def _draw(self, name: str, lay: Layout) -> Path | None:
+    def _draw(self, name: str, lay: Layout, plate: list[SimPart]) -> Path | None:
         try:
             import cv2
         except ImportError:
@@ -268,7 +285,7 @@ class SimVision:
                 1,
                 cv2.LINE_AA,
             )
-        for sp in self.world.parts:
+        for sp in plate:
             poly = np.array([px(*p) for p in _rect(sp.x, sp.y, sp.size[0], sp.size[1], sp.angle)])
             colour = (201, 163, 184) if sp.cls == "UNKNOWN" else (176, 169, 143)
             cv2.fillPoly(img, [poly.astype(np.int32)], colour, cv2.LINE_AA)

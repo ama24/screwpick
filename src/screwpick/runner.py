@@ -13,6 +13,7 @@ import math
 import threading
 import time
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -43,6 +44,7 @@ class State:
     failed_picks: int = 0
     counts: dict[int, int] = field(default_factory=dict)
     shot: str | None = None  # file name of the latest picture with outlines
+    timing: dict[str, float] = field(default_factory=dict)  # the last pick cycle (pipeline)
     parts: list[dict[str, Any]] = field(default_factory=list)
     markers: list[dict[str, Any]] = field(default_factory=list)
 
@@ -73,6 +75,7 @@ class Runner:
         self.claims, self.bin_counts = self._load_claims()
         self.ready: dict[int, dict[str, Any]] = {}  # bins that can be taken out
         self._load_tool()
+        self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="analyse")
 
     # ------------------------------------------------------------------ files
     @property
@@ -137,6 +140,7 @@ class Runner:
             **self.bins_state(),
             "auto": self.saved_mode()[0],
             "tip_offset_z": self.m.tool.offset[2],
+            "timing": self.state.timing,
         }
 
     # ------------------------------------------------------------------ commands
@@ -227,15 +231,21 @@ class Runner:
             self._thread.join(timeout)
 
     # ------------------------------------------------------------------ one photo
+    def _photo_name(self) -> str:
+        self._shot_no += 1
+        return time.strftime("%Y%m%d-%H%M%S") + f"_{self._shot_no:04d}"
+
     def take_shot(self, layout: Layout, T: Transform2D | None, move: bool = True) -> Shot:
         """Photo position, photo, parts (with printer X/Y when T is known), markers. `move`
         False: photograph where the bed is (standby with the motors off: still parked)."""
         with self._lock:
             if move:
                 self.motion.photo_position()
-            self._shot_no += 1
-            name = time.strftime("%Y%m%d-%H%M%S") + f"_{self._shot_no:04d}"
+            name = self._photo_name()
             shot = self.vision.capture(name, lambda mid: _marker_plate_height(layout, mid))
+        return self._finish_shot(shot, layout, T)
+
+    def _finish_shot(self, shot: Shot, layout: Layout, T: Transform2D | None) -> Shot:
         if T is not None:
             to_bed(shot.parts, T)
         compute_gaps(shot.parts)
@@ -296,6 +306,8 @@ class Runner:
         layout, T = self._prepare()
         with self._lock:
             self.motion.preflight()
+            if self.m.printer.accel:
+                self.printer.gcode(f"SET_VELOCITY_LIMIT ACCEL={self.m.printer.accel:.0f}")
         first: Shot | None = None
         run = self.m.run
         if run.scan_bins_on_start or run.only_seen_bins:
@@ -388,12 +400,16 @@ class Runner:
                 prev = None
                 self._set(status="running")
                 continue
-            with self._lock:
-                if plan.kind == "shake":
+            if plan.kind == "shake":
+                with self._lock:
                     self.note(plan.reason)
                     self.motion.shake()
-                else:
-                    self._pick_and_drop(plan, layout)
+            elif self.m.run.pipeline and hasattr(self.vision, "snap"):
+                first = self._pick_photo_drop(plan, layout, T)
+            else:
+                with self._lock:
+                    self._pick(plan, layout)
+                    self._drop(plan, layout)
             prev = plan
             done_steps += 1
         return "stopped"
@@ -525,7 +541,34 @@ class Runner:
         )
         return {"offset_z": offset_z, "toolhead_z": pos[2]}
 
-    def _pick_and_drop(self, plan: Plan, layout: Layout) -> None:
+    def _pick_photo_drop(self, plan: Plan, layout: Layout, T: Transform2D) -> Shot:
+        """Pick, photo with the part in the picker, then drop it while the photo is analysed.
+        Returns the analysed photo: the next plan starts from it (and it shows whether the pick
+        worked: the part is gone from the plate)."""
+        t0 = time.perf_counter()
+        with self._lock:
+            self._pick(plan, layout)
+            self.motion.photo_position()
+            name = self._photo_name()
+            photo = self.vision.snap(name)
+        t_photo = time.perf_counter()
+        heights = lambda mid: _marker_plate_height(layout, mid)  # noqa: E731
+        job = self._pool.submit(self.vision.analyse, photo, name, heights)
+        with self._lock:
+            self._drop(plan, layout)
+        t_drop = time.perf_counter()
+        shot = job.result()
+        t_end = time.perf_counter()
+        self._set(
+            timing={
+                "cycle_s": round(t_end - t0, 2),
+                "move_s": round((t_photo - t0) + (t_drop - t_photo), 2),
+                "waited_for_analysis_s": round(t_end - t_drop, 2),
+            }
+        )
+        return self._finish_shot(shot, layout, T)
+
+    def _pick(self, plan: Plan, layout: Layout) -> None:
         p, b = plan.part, plan.bin
         assert p is not None and b is not None
         pk = self.m.picker
@@ -541,6 +584,10 @@ class Runner:
         )
         self.motion.message(f"pick {name}")
         self.motion.pick(p.bed_xy[0], p.bed_xy[1], z, p.bed_angle)
+
+    def _drop(self, plan: Plan, layout: Layout) -> None:
+        b = plan.bin
+        assert b is not None
         cx, cy = layout.bin_centre(b)
         self.motion.drop(cx, cy, layout.bin_rim_z(b))
 
