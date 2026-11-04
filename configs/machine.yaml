@@ -14,6 +14,8 @@ paths:
   users: ../data/users.json    # web page accounts (the first visit creates one)
   state: ../data/state.json    # automatic mode on/off (survives restarts)
   tool: ../data/tool.json      # tip height, measured in the Calibrate tab
+  setup: ../data/setup.json    # the Setup tab's checklist
+  machine: ../data/machine.json  # limits/positions saved in the Setup tab (they override printer: below)
 
 camera:
   settings: null               # screwrig lock settings json (locked focus/exposure); null: rpicam-still

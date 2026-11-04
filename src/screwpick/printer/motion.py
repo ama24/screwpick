@@ -23,8 +23,9 @@ class Motion:
         self.z_home_xy: tuple[float, float] | None = None  # tip X/Y for homing Z (set by runner)
 
     # ------------------------------------------------------------------ checks
-    def preflight(self) -> PrinterStatus:
-        """Refuse to move unless the printer is idle, cold, homed and carries the picker."""
+    def preflight(self, home: bool = True) -> PrinterStatus:
+        """Refuse to move unless the printer is idle, cold, homed and carries the picker.
+        `home` False: never home here (setup moves): an unhomed printer is an error."""
         pc = self.m.printer
         st = self.p.status(pc.tool_macro)
         if not st.ready:
@@ -43,8 +44,10 @@ class Motion:
                     f"the active tool is {st.tool!r}: mount the picker and run TOOL_PICKER"
                 )
         if not all(a in st.homed for a in "xyz"):
-            if not pc.auto_home:
-                raise PrinterError(f"axes not homed ({st.homed or 'none'})")
+            if not home or not pc.auto_home:
+                raise PrinterError(
+                    f"axes not homed ({st.homed or 'none'}): home first (Setup tab, Homing)"
+                )
             self.home()
             st = self.p.status(pc.tool_macro)
         return st

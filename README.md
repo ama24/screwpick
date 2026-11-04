@@ -108,6 +108,27 @@ visit asks you to create an account (see [Login](#login)).
 
 ## First-time setup
 
+On a real printer, **Sort**, **One pick** and **Automatic** are refused, also from the printer
+menu, until every step of the **Setup** tab is checked:
+
+1. **Printer:** Klipper answers, `screwpick.cfg` is included, the picker is mounted, the hotend is
+   cold. Only questions, nothing moves.
+2. **Homing:** press *Home now* and watch. Z must come down over the middle of the plate, not
+   over a bin. Then confirm.
+3. **Machine:** limits, travel height and photo position, editable on the page. *Show me*
+   buttons drive to each position (at travel height) so you can check them.
+4. **Tip height:** checks itself when you measure it (Calibrate tab).
+5. **Picker:** *Grab* and *Release* without moving, then confirm.
+6. **Camera to printer:** checks itself when the calibration's worst error is under 1 mm.
+7. **Layout:** checks itself when the layout has no problems and the camera finds the bins.
+
+Until then the machine moves only when you ask it to in these steps. Jogging and the calibration
+photos never home by themselves. Changing the machine values, a worse calibration or a layout
+with problems un-checks the matching step again. In the simulator (`--sim`) the setup isn't
+required.
+
+The steps below are the same work in more detail.
+
 1. **Layout tab**: set the grid (5 x 5 cells fit an Ender 3 bed), drag out the working area, and
    add bins. Give each bin its rules (*holds*) or a role. Save.
 2. **Print the bins and the baseplate:** ready-made plates of every size are in

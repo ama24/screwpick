@@ -19,6 +19,7 @@ POST /api/models/test       {"id"}: run it on the last photo, nothing is switche
 POST /api/bins/emptied      {"marker": id or null}: a bin was emptied (null: all ready ones)
 GET  /api/session           who is logged in; POST /api/login, /api/setup (first account),
 POST /api/logout;  GET /api/users, POST /api/users/add, /api/users/remove, /api/users/password
+GET  /api/setup; POST /api/setup/printer|home|goto|machine|picker|confirm|reset   the Setup tab
 
 With accounts (the default), everything except the page itself and the session routes needs the
 session cookie set by /api/login; other requests get 401.
@@ -188,7 +189,25 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         elif method == "POST" and path == "/api/layout":
             lay = Layout.from_dict(self._body().get("layout") or {})
             lay.save(r.layout_path)
+            if lay.problems():
+                r.setup.reset("layout")
             self._json({"layout": lay.to_dict(), "problems": lay.problems()})
+        elif method == "GET" and path == "/api/setup":
+            self._json(r.setup_state())
+        elif method == "POST" and path == "/api/setup/printer":
+            self._json(r.setup_check_printer())
+        elif method == "POST" and path == "/api/setup/home":
+            self._json(r.setup_home())
+        elif method == "POST" and path == "/api/setup/goto":
+            self._json({"tip": r.setup_goto(str(self._body()["target"])), **r.setup_state()})
+        elif method == "POST" and path == "/api/setup/machine":
+            self._json(r.save_machine(self._body().get("values") or {}))
+        elif method == "POST" and path == "/api/setup/picker":
+            self._json(r.setup_picker(str(self._body()["action"])))
+        elif method == "POST" and path == "/api/setup/confirm":
+            self._json(r.setup_confirm(str(self._body()["step"])))
+        elif method == "POST" and path == "/api/setup/reset":
+            self._json(r.setup_reset(str(self._body()["step"])))
         elif method == "POST" and path == "/api/scan":
             self._json(r.scan_bins())
         elif method == "POST" and path == "/api/calib/photo":

@@ -11,7 +11,7 @@
 set -euo pipefail
 
 SUPREME_REPO=https://github.com/ama24/supreme-screw-sortering.git
-SUPREME_COMMIT=db88496ea0d23e0d88b7abeab1f3581af49b83c5
+SUPREME_COMMIT=b238332fcc4e6688fa5a12f6f3a22422c5be412f
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SUPREME="${SUPREME_DIR:-$HOME/supreme-screw-sortering}"
 VENV="${VENV:-$HOME/screwrig}"   # the same environment screwrig uses

@@ -44,6 +44,10 @@ screwpick.
 - **Login:** `auth.py`. PBKDF2 password hashes and session tokens (only their SHA-256 is stored)
   live in `paths.users`. `web/server.py` lets only the page and the session routes through
   without the cookie.
+- **Setup:** `setup.py` keeps the checklist (`paths.setup`). `Runner.command` refuses
+  start/step/auto on a real printer until it's complete. Setup moves call
+  `preflight(home=False)`, so only *Home now* and sorting ever home. Machine values from the page
+  go to `paths.machine`, over machine.yaml.
 - **Strategies** are in `strategies.py` (sort, clear, kit). Add one by extending
   `Planner._decide` and `STRATEGIES`.
 - **Models** are uploaded through the web page into a store (`models.py`, folder `paths.models`).
