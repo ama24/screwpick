@@ -16,8 +16,10 @@ from typing import Any, Protocol
 
 import numpy as np
 
+from .analysis import Analyzer, ModelChoice
 from .config import Machine
 from .markers import MarkerPose, detect, marker_pose
+from .models import ModelStore
 from .parts import Part
 
 log = logging.getLogger("screwpick.vision")
@@ -96,50 +98,72 @@ def parts_from_result(
 
 
 class CameraVision:
-    """The real thing: Pi camera + screwsynth's inference pipeline."""
+    """The real thing: Pi camera + the active models from the model store + screwsynth's
+    calibration and length measurement. Models can be swapped while idle (use_models)."""
 
-    def __init__(self, m: Machine, out_dir: Path) -> None:
+    def __init__(self, m: Machine, out_dir: Path, store: ModelStore | None = None) -> None:
         import cv2  # noqa: F401 - fail early when OpenCV is missing
         from screwsynth.calibration.geometry import Camera, nominal_from_config
         from screwsynth.common.config import load_config
         from screwsynth.common.io import read_json
         from screwsynth.common.paths import resolve
         from screwsynth.measure.geometry import Geometry
-        from screwsynth.measure.infer import Pipeline, Settings
+        from screwsynth.measure.infer import Settings
 
+        self.m = m
         self.out = out_dir
         self.out.mkdir(parents=True, exist_ok=True)
+        self.store = store
         cfg = load_config(m.path(m.paths.screwsynth_config))
         calib_path = m.path(m.paths.calibration) or resolve(
             Path(cfg.get("paths.calibration_dir", "data/calibration")) / "calibration.json"
         )
-        calibration = read_json(calib_path) if calib_path.is_file() else None
-        if calibration is None:
+        self.calibration = read_json(calib_path) if calib_path.is_file() else None
+        if self.calibration is None:
             log.warning("no camera calibration (%s): using the nominal camera", calib_path)
-        nominal = nominal_from_config(cfg)
-        self.cam_full = Camera.from_calibration(calibration) if calibration else nominal
-        model = m.path(m.paths.model) or _find_model(resolve("models"))
-        if model is None:
-            raise FileNotFoundError(
-                "no model: set paths.model in machine.yaml or copy one into models/"
-            )
-        geometry = Geometry.from_config(cfg)
-        self.pipe = Pipeline(
-            model,
-            m.path(m.paths.stage2),
-            geometry,
-            Settings.from_config(cfg.to_dict()),
-            calibration,
-            resolve(cfg.get("paths.classes", "configs/classes.yaml")),
-            nominal=nominal,
+        self.nominal = nominal_from_config(cfg)
+        self.cam_full = (
+            Camera.from_calibration(self.calibration) if self.calibration else self.nominal
         )
-        self._head_r = {name: g.head_radius for name, g in geometry.classes.items()}
-        self.settings = m.path(m.camera.settings)
+        self.geometry = Geometry.from_config(cfg)
+        self.settings = Settings.from_config(cfg.to_dict())
+        self.classes_yaml = resolve(cfg.get("paths.classes", "configs/classes.yaml"))
+        self._head_r = {name: g.head_radius for name, g in self.geometry.classes.items()}
+        self.analyzer: Analyzer | None = None
+        self.model_error: str | None = None
+        try:
+            self.use_models(active_choice(m, store))
+        except (FileNotFoundError, ValueError) as exc:
+            self.model_error = str(exc)
+            log.error("no usable model: %s", exc)
+        cam_settings = m.path(m.camera.settings)
         self.cam = None
-        if self.settings:
+        if cam_settings:
             from screwrig.camera import Camera as RigCamera
 
-            self.cam = RigCamera(read_json(self.settings))
+            self.cam = RigCamera(read_json(cam_settings))
+
+    def load(self, choice: ModelChoice) -> Analyzer:
+        return Analyzer(
+            choice, self.geometry, self.settings, self.classes_yaml, self.m.models.classifier_conf
+        )
+
+    def use_models(self, choice: ModelChoice) -> dict[str, Any]:
+        """Load and switch to these models (the old ones stay in use if loading fails)."""
+        self.analyzer = self.load(choice)
+        self.model_error = None
+        log.info("models: %s (%s)", choice.label, self.analyzer.task)
+        return self.analyzer.describe()
+
+    def models_info(self) -> dict[str, Any]:
+        if self.analyzer is None:
+            return {"error": self.model_error or "no model loaded"}
+        return self.analyzer.describe()
+
+    def _scene(self, photo: Path) -> Any:
+        from screwsynth.measure.infer import load_scene
+
+        return load_scene(photo, self.calibration, self.nominal)
 
     def _snap(self, path: Path) -> None:
         import cv2
@@ -156,9 +180,14 @@ class CameraVision:
         import cv2
         from screwsynth.measure.infer import draw
 
+        if self.analyzer is None:
+            raise FileNotFoundError(
+                f"no model: upload one in the Models tab ({self.model_error or 'none loaded'})"
+            )
         photo = self.out / f"{name}.jpg"
         self._snap(photo)
-        result, scene, _ = self.pipe.run(photo)
+        scene = self._scene(photo)
+        result = self.analyzer.analyse(scene, str(photo))
         parts = parts_from_result(
             result,
             lambda px, h: scene.cam.pixel_to_plate(px, h),
@@ -175,15 +204,61 @@ class CameraVision:
         cv2.imwrite(str(vis), draw(scene, result, max_side=1600), [cv2.IMWRITE_JPEG_QUALITY, 85])
         return Shot(name, parts, markers, photo, vis, result)
 
+    def test_models(self, choice: ModelChoice, photo: Path, out_name: str) -> dict[str, Any]:
+        """Run other models on an existing photo, without switching to them."""
+        import cv2
+        from screwsynth.measure.infer import draw
+
+        an = self.load(choice)
+        scene = self._scene(photo)
+        result = an.analyse(scene, str(photo))
+        vis = self.out / out_name
+        cv2.imwrite(str(vis), draw(scene, result, max_side=1600), [cv2.IMWRITE_JPEG_QUALITY, 85])
+        return {
+            "image": vis.name,
+            "objects": len(result["objects"]),
+            "model": an.describe(),
+            "seconds": result["timing_s"]["total"],
+        }
+
     def close(self) -> None:
         if self.cam is not None:
             self.cam.close()
 
 
-def _find_model(models_dir: Path) -> Path | None:
-    """The newest model in models/: an NCNN folder, .onnx or .pt (as screwrig detect does)."""
+def find_model(models_dir: Path) -> Path | None:
+    """The newest model in a models/ folder: an NCNN folder, .onnx or .pt (as screwrig detect)."""
     if not models_dir.is_dir():
         return None
     found = [p for p in models_dir.rglob("*_ncnn_model") if p.is_dir()]
     found += [p for p in models_dir.rglob("*") if p.suffix in (".onnx", ".pt")]
     return max(found, key=lambda p: p.stat().st_mtime) if found else None
+
+
+def active_choice(m: Machine, store: ModelStore | None) -> ModelChoice:
+    """The models to use: the active ones in the store; without one, paths.model in machine.yaml
+    or the newest model in screwsynth's models/ folder."""
+    s1 = store.active_model("stage1") if store else None
+    if s1 is not None and store is not None:
+        choice = ModelChoice(
+            store.weights_path(s1),
+            imgsz=s1.imgsz,
+            conf=s1.recommended_conf if m.models.use_recommended_conf else None,
+            label=s1.name,
+        )
+    else:
+        path = m.path(m.paths.model)
+        if path is None:
+            from screwsynth.common.paths import resolve
+
+            path = find_model(resolve("models"))
+        if path is None:
+            raise FileNotFoundError("no model: upload one in the Models tab")
+        choice = ModelChoice(path, label=path.name)
+    for role in ("stage2", "classifier"):
+        sm = store.active_model(role) if store else None
+        if sm is not None and store is not None:
+            setattr(choice, role, store.weights_path(sm))
+    if choice.stage2 is None:
+        choice.stage2 = m.path(m.paths.stage2)
+    return choice

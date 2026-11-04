@@ -35,11 +35,13 @@ def _load(args: argparse.Namespace) -> Machine:
 
 def _build(m: Machine):  # noqa: ANN202 - (runner, world)
     from .layout import Layout
+    from .models import make_store
     from .printer import make_printer
     from .runner import Runner
 
     runs = m.path(m.paths.runs)
     assert runs is not None
+    store = make_store(m)
     if m.printer.driver == "sim":
         from .printer.sim import SimVision, SimWorld
         from .transform import BedCalibration, Transform2D
@@ -56,10 +58,10 @@ def _build(m: Machine):  # noqa: ANN202 - (runner, world)
 
         vision = SimVision(world, lambda: Layout.load(layout_path), transform, runs)
         printer = make_printer(m, world)
-        return Runner(m, printer, vision), world
+        return Runner(m, printer, vision, store), world
     from .vision import CameraVision
 
-    return Runner(m, make_printer(m), CameraVision(m, runs)), None
+    return Runner(m, make_printer(m), CameraVision(m, runs, store), store), None
 
 
 def cmd_serve(args: argparse.Namespace) -> int:

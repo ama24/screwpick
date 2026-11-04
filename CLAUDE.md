@@ -31,6 +31,12 @@ screwpick.
 - **Rules:** `rules.py` (most specific rule wins; roles unknown, unsure, overflow, all, kit).
   Strategies are in `strategies.py` (sort, clear, kit). Add one by extending `Planner._decide`
   and `STRATEGIES`.
+- **Models** are uploaded through the web page into a store (`models.py`, folder `paths.models`).
+  Each upload gets its own folder with `screwpick.json`; uploads are never overwritten. One
+  model is active per role (`active.json`): stage1 (segment/obb/detect), stage2 (pose),
+  classifier (classify). `analysis.py` runs them, reusing screwsynth's measurement. Switching
+  happens while idle and rolls back if loading fails. A `.pt` is a zip archive inside: only
+  `.zip` uploads are unpacked.
 - **The model** runs on the full calibrated ROI at its trained scale; parts outside the working
   area are filtered out afterwards. Never crop the ROI to the working area: that changes the
   scale the model sees.

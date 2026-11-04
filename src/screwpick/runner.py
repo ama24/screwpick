@@ -19,8 +19,10 @@ from typing import Any
 
 import numpy as np
 
+from .analysis import ModelChoice
 from .config import Machine
 from .layout import Layout, yaw_from_up
+from .models import ModelError, ModelStore
 from .parts import compute_gaps, to_bed
 from .printer import Motion, Printer, PrinterError
 from .strategies import STRATEGIES, Plan, Planner
@@ -45,11 +47,14 @@ class State:
 
 
 class Runner:
-    def __init__(self, m: Machine, printer: Printer, vision: Vision) -> None:
+    def __init__(
+        self, m: Machine, printer: Printer, vision: Vision, store: ModelStore | None = None
+    ) -> None:
         self.m = m
         self.printer = printer
         self.motion = Motion(printer, m)
         self.vision = vision
+        self.store = store
         self.state = State(strategy=m.run.strategy)
         self.events: deque[str] = deque(maxlen=300)
         self._lock = threading.RLock()  # the printer: one user at a time (loop or web page)
@@ -432,6 +437,97 @@ class Runner:
         layout.save(self.layout_path)
         self.note(f"scanned bins: {len(moved)} marker(s) seen")
         return {"bins": moved, "problems": layout.problems()}
+
+    # ------------------------------------------------------------------ models
+    def _need_store(self) -> ModelStore:
+        if self.store is None:
+            raise ModelError("no model store configured (paths.models)")
+        return self.store
+
+    def models_state(self) -> dict[str, Any]:
+        store = self.store
+        info = getattr(self.vision, "models_info", None)
+        return {
+            "models": [m.to_dict() for m in store.list()] if store else [],
+            "active": store.active() if store else {},
+            "loaded": info() if info else {"error": "simulation: no models are used"},
+            "max_upload_mb": self.m.models.max_upload_mb,
+        }
+
+    def _reload_models(self) -> None:
+        use = getattr(self.vision, "use_models", None)
+        if use is not None:
+            from .vision import active_choice
+
+            use(active_choice(self.m, self.store))
+
+    def add_model(self, upload: Path, filename: str, name: str | None = None) -> dict[str, Any]:
+        """Store an uploaded model; the first usable one of its kind becomes active."""
+        store = self._need_store()
+        m = store.add_upload(upload, filename, name)
+        self.note(f"model uploaded: {m.name} ({m.task}, {len(m.classes)} classes)")
+        role = m.role
+        if role and not m.problems and store.active().get(role) is None and not self._running():
+            try:
+                self.activate_model(role, m.id)
+            except Exception as exc:  # noqa: BLE001 - stored anyway; the page shows why
+                self.note(f"{m.name} stored but not activated: {exc}")
+        return m.to_dict()
+
+    def activate_model(self, role: str, model_id: str | None) -> dict[str, Any]:
+        """Switch a role to another stored model (None = no model for stage2/classifier)."""
+        self._idle()
+        store = self._need_store()
+        if role == "stage1" and model_id is None:
+            raise ModelError("stage 1 always needs a model")
+        before = store.active()
+        store.set_active(role, model_id)
+        try:
+            self._reload_models()
+        except Exception:
+            for r, mid in before.items():  # loading failed: back to what worked
+                store.set_active(r, mid)
+            raise
+        name = store.get(model_id).name if model_id else "none"
+        self.note(f"{role} model: {name}")
+        return self.models_state()
+
+    def test_model(self, model_id: str) -> dict[str, Any]:
+        """Run a stored model on the last photo next to the active ones (nothing is switched)."""
+        store = self._need_store()
+        test = getattr(self.vision, "test_models", None)
+        if test is None:
+            raise ModelError("testing models needs the camera (not available in simulation)")
+        if self.last_shot is None or self.last_shot.photo is None:
+            raise ModelError("take a photo first (Run tab: One pick, or Calibrate: Take photo)")
+        from .vision import active_choice
+
+        m = store.get(model_id)
+        if m.role is None:
+            raise ModelError(f"{m.name}: {m.task} models cannot be used")
+        try:
+            choice = active_choice(self.m, store)
+        except FileNotFoundError:
+            if m.role != "stage1":
+                raise
+            choice = None
+        weights = store.weights_path(m)
+        if m.role == "stage1":
+            choice = ModelChoice(
+                weights,
+                imgsz=m.imgsz,
+                label=m.name,
+                conf=m.recommended_conf if self.m.models.use_recommended_conf else None,
+                stage2=choice.stage2 if choice else None,
+                classifier=choice.classifier if choice else None,
+            )
+        elif choice is not None:
+            setattr(choice, m.role, weights)
+        assert choice is not None
+        return test(choice, self.last_shot.photo, f"test_{m.id}.jpg")
+
+    def _running(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
 
 
 def _marker_plate_height(layout: Layout, marker: int) -> float:

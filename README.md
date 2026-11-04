@@ -110,6 +110,45 @@ Start it with `screwpick serve`, and open `http://<pi>:8080` on the PC or phone.
 7. **Layout tab → Find bins with the camera**: every bin moves to where its marker really is.
 8. **Run tab**: pick a strategy and press **Start**, or use the printer menu.
 
+## Models: upload over WiFi, keep the old ones
+
+The **Models** tab (`http://<pi>:8080/#models`) is where models arrive. Drag a file onto the drop
+zone, or click it to choose one. It takes:
+
+| File | What it is |
+|---|---|
+| **package zip** (recommended) | model-trainer's whole `package` folder zipped: `best.pt`, `model_card.json`, `exports/…` |
+| zipped NCNN folder | e.g. `best_ncnn_model.zip` (contains `model.ncnn.param`, `model.ncnn.bin`, `metadata.yaml`) |
+| `.onnx` or `.pt` | a single weights file |
+
+Every upload is checked:
+- **what kind of model it is** (from the model card or the NCNN metadata);
+- **its classes**, compared with the catalogue: a model knowing none of them is refused, and
+  missing or extra classes are listed;
+- **its image size and score**.
+
+Each upload is stored in its own folder (`models/`). **Old models are never replaced**: press
+**Use** on any of them to switch back. The switch happens without a restart, and if the new
+model fails to load, the old one stays in use. **Test** runs a stored model on the last photo
+and shows its outlines, without switching. The first model of each kind is put in use by itself.
+
+When a package holds several formats, the Pi uses **NCNN** (fastest on its CPU), full precision
+first. You can pick another one from the list.
+
+Kinds of models and what they do here:
+
+| Model task | Role | What you get |
+|---|---|---|
+| **segment** | finds parts (stage 1) | outlines, classes, positions, lengths: everything |
+| **obb** / **detect** | finds parts (stage 1) | classes and positions only; lengths are not measured, so part-number rules send parts to *unsure* |
+| **pose** | measures length (stage 2, optional) | keypoints for a more precise length |
+| **classify** | re-checks classes (optional) | looks at a close-up of every part and corrects the class when it is at least `models.classifier_conf` sure |
+
+If the card has a recommended confidence, it is used for stage 1 (`models.use_recommended_conf`).
+
+> Only upload models you trust: `.pt` files are Python pickles and can contain code. There is no
+> password on the page, so anyone on your WiFi can use it; keep the Pi on a network you control.
+
 ## Strategies
 
 | Strategy | What it does |

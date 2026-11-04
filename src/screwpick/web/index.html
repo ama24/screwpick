@@ -21,11 +21,15 @@ input[type=number]{width:72px}img.shot{width:100%;border-radius:6px;background:#
 table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:4px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
 #events{font:12px/1.4 ui-monospace,monospace;max-height:260px;overflow:auto;white-space:pre-wrap}
 svg text{font:11px system-ui,sans-serif;fill:var(--fg);pointer-events:none}
+#drop{border:2px dashed var(--line);border-radius:8px;padding:28px 16px;text-align:center;cursor:pointer}
+#drop.over{border-color:var(--acc);background:var(--work)}progress{width:100%;height:10px}
+.tag{display:inline-block;border:1px solid var(--line);border-radius:10px;padding:0 8px;font-size:12px}
+.tag.on{background:var(--acc);border-color:var(--acc);color:#fff}td small{display:block;color:var(--mut)}
 .jog{display:grid;grid-template-columns:repeat(3,52px);gap:6px}.jog button{height:44px}
 label{display:flex;gap:6px;align-items:center}h2{font-size:16px;margin:0 0 10px}
 </style></head><body>
 <header><h1>screwpick</h1>
-<nav><button data-t="run" class="on">Run</button><button data-t="layout">Layout</button><button data-t="calib">Calibrate</button><button data-t="print">Print bins</button></nav>
+<nav><button data-t="run" class="on">Run</button><button data-t="layout">Layout</button><button data-t="calib">Calibrate</button><button data-t="print">Print bins</button><button data-t="models">Models</button></nav>
 <span id="status">…</span><button class="estop" onclick="cmd('estop')">STOP NOW</button></header>
 <main>
 <section id="run" class="on">
@@ -101,11 +105,27 @@ label{display:flex;gap:6px;align-items:center}h2{font-size:16px;margin:0 0 10px}
  </div>
  <div class="card"><table id="printlist"></table></div>
 </section>
+
+<section id="models">
+ <div class="card"><h2>In use</h2><div id="loaded" class="mut">…</div></div>
+ <div class="card">
+  <h2>Add a model</h2>
+  <div id="drop" onclick="$('file').click()"><b>Drop a model here</b> or click to choose a file<br>
+   <span class="mut">model-trainer package as .zip (best.pt + model_card.json + exports), a zipped NCNN folder (<code>best_ncnn_model</code>), or a single .onnx / .pt</span></div>
+  <input id="file" type="file" accept=".zip,.onnx,.pt" hidden>
+  <div class="row" style="margin-top:8px"><label>name<input id="mname" placeholder="optional, e.g. v3 more nuts"></label><span id="upmsg" class="mut"></span></div>
+  <progress id="upbar" value="0" max="1" hidden></progress>
+  <p class="mut">Best on the Pi: the whole package folder zipped, with an <b>NCNN</b> export (fp32 or fp16) inside. Every upload is kept, so you can go back to an older model any time. Upload only models you trust: .pt files can contain code.</p>
+ </div>
+ <div class="card"><h2>Stored models</h2><table id="mlist"></table><div id="mmsg" class="mut" style="margin-top:8px"></div></div>
+ <div class="card" id="testcard" hidden><h2>Test result</h2><div id="testinfo" class="mut"></div><img id="testimg" class="shot" alt=""></div>
+</section>
 </main>
 <script>
 const $=id=>document.getElementById(id);
 let S={},lay=null,sel=null,workStart=null,markers=[];
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");if(b.dataset.t!=="run")loadLayout();});
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");history.replaceState(null,"","#"+b.dataset.t);if(b.dataset.t==="models")loadModels();else if(b.dataset.t!=="run")loadLayout();});
+setTimeout(()=>{const t=location.hash.slice(1),b=t&&document.querySelector(`nav button[data-t="${t}"]`);if(b)b.click();});
 async function api(path,body){const r=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j;}
 function flash(id,text,bad){$(id).textContent=text;$(id).className=bad?"bad":"mut";}
 async function cmd(c){try{const j=await api("api/command",{command:c,strategy:$("strategy").value});flash("msg",j.result);}catch(e){flash("msg",e.message,1);}poll();}
@@ -174,4 +194,46 @@ async function calibClear(){await api("api/calib/clear",{});renderPairs([]);}
 async function goto_(m){try{const j=await api("api/calib/goto",{marker:m});$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
 async function jog(x,y,z){const s=+$("step").value;try{const j=await api("api/jog",{dx:x*s,dy:y*s,dz:z*s});$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
 async function getTip(){try{const j=await api("api/tip");$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
+
+// ---------------------------------------------------------------- models
+const ROLE={stage1:"finds parts",stage2:"measures length",classifier:"re-checks classes"};
+let M={models:[],active:{},loaded:{}};
+async function loadModels(){try{M=await api("api/models");renderModels();}catch(e){flash("mmsg",e.message,1);}}
+function renderModels(){
+ const L=M.loaded||{};
+ $("loaded").innerHTML=L.error?`<span class="warn">${esc(L.error)}</span>`:
+  `<b>${esc(L.label)}</b> (${esc(L.task)}, ${L.classes} classes, ${L.imgsz} px, confidence ${L.conf}) · length model: ${L.stage2?"yes":"no"} · classifier: ${L.classifier?"yes":"no"}`+
+  (L.warnings&&L.warnings.length?`<ul class="warn">${L.warnings.map(w=>`<li>${esc(w)}</li>`).join("")}</ul>`:"");
+ const act=M.active||{};
+ $("mlist").innerHTML="<tr><th>model</th><th>kind</th><th>score</th><th>weights</th><th></th></tr>"+M.models.map(m=>{
+  const on=m.role&&act[m.role]===m.id;
+  const fmts=m.formats.length>1?`<select onchange="chooseWeights('${m.id}',this.value)">${m.formats.map(f=>`<option value="${esc(f.path)}"${f.path===m.weights?" selected":""}>${esc(f.format)}: ${esc(f.path)}</option>`).join("")}</select>`:esc(m.weights||"–");
+  const notes=[...m.problems.map(p=>`<span class="bad">${esc(p)}</span>`),...m.warnings.map(w=>esc(w))].map(x=>`<small>${x}</small>`).join("");
+  const btn=m.role&&!m.problems.length?(on?(m.role==="stage1"?"":`<button class="b" onclick="activate('${m.role}',null)">Stop using</button>`):`<button class="b p" onclick="activate('${m.role}','${m.id}')">Use</button>`):"";
+  return `<tr><td><b>${esc(m.name)}</b> ${on?'<span class="tag on">in use</span>':""}<small>${esc(m.uploaded)} · ${esc(m.source)}</small>${notes}</td>`+
+   `<td>${esc(m.task)}<small>${esc(ROLE[m.role]||"not usable")} · ${m.classes.length} classes${m.imgsz?` · ${m.imgsz} px`:""}</small></td>`+
+   `<td>${m.metric_value!=null?(+m.metric_value).toFixed(3):"–"}<small>${esc(m.metric||"")}</small></td><td>${fmts}</td>`+
+   `<td>${btn} ${m.role&&!m.problems.length?`<button class="b" onclick="testModel('${m.id}')">Test</button>`:""} <button class="b" onclick="renameModel('${m.id}')">Rename</button> ${on?"":`<button class="b" onclick="deleteModel('${m.id}')">Delete</button>`}</td></tr>`;}).join("")||"<tr><td class='mut'>No models yet: drop one above.</td></tr>";}
+async function activate(role,id){flash("mmsg","loading the model…");try{M=await api("api/models/activate",{role,id});renderModels();flash("mmsg","switched");}catch(e){flash("mmsg",e.message,1);}}
+async function chooseWeights(id,path){try{M=await api("api/models/weights",{id,path});renderModels();flash("mmsg","weights chosen (press Use again if it is in use, to reload)");}catch(e){flash("mmsg",e.message,1);}}
+async function renameModel(id){const n=prompt("New name");if(!n)return;try{M=await api("api/models/rename",{id,name:n});renderModels();}catch(e){flash("mmsg",e.message,1);}}
+async function deleteModel(id){if(!confirm("Delete this model for good?"))return;try{M=await api("api/models/delete",{id});renderModels();}catch(e){flash("mmsg",e.message,1);}}
+async function testModel(id){flash("mmsg","running the model on the last photo…");try{const j=await api("api/models/test",{id});$("testcard").hidden=false;
+ $("testinfo").textContent=`${j.model.label}: ${j.objects} object(s) in ${j.seconds} s`;$("testimg").src="runs/"+encodeURIComponent(j.image)+"?"+Date.now();flash("mmsg","");}catch(e){flash("mmsg",e.message,1);}}
+function upload(file){
+ const max=(M.max_upload_mb||2000)*1024*1024; if(file.size>max){flash("upmsg",`too big (limit ${M.max_upload_mb} MB)`,1);return;}
+ const xhr=new XMLHttpRequest(),bar=$("upbar");
+ xhr.open("POST",`api/models/upload?filename=${encodeURIComponent(file.name)}&name=${encodeURIComponent($("mname").value)}`);
+ xhr.upload.onprogress=e=>{if(e.lengthComputable){bar.value=e.loaded/e.total;flash("upmsg",`uploading ${(e.loaded/1e6).toFixed(1)} / ${(e.total/1e6).toFixed(1)} MB`);}};
+ xhr.upload.onload=()=>flash("upmsg","uploaded, checking the model…");
+ xhr.onload=()=>{bar.hidden=true;let j={};try{j=JSON.parse(xhr.responseText);}catch(e){}
+  if(xhr.status>=400){flash("upmsg",j.error||("upload failed: "+xhr.status),1);return;}
+  M=j;renderModels();$("mname").value="";flash("upmsg",`stored: ${j.model.name} (${j.model.task})`);};
+ xhr.onerror=()=>{bar.hidden=true;flash("upmsg","upload failed (connection lost?)",1);};
+ bar.hidden=false;bar.value=0;xhr.send(file);}
+const drop=$("drop");
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)upload(f);});
+$("file").onchange=()=>{const f=$("file").files[0];if(f)upload(f);$("file").value="";};
 </script></body></html>

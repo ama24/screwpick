@@ -11,6 +11,11 @@ POST /api/calib/goto        {"marker": id};     POST /api/jog {"dx","dy","dz"}; 
 GET  /api/print/bin?marker=100&fmt=3mf|stl, /api/print/baseplate, /api/print/labels,
      /api/print/all          printable files
 GET  /runs/<file>           photos
+GET  /api/models            stored models, active ones, what is loaded
+POST /api/models/upload?filename=…&name=…   body = the file (zip, .onnx, .pt)
+POST /api/models/activate   {"role": stage1|stage2|classifier, "id": … or null}
+POST /api/models/weights    {"id", "path"};  /rename {"id", "name"};  /delete {"id"}
+POST /api/models/test       {"id"}: run it on the last photo, nothing is switched
 """
 
 from __future__ import annotations
@@ -20,6 +25,7 @@ import json
 import logging
 import threading
 import urllib.parse
+import uuid
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -68,7 +74,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         q = {k: v[-1] for k, v in urllib.parse.parse_qs(url.query).items()}
         try:
             self._dispatch(method, url.path, q)
-        except (PrinterError, ValueError, KeyError, TypeError) as exc:
+        except (PrinterError, ValueError, KeyError, TypeError, FileNotFoundError) as exc:
             self._json({"error": str(exc)}, 400)
         except Exception as exc:  # noqa: BLE001 - report it on the page
             log.exception("web request %s %s", method, url.path)
@@ -122,8 +128,57 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._print(path.rsplit("/", 1)[-1], q)
         elif method == "GET" and path.startswith("/runs/"):
             self._file(r.runs_dir, path[len("/runs/") :])
+        elif method == "GET" and path == "/api/models":
+            self._json(r.models_state())
+        elif method == "POST" and path == "/api/models/upload":
+            self._upload(q)
+        elif method == "POST" and path == "/api/models/activate":
+            b = self._body()
+            self._json(r.activate_model(str(b["role"]), b.get("id") or None))
+        elif method == "POST" and path == "/api/models/weights":
+            b = self._body()
+            r._need_store().choose_weights(str(b["id"]), str(b["path"]))
+            self._json(r.models_state())
+        elif method == "POST" and path == "/api/models/rename":
+            b = self._body()
+            r._need_store().rename(str(b["id"]), str(b["name"]))
+            self._json(r.models_state())
+        elif method == "POST" and path == "/api/models/delete":
+            r._need_store().delete(str(self._body()["id"]))
+            self._json(r.models_state())
+        elif method == "POST" and path == "/api/models/test":
+            self._json(r.test_model(str(self._body()["id"])))
         else:
             self._json({"error": f"not found: {method} {path}"}, 404)
+
+    def _upload(self, q: dict[str, str]) -> None:
+        """The request body is the file itself (the page sends it with fetch, no form)."""
+        r = self.runner
+        store = r._need_store()
+        filename = Path(q.get("filename") or "model.zip").name
+        size = int(self.headers.get("Content-Length") or 0)
+        limit = r.m.models.max_upload_mb * 1024 * 1024
+        if size <= 0:
+            raise ValueError("empty upload")
+        if size > limit:
+            self.close_connection = True
+            raise ValueError(f"the file is larger than {r.m.models.max_upload_mb} MB")
+        incoming = store.root / "_incoming"
+        incoming.mkdir(parents=True, exist_ok=True)
+        tmp = incoming / f"{uuid.uuid4().hex}.part"
+        try:
+            with tmp.open("wb") as f:
+                left = size
+                while left > 0:
+                    chunk = self.rfile.read(min(1 << 20, left))
+                    if not chunk:
+                        raise ValueError("the upload was interrupted")
+                    f.write(chunk)
+                    left -= len(chunk)
+            model = r.add_model(tmp, filename, q.get("name") or None)
+        finally:
+            tmp.unlink(missing_ok=True)
+        self._json({"model": model, **r.models_state()})
 
     def _print(self, what: str, q: dict[str, str]) -> None:
         lay = self.runner.layout()

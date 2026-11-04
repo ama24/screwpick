@@ -4,7 +4,8 @@
 paths:
   screwsynth_config: null      # screwsynth's configs/config.yaml (null: the screwsynth checkout's own)
   calibration: null            # camera calibration.json (null: screwsynth's data/calibration/calibration.json)
-  model: null                  # stage-1 model (NCNN folder / .onnx / .pt); null: newest in screwsynth's models/
+  models: ../models            # models uploaded in the web page (Models tab), one folder each
+  model: null                  # used only while no model is active: NCNN folder / .onnx / .pt (null: newest in screwsynth's models/)
   stage2: null                 # keypoint model; null: classical length measurement
   layout: ../data/layout.yaml  # bins and working area (edit in the web page)
   transform: ../data/bed_transform.json   # camera -> printer calibration (Calibrate tab)
@@ -58,6 +59,12 @@ run:
     distance_mm: 4
     feed: 9000
     max_in_a_row: 3
+
+models:
+  classifier_conf: 0.6         # a classifier model overrules stage 1 only when at least this sure
+  use_recommended_conf: true   # stage-1 confidence from the model card, when it has one
+  prefer: [ncnn, onnx, pt]     # which weights of an upload to use (NCNN is fastest on the Pi)
+  max_upload_mb: 2000
 
 web:
   port: 8080

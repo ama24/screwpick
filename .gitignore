@@ -11,3 +11,4 @@ runs/
 print/
 data/layout.yaml
 data/bed_transform.json
+models/

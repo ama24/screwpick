@@ -28,7 +28,8 @@ class ConfigError(ValueError):
 class Paths:
     screwsynth_config: str | None = None  # screwsynth's configs/config.yaml (classes, geometry)
     calibration: str | None = None  # calibration.json of the camera; None = nominal camera
-    model: str | None = None  # stage-1 weights or NCNN folder; None = search models/
+    models: str = "../models"  # models uploaded in the web page (Models tab)
+    model: str | None = None  # fallback when no model is active: weights or NCNN folder
     stage2: str | None = None  # keypoint model; None = classical measurement only
     layout: str = "../data/layout.yaml"  # bins and working area (edited in the web page)
     transform: str = "../data/bed_transform.json"  # plate mm -> printer X/Y (calibrate tab)
@@ -102,6 +103,14 @@ class Run:
 
 
 @dataclass
+class Models:
+    classifier_conf: float = 0.6  # the classifier overrules stage 1 only when at least this sure
+    use_recommended_conf: bool = True  # stage-1 confidence from the model card, when it has one
+    prefer: list[str] = field(default_factory=lambda: ["ncnn", "onnx", "pt"])  # weights to use
+    max_upload_mb: int = 2000
+
+
+@dataclass
 class Web:
     port: int = 8080
     host: str = ""  # "" = every network interface (open it from the PC)
@@ -115,6 +124,7 @@ class Machine:
     tool: Tool = field(default_factory=Tool)
     picker: Picker = field(default_factory=Picker)
     run: Run = field(default_factory=Run)
+    models: Models = field(default_factory=Models)
     web: Web = field(default_factory=Web)
     base_dir: Path = field(default_factory=Path.cwd)  # folder of the config file
 
