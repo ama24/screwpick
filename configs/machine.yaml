@@ -40,13 +40,17 @@ tool:
   offset: [0, 0, 0]            # picker tip minus the toolhead position Klipper reports (X Y Z)
 
 picker:
-  mode: vacuum                 # vacuum | gripper | both
+  mode: vacuum                 # vacuum | gripper | tweezers (turned by a Z rotation axis) | both
   grab: SCREWPICK_GRAB         # macros in klipper/screwpick.cfg
   release: SCREWPICK_RELEASE
-  rotate: null                 # SCREWPICK_ROTATE when the gripper can turn (null: it cannot)
+  rotate: null                 # SCREWPICK_ROTATE for tweezers / a turning gripper (null: it cannot turn)
+  rotate_home: null            # SCREWPICK_ROT_HOME: a 0-degree switch, found before every sort
+  rotate_zero: SCREWPICK_ROT_ZERO  # Setup tab "Set zero": the jaws close along printer X now
+  rotate_offset_deg: 0         # fine trim of the jaw angle
+  grip_from_head_mm: 1.5       # tweezers close at least this far below a screw head
   approach_mm: 8               # slow descent over the last mm
   depth_mm: 0.5                # vacuum: press this far below the part's top (spring-loaded cup)
-  grip_height: 0.5             # gripper: close at this share of the part's height
+  grip_height: 0.5             # gripper/tweezers: close at this share of the part's height (screws: the shank's middle)
   clearance_mm: 1.0            # parts with this much free space around them are picked first
   drop_mm: 10                  # release this far above the bin's rim
   dwell_s: 0.3

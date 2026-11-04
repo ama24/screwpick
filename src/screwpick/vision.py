@@ -18,6 +18,7 @@ import numpy as np
 
 from .analysis import Analyzer, ModelChoice
 from .config import Machine
+from .grip import Shape, axis_grip, outline_grip
 from .markers import MarkerPose, detect, marker_pose
 from .models import ModelStore
 from .parts import Part
@@ -71,12 +72,22 @@ def top_height_mm(cls: str, screw_head_radius: float | None) -> float:
     return 0.8 * d  # nuts and the like, lying flat
 
 
+def _keypoints_px(o: dict[str, Any]) -> dict[str, list[float]] | None:
+    k = o.get("keypoints") or {}
+    kp = k.get("keypoints") or k.get("classical")
+    if kp and all(n in kp for n in ("head_top", "bearing", "tip")):
+        return kp
+    return None
+
+
 def parts_from_result(
     result: dict[str, Any],
     to_plate: Callable[[np.ndarray, float], np.ndarray],
     head_radius: Callable[[str], float | None],
+    shape: Callable[[str], Shape | None] | None = None,
 ) -> list[Part]:
-    """screwsynth-infer output -> Parts (outline in plate mm at the part's mid height)."""
+    """screwsynth-infer output -> Parts (outline in plate mm at the part's mid height), with
+    grip point, centre of mass and long axis (grip.py)."""
     out = []
     for o in result.get("objects", []):
         cls = str(o["class"])
@@ -85,6 +96,14 @@ def parts_from_result(
         poly_px = np.asarray(o.get("polygon") or [], dtype=float).reshape(-1, 2)
         poly = to_plate(poly_px, top / 2)[:, :2] if len(poly_px) else np.zeros((0, 2))
         length = (o.get("length") or {}).get("length_mm")
+        g = None
+        sh = shape(cls) if shape else None
+        kp = _keypoints_px(o)
+        if sh is not None and kp is not None:  # the axis from the keypoints, lying at d/2
+            pts = to_plate(np.array([kp[n] for n in ("head_top", "bearing", "tip")]), sh.d / 2)
+            g = axis_grip(dict(zip(("head_top", "bearing", "tip"), pts[:, :2], strict=True)), sh)
+        if g is None and len(poly):
+            g = outline_grip(poly)
         out.append(
             Part(
                 id=int(o["id"]),
@@ -98,7 +117,34 @@ def parts_from_result(
                 measurable=bool(o.get("measurable", False)),
                 unknown=bool(o.get("unknown", False)),
                 has_length=hr is not None,
+                grip_plate=g.point if g else None,
+                com_plate=g.com if g else None,
+                grip_method=g.method if g else "centre",
+                grip_height_mm=sh.d / 2 if (g is not None and g.method == "axis" and sh) else None,
             )
+        )
+        if g is not None:
+            out[-1].plate_angle = g.axis_deg  # the axis from keypoints / area moments
+    return out
+
+
+def shapes_from_catalogue(cfg: Any, geometry: Any) -> dict[str, Shape]:
+    """Per class: thread size, head radius and head height, for the centre of mass."""
+    from screwsynth.catalogue.schema import LENGTH_KINDS, catalogue_from_config
+
+    out: dict[str, Shape] = {}
+    for p in catalogue_from_config(cfg).enabled_parts:
+        if p.kind not in LENGTH_KINDS or p.class_name in out:
+            continue
+        g = geometry.classes.get(p.class_name)
+        dims = p.dims
+        d = float(dims.get("d", g.d if g else 4.0))
+        headless = p.kind == "standoff" or p.shape in ("set_screw", "threaded_rod")
+        out[p.class_name] = Shape(
+            d=d,
+            head_r=0.0 if headless else float(g.head_radius if g else dims.get("dk", d) / 2),
+            head_k=0.0 if headless else float(dims.get("k", 0.0)),
+            socket=p.shape in ("socket_cap", "button", "countersunk"),
         )
     return out
 
@@ -135,6 +181,11 @@ class CameraVision:
         self.settings = Settings.from_config(cfg.to_dict())
         self.classes_yaml = resolve(cfg.get("paths.classes", "configs/classes.yaml"))
         self._head_r = {name: g.head_radius for name, g in self.geometry.classes.items()}
+        try:
+            self._shapes = shapes_from_catalogue(cfg, self.geometry)
+        except Exception as exc:  # noqa: BLE001 - grip falls back to the outline
+            log.warning("no head sizes for the centre of mass: %s", exc)
+            self._shapes = {}
         self.analyzer: Analyzer | None = None
         self.model_error: str | None = None
         try:
@@ -205,6 +256,7 @@ class CameraVision:
             result,
             lambda px, h: scene.cam.pixel_to_plate(px, h),
             self._head_r.get,
+            self._shapes.get,
         )
         full = cv2.imread(str(photo), cv2.IMREAD_GRAYSCALE)
         markers = [

@@ -54,6 +54,11 @@ screwpick.
   start/step/auto on a real printer until it's complete. Setup moves call
   `preflight(home=False)`, so only *Home now* and sorting ever home. Machine values from the page
   go to `paths.machine`, over machine.yaml.
+- **Grip:** `grip.py`. Screws: axis and centre of mass from the three keypoints (head_top,
+  bearing, tip) plus catalogue head sizes (`vision.shapes_from_catalogue`); the grip point is
+  on the shank. Other parts: area moments of the outline. `Part.grip_bed` is where the tool goes;
+  the tweezers' angle = `jaw_angle(axis)` (jaws close across the part; 0 deg = along X).
+- **Console:** `Runner.say()`: one short line per decision (seen, pick, drop, missed, complete).
 - **Strategies** are in `strategies.py` (sort, clear, kit). Add one by extending
   `Planner._decide` and `STRATEGIES`.
 - **Models** are uploaded through the web page into a store (`models.py`, folder `paths.models`).
