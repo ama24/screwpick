@@ -28,6 +28,13 @@ class Part:
     has_length: bool = False  # its class is measured (screws, standoffs, rod); nuts are not
     bed_xy: tuple[float, float] = (0.0, 0.0)  # printer X/Y (set by to_bed)
     bed_angle: float = 0.0
+    # where to take it (grip.py): grip point and centre of mass, plate mm and printer X/Y
+    grip_plate: tuple[float, float] | None = None
+    com_plate: tuple[float, float] | None = None
+    grip_method: str = "centre"  # axis (keypoints) | outline | centre
+    grip_height_mm: float | None = None  # height above the plate to close at (the shank's middle)
+    grip_bed: tuple[float, float] = (0.0, 0.0)
+    com_bed: tuple[float, float] = (0.0, 0.0)
     gap_mm: float = math.inf  # free space to the nearest other part (<= 0: touching)
     extra: dict = field(default_factory=dict)
 
@@ -37,6 +44,10 @@ def to_bed(parts: Sequence[Part], T: Transform2D) -> None:
         bx, by = T.apply(np.asarray(p.plate_xy, dtype=float))
         p.bed_xy = (float(bx), float(by))
         p.bed_angle = T.rotate_angle(p.plate_angle) % 180.0
+        gx, gy = T.apply(np.asarray(p.grip_plate or p.plate_xy, dtype=float))
+        p.grip_bed = (float(gx), float(gy))
+        mx, my = T.apply(np.asarray(p.com_plate or p.grip_plate or p.plate_xy, dtype=float))
+        p.com_bed = (float(mx), float(my))
 
 
 def _inside(points: np.ndarray, poly: np.ndarray) -> np.ndarray:

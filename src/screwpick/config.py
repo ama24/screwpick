@@ -16,7 +16,7 @@ from typing import Any
 
 import yaml
 
-PICKER_MODES = ("vacuum", "gripper", "both")
+PICKER_MODES = ("vacuum", "gripper", "tweezers", "both")
 PRINTER_DRIVERS = ("moonraker", "sim")
 
 
@@ -81,10 +81,14 @@ class Tool:
 
 @dataclass
 class Picker:
-    mode: str = "vacuum"  # vacuum | gripper | both (gripper fingers with a suction cup)
+    mode: str = "vacuum"  # vacuum | gripper | tweezers (turned by a Z rotation axis) | both
     grab: str = "SCREWPICK_GRAB"  # Klipper macros, see klipper/screwpick.cfg
     release: str = "SCREWPICK_RELEASE"
     rotate: str | None = None  # SCREWPICK_ROTATE ANGLE=<deg> when the gripper can turn
+    rotate_home: str | None = None  # SCREWPICK_ROT_HOME: finds 0 deg (jaws close along X)
+    rotate_zero: str | None = "SCREWPICK_ROT_ZERO"  # Setup tab: the jaws close along X now
+    rotate_offset_deg: float = 0.0  # fine trim of the jaw angle
+    grip_from_head_mm: float = 1.5  # tweezers close at least this far below a screw head
     approach_mm: float = 8.0  # slow descent from this far above the part
     depth_mm: float = 0.5  # go this far below the top of the part (spring-loaded cup)
     grip_height: float = 0.5  # gripper: close at this share of the part height (0 bed, 1 top)

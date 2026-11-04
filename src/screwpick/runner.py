@@ -22,6 +22,7 @@ import numpy as np
 
 from .analysis import ModelChoice
 from .config import Machine
+from .grip import jaw_angle
 from .io import read_json, write_json
 from .layout import Layout, yaw_from_up
 from .models import ModelError, ModelStore
@@ -62,6 +63,8 @@ class Runner:
         self.store = store
         self.state = State(strategy=m.run.strategy)
         self.events: deque[str] = deque(maxlen=300)
+        self.console: deque[str] = deque(maxlen=200)  # short lines: what it decides
+        self._last_seen = ""
         self._lock = threading.RLock()  # the printer: one user at a time (loop or web page)
         self._thread: threading.Thread | None = None
         self._pause = threading.Event()
@@ -125,6 +128,29 @@ class Runner:
         log.info(text)
         self.events.append(time.strftime("%H:%M:%S ") + text)
 
+    def say(self, text: str) -> None:
+        """One short line on the page's console: what the machine sees and decides."""
+        self.console.append(time.strftime("%H:%M:%S ") + text)
+
+    def _say_seen(self, parts: list[Any], layout: Layout) -> None:
+        """What lies on the plate, grouped: '7 on the plate: 3 DIN912_M4x16 · 2 DIN934_M4'."""
+        from collections import Counter
+
+        on = [p for p in parts if layout.in_work(p.bed_xy, self.m.run.work_margin_mm)]
+        kinds = Counter(
+            p.cls + (f"x{p.length_mm:g}" if p.length_mm is not None else "") for p in on
+        )
+        line = (
+            f"{len(on)} on the plate: "
+            + " · ".join(f"{n} {k}" for k, n in kinds.most_common(6))
+            + (" …" if len(kinds) > 6 else "")
+            if on
+            else "plate empty"
+        )
+        if line != self._last_seen:
+            self.say(line)
+            self._last_seen = line
+
     def _set(self, **kw: Any) -> None:
         for k, v in kw.items():
             setattr(self.state, k, v)
@@ -143,6 +169,7 @@ class Runner:
             "parts": s.parts,
             "markers": s.markers,
             "events": list(self.events)[-60:],
+            "console": list(self.console)[-80:],
             "strategies": STRATEGIES,
             "calibrated": self.transform_path.is_file(),
             "calib_pairs": self.calib_pairs,
@@ -331,6 +358,8 @@ class Runner:
             self.motion.preflight()
             if self.m.printer.accel:
                 self.printer.gcode(f"SET_VELOCITY_LIMIT ACCEL={self.m.printer.accel:.0f}")
+            if self.m.picker.rotate_home:  # the tweezers' 0 deg (lost when the motors were off)
+                self.printer.gcode(self.m.picker.rotate_home)
         first: Shot | None = None
         run = self.m.run
         if run.scan_bins_on_start or run.only_seen_bins:
@@ -362,6 +391,8 @@ class Runner:
             planner.claims = self.claims  # shared: emptied bins apply at once
         self._set(status="running")
         self.note(f"started: {STRATEGIES[strategy]}")
+        self.say(f"sorting: {strategy}")
+        self._last_seen = ""
         prev: Plan | None = None
         done_steps = 0
         while not self._stop.is_set():
@@ -384,6 +415,9 @@ class Runner:
                     self._save_claims()
                     mk = next(k for k in self.claims if before.get(k) != self.claims[k])
                     self.note(f"wild bin {mk} now collects {self.claims[mk]}")
+                    self.say(f"bin {mk} now holds {self.claims[mk]}")
+            if not ok and prev is not None and prev.part is not None:
+                self.say(f"missed {prev.part.cls}: try again")
             if not ok:
                 self.note(
                     f"pick of {prev.part.cls if prev and prev.part else '?'} failed: the part is still there"
@@ -399,6 +433,7 @@ class Runner:
                 picks=sum(planner.sorted_count.values()),
             )
             self._update_ready(planner, layout, shot.parts)
+            self._say_seen(shot.parts, layout)
             if steps is not None and done_steps >= steps:
                 return "steps"
             here = tuple(self.motion.current_tip()[:2])
@@ -407,10 +442,12 @@ class Runner:
             if plan.kind == "done":
                 self._set(status="done", message=plan.reason)
                 self.note(f"done: {plan.reason}")
+                self.say("done: " + plan.reason)
                 self.motion.message("screwpick: done")
                 return "done"
             if plan.kind == "stuck":
                 self.note(plan.reason)
+                self.say("stuck: " + plan.reason)
                 self.motion.message("screwpick: needs a hand")
                 if auto:
                     self._set(
@@ -426,6 +463,7 @@ class Runner:
                 self._set(status="running")
                 continue
             if plan.kind == "shake":
+                self.say("shake the bed: " + plan.reason.split(":")[0])
                 with self._lock:
                     self.note(plan.reason)
                     self.motion.shake()
@@ -460,6 +498,7 @@ class Runner:
         tried: list[Any] | None = None  # the parts of a stuck plate: wait until they change
         errors = 0
         self.note(f"automatic mode on: {STRATEGIES[strategy]}")
+        self.say("automatic: waiting for parts")
         while not self._stop.is_set():
             try:
                 if self._pause.is_set():
@@ -472,6 +511,7 @@ class Runner:
                 if len(parts) >= sb.min_parts and not (
                     tried is not None and same_parts(parts, tried)
                 ):
+                    self.say(f"{len(parts)} part(s) seen: waiting until they lie still")
                     self._set(
                         status="standby",
                         message=f"{len(parts)} part(s) seen: waiting until they lie still",
@@ -599,23 +639,31 @@ class Runner:
         assert p is not None and b is not None
         pk = self.m.picker
         surface = layout.surface_z()
-        if pk.mode == "gripper":
-            z = surface + p.top_mm * pk.grip_height
+        if pk.mode in ("gripper", "tweezers"):
+            h = p.grip_height_mm if p.grip_height_mm is not None else p.top_mm * pk.grip_height
+            z = surface + h
         else:
             z = surface + p.top_mm - pk.depth_mm
         z = max(z, surface + 0.3)
+        x, y = p.grip_bed if p.grip_method != "centre" else p.bed_xy
+        jaws = jaw_angle(p.bed_angle, pk.rotate_offset_deg)
         name = p.cls + (f"x{p.length_mm:g}" if p.length_mm is not None else "")
-        self.note(
-            f"pick {name} at ({p.bed_xy[0]:.1f}, {p.bed_xy[1]:.1f}) -> bin {b.marker} ({plan.reason})"
+        self.note(f"pick {name} at ({x:.1f}, {y:.1f}) -> bin {b.marker} ({plan.reason})")
+        turn = (
+            f", jaws {jaws:.0f}°"
+            if pk.rotate and pk.mode in ("gripper", "tweezers", "both")
+            else ""
         )
+        self.say(f"pick {name} at X{x:.0f} Y{y:.0f}{turn} → bin {b.marker}")
         self.motion.message(f"pick {name}")
-        self.motion.pick(p.bed_xy[0], p.bed_xy[1], z, p.bed_angle)
+        self.motion.pick(x, y, z, jaws)
 
     def _drop(self, plan: Plan, layout: Layout) -> None:
         b = plan.bin
         assert b is not None
         cx, cy = layout.bin_centre(b)
         self.motion.drop(cx, cy, layout.bin_rim_z(b))
+        self.say(f"dropped in bin {b.marker}")
 
     # ------------------------------------------------------------------ web-page helpers
     def _idle(self) -> None:
@@ -785,6 +833,7 @@ class Runner:
             "machine": self.machine_values(),
             "homed_now": self._setup_homed,
             "picker_tried": sorted(self._setup_picker),
+            "rotation": bool(self.m.picker.rotate),
         }
 
     def setup_check_printer(self) -> dict[str, Any]:
@@ -885,6 +934,26 @@ class Runner:
         self._setup_picker.add(action)
         return self.setup_state()
 
+    def setup_rotate(self, angle: float | None = None, zero: bool = False) -> dict[str, Any]:
+        """Tweezers: turn to `angle` (the jaws then close along it), or call the present
+        position 0 degrees (the jaws close along printer X). Nothing else moves."""
+        self._idle()
+        pk = self.m.picker
+        if not pk.rotate:
+            raise PrinterError("no rotation axis configured (picker.rotate)")
+        with self._lock:
+            if zero:
+                macro = pk.rotate_home or pk.rotate_zero
+                if not macro:
+                    raise PrinterError("no zero macro configured (picker.rotate_zero)")
+                self.printer.gcode(macro)
+                self.say("tweezers: this is 0°")
+            else:
+                self.printer.gcode(f"{pk.rotate} ANGLE={float(angle or 0) % 180:.1f}")
+                self.say(f"tweezers turned to {float(angle or 0) % 180:.0f}°")
+        self._setup_picker.add("zero" if zero else "rotate")
+        return self.setup_state()
+
     def setup_confirm(self, key: str) -> dict[str, Any]:
         if key not in SETUP_KEYS:
             raise ValueError(f"unknown setup step {key!r}")
@@ -894,6 +963,8 @@ class Runner:
             raise PrinterError("check the printer first")
         if key == "picker" and not {"grab", "release"} <= self._setup_picker:
             raise PrinterError("try Grab and Release first")
+        if key == "picker" and self.m.picker.rotate and "rotate" not in self._setup_picker:
+            raise PrinterError("turn the tweezers to 0° and 90° first")
         if key in ("printer", "tip", "camera", "layout"):
             raise PrinterError("this step is checked by the machine, not by hand")
         self.setup.mark(key)
@@ -976,6 +1047,7 @@ class Runner:
                 ready[mk] = {"marker": mk, "what": what, "count": self.bin_counts.get(mk, 0)}
             for mk in sorted(set(ready) - set(self.ready)):
                 self.note(f"bin {mk} ({ready[mk]['what']}) is complete: it can be taken out")
+                self.say(f"bin {mk} complete ({ready[mk]['what']}): take it out")
                 self.motion.message(f"bin {mk} ready")
             self.ready = ready
 
