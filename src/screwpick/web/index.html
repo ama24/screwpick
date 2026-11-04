@@ -60,6 +60,8 @@ td,th{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line2);font-
 th{font-weight:500;color:var(--mut);font-size:12.5px}tr:last-child td{border-bottom:0}
 td small{display:block;color:var(--mut);font-size:12.5px}
 #events{font:12px/1.6 ui-monospace,Menlo,Consolas,monospace;color:var(--mut);max-height:240px;overflow:auto;white-space:pre-wrap}
+#console{font:12.5px/1.7 ui-monospace,Menlo,Consolas,monospace;background:#fbfbf9;border:1px solid var(--line2);border-radius:var(--r2);padding:10px 12px;height:220px;overflow:auto;white-space:pre-wrap;color:var(--ink)}
+#console .t{color:var(--soft);margin-right:8px}
 .tag{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;background:var(--line2);color:var(--mut)}
 .tag.on{background:var(--acc-soft);color:var(--acc)}
 .stat{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line2)}.stat:last-child{border:0}
@@ -125,6 +127,7 @@ ul.plain{margin:8px 0 0;padding-left:18px}
  <div class="cols">
   <div class="card"><h2>Last photo</h2><img id="shot" class="shot" alt=""><p id="plan" class="note" style="margin:10px 0 0"></p></div>
   <div>
+   <div class="card"><h2>Console</h2><div id="console"></div></div>
    <div class="card"><h2>This run</h2><div id="counts" class="note">nothing sorted yet</div></div>
    <div class="card"><h2>Bins in use</h2><div id="binsuse" class="note">no bin filled yet</div></div>
    <div class="card"><h2>On the plate</h2><table id="parts"></table></div>
@@ -273,6 +276,9 @@ async function poll(){try{S=await api("api/state");}catch(e){$("status").innerHT
  const parts=S.parts.filter(p=>p.in_work!==false);
  $("parts").innerHTML=parts.length?"<tr><th>part</th><th>length</th><th>score</th><th>free</th></tr>"+parts.map(p=>`<tr><td>${esc(p.cls)}</td><td>${p.length!=null?p.length+" mm":"–"}</td><td>${p.score}</td><td>${p.gap!=null?p.gap+" mm":"–"}</td></tr>`).join(""):'<tr><td class="note">empty</td></tr>';
  $("events").textContent=S.events.slice().reverse().join("\n");
+ const con=$("console"),atEnd=con.scrollTop+con.clientHeight>=con.scrollHeight-8;
+ con.innerHTML=(S.console||[]).map(l=>`<div><span class="t">${esc(l.slice(0,8))}</span>${esc(l.slice(9))}</div>`).join("")||'<span class="note">nothing yet</span>';
+ if(atEnd)con.scrollTop=con.scrollHeight;
  const su=S.setup||{};$("setupbadge").hidden=!(su.required&&!su.complete);$("setupbadge").textContent=(su.missing||[]).length;$("setupnote").hidden=!(su.required&&!su.complete);$("setupmissing").textContent="still to do: "+(su.missing||[]).join(", ");
  renderPairs(S.calib_pairs||[]);renderBins();if(lay&&$("layout").classList.contains("on")&&!workStart)render();}
 setInterval(()=>{if(!$("login").classList.contains("on"))poll();},1500);session();
@@ -370,8 +376,9 @@ function stepBody(st){const m=SU.machine||{},redo=st.done?` <button class="b s" 
   <div class="row" style="margin-top:10px"><span class="note">show me:</span>${["photo","front_left","back_right","centre"].map(t=>`<button class="b s" onclick="setupCall('api/setup/goto',{target:'${t}'},'moving…')">${{photo:"photo position",front_left:"front-left limit",back_right:"back-right limit",centre:"plate centre"}[t]}</button>`).join("")}</div>
   <p style="margin-top:10px">${st.done?"":`<button class="b p s" onclick="setupCall('api/setup/confirm',{step:'machine'})">All positions are right</button>`}${redo}</p>`;
  case "tip":return `<p class="note">In <b>Calibrate → Tip height</b>: jog the tip down onto the plate until a sheet of paper just drags, then press the button. This step checks itself.</p><button class="b s" onclick="go('calib')">Open Calibrate</button>`;
- case "picker":return `<p class="note">Runs the grab and release macros where the tool is now; nothing moves. Hold a screw against the cup or between the fingers.</p><button class="b s" onclick="setupCall('api/setup/picker',{action:'grab'})">Grab</button> <button class="b s" onclick="setupCall('api/setup/picker',{action:'release'})">Release</button>`+
-  ((SU.picker_tried||[]).length===2&&!st.done?` <button class="b p s" onclick="setupCall('api/setup/confirm',{step:'picker'})">It holds and lets go</button>`:"")+redo;
+ case "picker":return `<p class="note">Runs the grab and release macros where the tool is now; nothing moves. Hold a screw against the cup or between the jaws.</p><button class="b s" onclick="setupCall('api/setup/picker',{action:'grab'})">Grab</button> <button class="b s" onclick="setupCall('api/setup/picker',{action:'release'})">Release</button>`+
+  (SU.rotation?`<p class="note" style="margin-top:10px">Tweezers: at <b>0°</b> the jaws must close along the printer's X axis (left–right). If they don't, turn them there by hand and press <b>Set zero</b>.</p><button class="b s" onclick="setupCall('api/setup/rotate',{angle:0})">Turn to 0°</button> <button class="b s" onclick="setupCall('api/setup/rotate',{angle:90})">Turn to 90°</button> <button class="b s" onclick="setupCall('api/setup/rotate',{zero:true})">Set zero</button> `:"")+
+  (["grab","release"].every(x=>(SU.picker_tried||[]).includes(x))&&(!SU.rotation||(SU.picker_tried||[]).includes("rotate"))&&!st.done?` <button class="b p s" onclick="setupCall('api/setup/confirm',{step:'picker'})">It holds and lets go</button>`:"")+redo;
  case "camera":return `<p class="note">In <b>Calibrate</b>: photo, the tip onto 3 or more markers, Fit. Checks itself when the worst error is below 1 mm.</p><button class="b s" onclick="go('calib')">Open Calibrate</button>`;
  case "layout":return `<p class="note">In <b>Layout</b>: <b>Resync with the camera</b>. Checks itself when the bins and a plate are found without problems.</p><button class="b s" onclick="go('layout')">Open Layout</button>`;
  }return "";}

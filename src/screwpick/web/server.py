@@ -204,6 +204,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json(r.save_machine(self._body().get("values") or {}))
         elif method == "POST" and path == "/api/setup/picker":
             self._json(r.setup_picker(str(self._body()["action"])))
+        elif method == "POST" and path == "/api/setup/rotate":
+            b = self._body()
+            self._json(r.setup_rotate(b.get("angle"), bool(b.get("zero"))))
         elif method == "POST" and path == "/api/setup/confirm":
             self._json(r.setup_confirm(str(self._body()["step"])))
         elif method == "POST" and path == "/api/setup/reset":
