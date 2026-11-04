@@ -16,10 +16,17 @@ POST /api/models/upload?filename=…&name=…   body = the file (zip, .onnx, .pt
 POST /api/models/activate   {"role": stage1|stage2|classifier, "id": … or null}
 POST /api/models/weights    {"id", "path"};  /rename {"id", "name"};  /delete {"id"}
 POST /api/models/test       {"id"}: run it on the last photo, nothing is switched
+POST /api/wild/release      {"marker": id or null}: forget what a wild bin collects
+GET  /api/session           who is logged in; POST /api/login, /api/setup (first account),
+POST /api/logout;  GET /api/users, POST /api/users/add, /api/users/remove, /api/users/password
+
+With accounts (the default), everything except the page itself and the session routes needs the
+session cookie set by /api/login; other requests get 401.
 """
 
 from __future__ import annotations
 
+import http.cookies
 import http.server
 import json
 import logging
@@ -30,6 +37,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
+from ..auth import COOKIE, Accounts, AuthError
 from ..layout import Bin, Layout
 from ..printables import export
 from ..printer import PrinterError
@@ -42,16 +50,36 @@ def _page() -> bytes:
     return resources.files("screwpick.web").joinpath("index.html").read_bytes()
 
 
+PUBLIC = {
+    ("GET", "/"),
+    ("GET", "/index.html"),
+    ("GET", "/api/session"),
+    ("POST", "/api/login"),
+    ("POST", "/api/setup"),
+    ("POST", "/api/logout"),
+}
+
+
 class _Handler(http.server.BaseHTTPRequestHandler):
     runner: Runner  # set by make_server
+    accounts: Accounts | None = None  # None: no login (web.require_login false)
 
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 - base class signature
         log.debug("web: " + format, *args)
 
     # ------------------------------------------------------------------ helpers
-    def _send(self, code: int, body: bytes, ctype: str, filename: str | None = None) -> None:
+    def _send(
+        self,
+        code: int,
+        body: bytes,
+        ctype: str,
+        filename: str | None = None,
+        cookie: str | None = None,
+    ) -> None:
         self.send_response(code)
         self.send_header("Content-Type", ctype)
+        if cookie is not None:
+            self.send_header("Set-Cookie", cookie)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         if filename:
@@ -59,8 +87,46 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _json(self, data: Any, code: int = 200) -> None:
-        self._send(code, json.dumps(data).encode(), "application/json")
+    def _json(self, data: Any, code: int = 200, cookie: str | None = None) -> None:
+        self._send(code, json.dumps(data).encode(), "application/json", cookie=cookie)
+
+    def _token(self) -> str | None:
+        jar = http.cookies.SimpleCookie(self.headers.get("Cookie") or "")
+        return jar[COOKIE].value if COOKIE in jar else None
+
+    def _cookie(self, token: str, max_age: int) -> str:
+        return f"{COOKIE}={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={max_age}"
+
+    def _session(self, method: str, path: str) -> bool:
+        """The login routes; True when the request was one of them (answered here)."""
+        acc = self.accounts
+        if path == "/api/session":
+            user = acc.user_for(self._token()) if acc else None
+            self._json(
+                {
+                    "login": acc is not None,
+                    "user": user,
+                    "first_account": bool(acc and not acc.has_users()),
+                }
+            )
+            return True
+        if acc is None:
+            return False
+        if path in ("/api/login", "/api/setup"):
+            b = self._body()
+            name, password = str(b.get("user", "")), str(b.get("password", ""))
+            if path == "/api/setup":
+                token = acc.first_user(name, password)
+            else:
+                token = acc.login(name, password, self.client_address[0])
+            self.runner.note(f"web: {name.strip()} logged in from {self.client_address[0]}")
+            self._json({"user": name.strip()}, cookie=self._cookie(token, acc.session_s))
+            return True
+        if path == "/api/logout":
+            acc.logout(self._token())
+            self._json({"user": None}, cookie=self._cookie("", 0))
+            return True
+        return False
 
     def _body(self) -> dict[str, Any]:
         n = int(self.headers.get("Content-Length") or 0)
@@ -73,7 +139,18 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         url = urllib.parse.urlparse(self.path)
         q = {k: v[-1] for k, v in urllib.parse.parse_qs(url.query).items()}
         try:
+            if self._session(method, url.path):
+                return
+            acc = self.accounts
+            if acc is not None and (method, url.path) not in PUBLIC:
+                self.user = acc.user_for(self._token())
+                if self.user is None:
+                    self.close_connection = True  # an upload body may still be on its way
+                    self._json({"error": "please log in", "login": True}, 401)
+                    return
             self._dispatch(method, url.path, q)
+        except AuthError as exc:
+            self._json({"error": str(exc)}, 403)
         except (PrinterError, ValueError, KeyError, TypeError, FileNotFoundError) as exc:
             self._json({"error": str(exc)}, 400)
         except Exception as exc:  # noqa: BLE001 - report it on the page
@@ -148,8 +225,42 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json(r.models_state())
         elif method == "POST" and path == "/api/models/test":
             self._json(r.test_model(str(self._body()["id"])))
+        elif method == "POST" and path == "/api/wild/release":
+            m = self._body().get("marker")
+            self._json({"claims": r.release_wild(None if m in (None, "") else int(m))})
+        elif path.startswith("/api/users"):
+            self._users(method, path)
         else:
             self._json({"error": f"not found: {method} {path}"}, 404)
+
+    def _users(self, method: str, path: str) -> None:
+        acc = self.accounts
+        if acc is None:
+            raise ValueError("logins are switched off (web.require_login: false)")
+        if method == "POST":
+            b = self._body()
+            name = str(b.get("user", ""))
+            if path == "/api/users/add":
+                if name.strip() in acc.users():
+                    raise AuthError(f"{name} exists already")
+                acc.set_password(name, str(b.get("password", "")))
+                self.runner.note(f"web: user {name.strip()} added by {self.user}")
+            elif path == "/api/users/remove":
+                acc.remove(name)
+                self.runner.note(f"web: user {name} removed by {self.user}")
+            elif path == "/api/users/password":
+                if not acc.check(self.user or "", str(b.get("old", ""))):
+                    raise AuthError("the current password is wrong")
+                acc.set_password(self.user or "", str(b.get("password", "")))
+                token = acc.login(self.user or "", str(b.get("password", "")))
+                self._json(
+                    {"users": acc.users(), "me": self.user},
+                    cookie=self._cookie(token, acc.session_s),
+                )
+                return
+            else:
+                raise KeyError(path)
+        self._json({"users": acc.users(), "me": self.user})
 
     def _upload(self, q: dict[str, str]) -> None:
         """The request body is the file itself (the page sends it with fetch, no form)."""
@@ -222,9 +333,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
 
 def make_server(
-    runner: Runner, host: str = "", port: int = 8080
+    runner: Runner, host: str = "", port: int = 8080, accounts: Accounts | None = None
 ) -> http.server.ThreadingHTTPServer:
-    handler = type("Handler", (_Handler,), {"runner": runner})
+    """`accounts` None: no login at all (only for a network you fully trust)."""
+    handler = type("Handler", (_Handler,), {"runner": runner, "accounts": accounts, "user": None})
     last: OSError | None = None
     for p in range(port, port + 10):
         try:

@@ -34,6 +34,7 @@ class Plan:
     bin: Bin | None = None
     reason: str = ""
     kit_rule: str | None = None
+    claim: str | None = None  # wild bin: claimed for this key once the drop succeeds
 
 
 @dataclass
@@ -53,6 +54,7 @@ class Planner:
     shakes_in_row: int = 0
     sorted_count: dict[int, int] = field(default_factory=dict)  # bin marker -> parts dropped in
     failed_picks: int = 0
+    claims: dict[int, str] = field(default_factory=dict)  # wild bin marker -> what it collects
 
     def __post_init__(self) -> None:
         if self.strategy not in STRATEGIES:
@@ -63,7 +65,7 @@ class Planner:
     # ------------------------------------------------------------------ decisions
     def _decide(self, p: Part) -> tuple[Decision | None, str | None]:
         if self.strategy == "sort":
-            return destination(p, self.layout, self.machine.run.min_score), None
+            return destination(p, self.layout, self.machine.run.min_score, self.claims), None
         if self.strategy == "clear":
             b = next((b for b in self.layout.bins if b.role == "all"), None) or next(
                 (b for b in self.layout.bins if b.role == "overflow"), None
@@ -122,7 +124,7 @@ class Planner:
                 options,
                 key=lambda o: (o[0].gap_mm < clearance, -o[0].score, _dist(o[0].bed_xy, here)),
             )
-            return Plan("pick", p, dec.bin, dec.reason, rule)
+            return Plan("pick", p, dec.bin, dec.reason, rule, dec.claim)
         stuck_parts = len(waiting) + blocked
         if stuck_parts:
             if run.shake.enabled and self.shakes_in_row < run.shake.max_in_a_row:
@@ -163,6 +165,8 @@ class Planner:
         self.shakes_in_row = 0
         if plan.bin is not None:
             self.sorted_count[plan.bin.marker] = self.sorted_count.get(plan.bin.marker, 0) + 1
+            if plan.claim is not None:
+                self.claims[plan.bin.marker] = plan.claim
         if plan.kit_rule is not None and plan.kit_rule in self.kit_left:
             self.kit_left[plan.kit_rule] -= 1
         return True

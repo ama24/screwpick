@@ -16,7 +16,8 @@ from typing import Any
 from . import binspec
 from .io import read_yaml, write_yaml
 
-ROLES = ("sort", "unknown", "unsure", "overflow", "kit", "all")
+ROLES = ("wild", "sort", "unknown", "unsure", "overflow", "kit", "all")
+WILD_BY = ("part", "class", "family")  # what one wild bin collects
 MARKER_IDS = range(100, 250)  # DICT_4X4_250; ids below 100 are left to the calibration board
 
 
@@ -29,7 +30,7 @@ class Bin:
     d: int = 1  # size in cells along printer Y
     height_u: int = 3  # Gridfinity height units (7 mm)
     holds: list[str] = field(default_factory=list)  # rules: DIN912_M4x16, DIN912_M4, DIN912*, *
-    role: str = "sort"  # sort | unknown | unsure | overflow | kit | all
+    role: str = "wild"  # wild | sort | unknown | unsure | overflow | kit | all
     label: str = ""
 
     @classmethod
@@ -55,6 +56,7 @@ class Layout:
     rows: int = 5
     plate_thickness_mm: float = 1.75  # TPU plate in the working area (plate frame z = 0 on top)
     bin_floor_mm: float = 0.0  # height of a bin's bottom above the bed (baseplate seat)
+    wild_by: str = "class"  # a wild bin collects one: part (number) | class | family
     work: WorkArea = field(default_factory=WorkArea)
     bins: list[Bin] = field(default_factory=list)
 
@@ -135,6 +137,8 @@ class Layout:
                         return
                     taken[(cx, cy)] = who
 
+        if self.wild_by not in WILD_BY:
+            out.append(f"wild_by must be one of {', '.join(WILD_BY)}")
         wa = self.work
         if wa.w < 1 or wa.d < 1:
             out.append("the working area needs at least one cell")
@@ -185,7 +189,8 @@ class Layout:
 
     @classmethod
     def default(cls) -> Layout:
-        """5x5 grid on a 220 mm bed: a 3x3 working area in the middle, 16 bins around it."""
+        """5x5 grid on a 220 mm bed: a 3x3 working area in the middle, 16 bins around it:
+        unknown, unsure and overflow, and 13 wild bins that sort by themselves."""
         lay = cls()
         ring = [(x, 0) for x in range(5)] + [(x, 4) for x in range(5)]
         ring += [(0, y) for y in range(1, 4)] + [(4, y) for y in range(1, 4)]

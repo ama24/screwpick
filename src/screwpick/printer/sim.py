@@ -209,6 +209,7 @@ class SimVision:
                     length_mm=sp.length,
                     measurable=True,
                     unknown=sp.cls == "UNKNOWN",
+                    has_length=sp.length is not None,
                 )
             )
         markers = []

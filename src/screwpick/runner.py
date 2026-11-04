@@ -21,6 +21,7 @@ import numpy as np
 
 from .analysis import ModelChoice
 from .config import Machine
+from .io import read_json, write_json
 from .layout import Layout, yaw_from_up
 from .models import ModelError, ModelStore
 from .parts import compute_gaps, to_bed
@@ -67,6 +68,8 @@ class Runner:
         if cal is not None:
             self.calib_pairs = list(cal.pairs)
         self.last_shot: Shot | None = None
+        self._claims_lock = threading.RLock()
+        self.claims: dict[int, str] = self._load_claims()  # wild bin marker -> what it collects
 
     # ------------------------------------------------------------------ files
     @property
@@ -128,6 +131,7 @@ class Runner:
             "calibrated": self.transform_path.is_file(),
             "calib_pairs": self.calib_pairs,
             "driver": self.m.printer.driver,
+            "claims": {str(k): v for k, v in sorted(self.claims.items())},
         }
 
     # ------------------------------------------------------------------ commands
@@ -241,13 +245,36 @@ class Runner:
     def _run(self, strategy: str, steps: int | None) -> None:
         try:
             layout = self.layout()
+            T = self.transform()
+            with self._lock:
+                self.motion.preflight()
+            first: Shot | None = None
+            run = self.m.run
+            if run.scan_bins_on_start or run.only_seen_bins:
+                first = self.take_shot(layout, T)
+                seen = {mk.marker for mk in first.markers}
+                if run.scan_bins_on_start:
+                    moved = self._place_bins(layout, first, T)
+                    added = [b["marker"] for b in moved if b.get("new")]
+                    layout.save(self.layout_path)
+                    if added:
+                        self.note(f"new bins seen, used as wild bins: {', '.join(map(str, added))}")
+                if run.only_seen_bins:
+                    missing = sorted(b.marker for b in layout.bins if b.marker not in seen)
+                    if missing:
+                        self.note(f"bins not seen by the camera, not used: {missing}")
+                    layout.bins = [b for b in layout.bins if b.marker in seen]
+                    if not layout.bins:
+                        raise PrinterError("the camera sees no bins (markers covered or dirty?)")
             problems = layout.problems()
             if problems:
                 raise PrinterError("layout: " + "; ".join(problems))
-            T = self.transform()
             planner = Planner(layout, self.m, strategy)
-            with self._lock:
-                self.motion.preflight()
+            wild = {b.marker for b in layout.bins if b.role == "wild"}
+            with self._claims_lock:
+                for mk in [k for k in self.claims if k not in wild and layout.bin_by_marker(k)]:
+                    del self.claims[mk]  # no longer a wild bin
+                planner.claims = self.claims  # shared: releases from the page apply at once
             self.note(f"started: {STRATEGIES[strategy]}")
             prev: Plan | None = None
             done_steps = 0
@@ -264,8 +291,17 @@ class Runner:
                     self._set(status="running")
                     planner.shakes_in_row = 0
                     prev = None  # someone may have moved parts
-                shot = self.take_shot(layout, T)
-                if prev is not None and not planner.report(prev, shot.parts):
+                shot, first = (
+                    (first, None) if first is not None else (self.take_shot(layout, T), None)
+                )
+                with self._claims_lock:
+                    before = dict(self.claims)
+                    ok = prev is None or planner.report(prev, shot.parts)
+                    if self.claims != before:
+                        self._save_claims()
+                        mk = next(k for k in self.claims if before.get(k) != self.claims[k])
+                        self.note(f"wild bin {mk} now collects {self.claims[mk]}")
+                if not ok:
                     self.note(
                         f"pick of {prev.part.cls if prev.part else '?'} failed: the part is still there"
                     )
@@ -420,6 +456,14 @@ class Runner:
         with self._lock:
             self.motion.preflight()
         shot = self.take_shot(layout, T)
+        moved = self._place_bins(layout, shot, T)
+        layout.save(self.layout_path)
+        self.note(f"scanned bins: {len(moved)} marker(s) seen")
+        return {"bins": moved, "problems": layout.problems()}
+
+    def _place_bins(self, layout: Layout, shot: Shot, T: Transform2D) -> list[dict[str, Any]]:
+        """Move every bin whose marker is in the photo to where it is; unknown markers become new
+        wild bins."""
         from .binspec import marker_offset_mm
 
         moved = []
@@ -433,10 +477,36 @@ class Runner:
             mx, my = (float(v) for v in T.apply(np.asarray(mk.centre)))
             centre = (mx - (c * ox - s * oy), my - (s * ox + c * oy))
             nb = layout.place_from_marker(mk.marker, centre, yaw)
-            moved.append({"marker": mk.marker, "x": nb.x, "y": nb.y, "yaw": round(yaw, 1)})
-        layout.save(self.layout_path)
-        self.note(f"scanned bins: {len(moved)} marker(s) seen")
-        return {"bins": moved, "problems": layout.problems()}
+            moved.append(
+                {"marker": mk.marker, "x": nb.x, "y": nb.y, "yaw": round(yaw, 1), "new": b is None}
+            )
+        return moved
+
+    # ------------------------------------------------------------------ wild bins
+    @property
+    def claims_path(self) -> Path:
+        p = self.m.path(self.m.paths.claims)
+        assert p is not None
+        return p
+
+    def _load_claims(self) -> dict[int, str]:
+        if not self.claims_path.is_file():
+            return {}
+        return {int(k): str(v) for k, v in (read_json(self.claims_path) or {}).items()}
+
+    def _save_claims(self) -> None:
+        write_json(self.claims_path, {str(k): v for k, v in sorted(self.claims.items())})
+
+    def release_wild(self, marker: int | None) -> dict[str, str]:
+        """Forget what a wild bin collects (after emptying it); None = every wild bin."""
+        with self._claims_lock:
+            if marker is None:
+                self.claims.clear()
+                self.note("all wild bins released")
+            elif self.claims.pop(int(marker), None) is not None:
+                self.note(f"wild bin {marker} released")
+            self._save_claims()
+            return {str(k): v for k, v in self.claims.items()}
 
     # ------------------------------------------------------------------ models
     def _need_store(self) -> ModelStore:

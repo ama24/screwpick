@@ -4,6 +4,7 @@ screwpick serve              web page + sorter + printer-menu buttons (the norma
 screwpick serve --sim        the same with a simulated printer, parts and camera (try it on a PC)
 screwpick run --strategy sort [--steps N]   sort without the web page (logs to the terminal)
 screwpick check              is everything there? (config, layout, calibration, printer)
+screwpick user add NAME      page account (new user or new password); user remove / list
 screwpick print bin|baseplate|labels|all    write printable files
 """
 
@@ -70,7 +71,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
     m = _load(args)
     runner, world = _build(m)
-    server = make_server(runner, m.web.host, args.port or m.web.port)
+    server = make_server(runner, m.web.host, args.port or m.web.port, _accounts(m))
     listener = None
     if m.printer.driver == "moonraker":
 
@@ -96,6 +97,47 @@ def cmd_serve(args: argparse.Namespace) -> int:
         if listener is not None:
             listener.stop()
         server.server_close()
+    return 0
+
+
+def _accounts(m: Machine):  # noqa: ANN202 - Accounts | None
+    from .auth import Accounts
+
+    if not m.web.require_login:
+        log.warning("web.require_login is false: anyone on the network can use the page")
+        return None
+    path = m.path(m.paths.users)
+    assert path is not None
+    return Accounts(path, m.web.session_days)
+
+
+def cmd_user(args: argparse.Namespace) -> int:
+    """Manage page accounts from the Pi's terminal (e.g. a forgotten password)."""
+    import getpass
+
+    from .auth import Accounts, AuthError
+
+    m = _load(args)
+    path = m.path(m.paths.users)
+    assert path is not None
+    acc = Accounts(path, m.web.session_days)
+    try:
+        if args.action == "list":
+            print("\n".join(acc.users()) or "no users yet: the page asks for the first one")
+        elif args.action == "remove":
+            acc.remove(args.name)
+            print(f"removed {args.name}")
+        else:
+            if not args.name:
+                raise AuthError("give a user name: screwpick user add NAME")
+            pw = getpass.getpass(f"password for {args.name}: ")
+            if pw != getpass.getpass("again: "):
+                raise AuthError("the passwords differ")
+            acc.set_password(args.name, pw)
+            print(f"{args.name} can log in now")
+    except AuthError as exc:
+        print(f"error: {exc}")
+        return 1
     return 0
 
 
@@ -240,6 +282,10 @@ def main(argv: list[str] | None = None) -> int:
     c = sub.add_parser("check", help="check config, layout, calibration and printer")
     c.add_argument("--sim", action="store_true")
     c.set_defaults(func=cmd_check)
+    u = sub.add_parser("user", help="page accounts: add (or new password), remove, list")
+    u.add_argument("action", choices=["add", "remove", "list"])
+    u.add_argument("name", nargs="?", default="")
+    u.set_defaults(func=cmd_user)
     p = sub.add_parser("print", help="write printable bins, baseplate or labels")
     p.add_argument("what", choices=["bin", "baseplate", "labels", "all"])
     p.add_argument(

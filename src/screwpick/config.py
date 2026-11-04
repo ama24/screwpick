@@ -34,6 +34,8 @@ class Paths:
     layout: str = "../data/layout.yaml"  # bins and working area (edited in the web page)
     transform: str = "../data/bed_transform.json"  # plate mm -> printer X/Y (calibrate tab)
     runs: str = "../runs"  # photos and results of every run
+    claims: str = "../data/wild_bins.json"  # what each wild bin collects (kept across runs)
+    users: str = "../data/users.json"  # web page accounts (create the first one in the page)
 
 
 @dataclass
@@ -99,6 +101,8 @@ class Run:
     failed_radius_mm: float = 4.0  # a part still within this of a pick: the pick failed
     work_margin_mm: float = 3.0  # parts closer than this to the working-area wall are skipped
     keep_photos: int = 300  # keep this many photos in the runs folder (0 = keep all)
+    scan_bins_on_start: bool = True  # find the bins with the camera when a run starts
+    only_seen_bins: bool = True  # use only the bins the camera sees (covered ones are skipped)
     shake: Shake = field(default_factory=Shake)
 
 
@@ -114,6 +118,8 @@ class Models:
 class Web:
     port: int = 8080
     host: str = ""  # "" = every network interface (open it from the PC)
+    require_login: bool = True  # user name and password for the page (False: open to the network)
+    session_days: int = 30  # stay logged in this long on a browser
 
 
 @dataclass

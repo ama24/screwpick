@@ -35,8 +35,9 @@ pip install -e ".[dev]"
 screwpick serve --sim
 ```
 
-Open the address it prints. Everything works with a simulated printer, parts and camera: edit
-the layout, give bins their rules, press **Start** and watch the parts get sorted.
+Open the address it prints and create an account. Everything works with a simulated printer,
+parts and camera: edit the layout, give bins rules (or leave them wild), press **Start** and
+watch the parts get sorted.
 
 ## What you need
 
@@ -87,7 +88,8 @@ Then restart Klipper (`FIRMWARE_RESTART`), and adapt the *PICKER HARDWARE* part 
 cd ~/screwpick && screwpick check
 ```
 
-Start it with `screwpick serve`, and open `http://<pi>:8080` on the PC or phone.
+Start it with `screwpick serve`, and open `http://<pi>:8080` on the PC or phone. The first
+visit asks you to create an account (see [Login](#login)).
 
 > **Note:** `screwrig capture` parks the bed by talking to the printer's USB port directly.
 > With Klipper running, Klipper owns that port, so use screwpick (which goes through Klipper)
@@ -146,14 +148,58 @@ Kinds of models and what they do here:
 
 If the card has a recommended confidence, it is used for stage 1 (`models.use_recommended_conf`).
 
-> Only upload models you trust: `.pt` files are Python pickles and can contain code. There is no
-> password on the page, so anyone on your WiFi can use it; keep the Pi on a network you control.
+> Only upload models you trust: `.pt` files are Python pickles and can contain code.
+
+## Wild bins
+
+A **wild** bin has no rules. The first part of a kind that no other bin takes **claims** a free
+wild bin, and from then on that bin collects that kind. The Layout tab sets what "a kind" is for
+all wild bins:
+
+- **part number** (DIN912_M4x16). Screws wait until their length is measured.
+- **class** (DIN912_M4): the default.
+- **family** (DIN912).
+
+- **A layout of only wild bins** sorts by itself, with no setup. New bins start out wild, and a
+  wild bin becomes a rule bin as soon as you type rules into it.
+- **Rules come first.** Bins with rules (and the unknown/unsure roles) are tried before wild bins.
+  When every wild bin is taken, new kinds go to *overflow*, or stay on the plate.
+- **Claims are kept** across runs and restarts (`data/wild_bins.json`). Each bin shows on the
+  Run and Layout tabs what it collects.
+- **After emptying a bin, press Release**, so it can take a new kind.
+
+**Bins the camera sees.** At the start of every run the camera reads the bin markers
+(`run.scan_bins_on_start`):
+- bins that moved are updated in the layout;
+- markers the layout doesn't know join as new **wild** bins;
+- bins the camera can't see (covered, removed) are not used in that run (`run.only_seen_bins`).
+
+So you can put a new printed bin on the bed and it's used straight away.
+
+## Login
+
+The page needs a user name and password (`web.require_login`, on by default):
+
+- The **first visit** creates the first account.
+- The **Users** tab adds or removes users and changes your password. Every user can do
+  everything.
+- **Passwords** are stored only as salted, slow hashes in `data/users.json`, which is readable
+  only by the Pi's user.
+- **Sessions** last `web.session_days` (30) per browser. **Log out** ends one, and changing a
+  password ends all sessions of that user.
+- **Ten wrong passwords** from one address block it for 5 minutes.
+- **Locked out?** On the Pi: `screwpick user add NAME` sets a new password, and
+  `screwpick user list` / `remove` manage the accounts.
+
+The page is plain HTTP, so it is meant for your home network. Logging in keeps others off the
+page; it is not protection against someone already listening on your WiFi. The printer-menu
+buttons never need a login: they come from Klipper on the Pi itself.
 
 ## Strategies
 
 | Strategy | What it does |
 |---|---|
-| **sort** | every part goes to the bin whose rule matches it best: part number > class > family > `*` |
+| **sort** | every part goes to the bin whose rule matches it best (part number > class > family > `*`), else to a wild bin |
 | **clear** | everything into the bin with role *all* (or *overflow*), no sorting |
 | **kit** | only the parts on `run.kit` (e.g. `{DIN912_M3x10: 4, DIN934_M3: 4}`) into the *kit* bin, then stop |
 

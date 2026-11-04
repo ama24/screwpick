@@ -28,9 +28,16 @@ screwpick.
   DICT_4X4_250 markers, ids 100–249 (ids below 100 are left to the calibration). A marker's top
   edge = the bin's back (+Y). Bin dimensions are shared in `binspec.py` by the layout and the
   printable bins.
-- **Rules:** `rules.py` (most specific rule wins; roles unknown, unsure, overflow, all, kit).
-  Strategies are in `strategies.py` (sort, clear, kit). Add one by extending `Planner._decide`
-  and `STRATEGIES`.
+- **Rules:** `rules.py` (most specific rule wins; roles unknown, unsure, overflow, all, kit,
+  wild). Wild bins are claimed by the first kind no rule takes (`Layout.wild_by`: part, class
+  or family). A claim is committed only after a successful drop (`Planner.report`) and kept in
+  `paths.claims`. At run start the camera adds unknown markers as wild bins, and unseen bins are
+  left out of that run.
+- **Login:** `auth.py`. PBKDF2 password hashes and session tokens (only their SHA-256 is stored)
+  live in `paths.users`. `web/server.py` lets only the page and the session routes through
+  without the cookie.
+- **Strategies** are in `strategies.py` (sort, clear, kit). Add one by extending
+  `Planner._decide` and `STRATEGIES`.
 - **Models** are uploaded through the web page into a store (`models.py`, folder `paths.models`).
   Each upload gets its own folder with `screwpick.json`; uploads are never overwritten. One
   model is active per role (`active.json`): stage1 (segment/obb/detect), stage2 (pose),

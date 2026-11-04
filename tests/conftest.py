@@ -16,6 +16,9 @@ def machine(tmp_path: Path) -> Machine:
     m.paths.layout = "layout.yaml"
     m.paths.transform = "bed_transform.json"
     m.paths.runs = "runs"
+    m.paths.claims = "wild_bins.json"
+    m.paths.users = "users.json"
+    m.paths.models = "models"
     m.printer.driver = "sim"
     m.printer.photo_position = [0.0, 200.0, 60.0]
     return m
@@ -29,4 +32,6 @@ def layout() -> Layout:
     lay.bins[5].holds = ["DIN912_M4"]
     lay.bins[6].holds = ["DIN934*", "DIN125*"]
     lay.bins[7].holds = ["*"]
+    for b in lay.bins[3:8]:
+        b.role = "sort"
     return lay

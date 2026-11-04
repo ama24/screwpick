@@ -20,17 +20,19 @@ input[type=number]{width:72px}img.shot{width:100%;border-radius:6px;background:#
 .mut{color:var(--mut)}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
 table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:4px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
 #events{font:12px/1.4 ui-monospace,monospace;max-height:260px;overflow:auto;white-space:pre-wrap}
-svg text{font:11px system-ui,sans-serif;fill:var(--fg);pointer-events:none}
+svg text{font:8px system-ui,sans-serif;fill:var(--fg);pointer-events:none}
 #drop{border:2px dashed var(--line);border-radius:8px;padding:28px 16px;text-align:center;cursor:pointer}
 #drop.over{border-color:var(--acc);background:var(--work)}progress{width:100%;height:10px}
 .tag{display:inline-block;border:1px solid var(--line);border-radius:10px;padding:0 8px;font-size:12px}
 .tag.on{background:var(--acc);border-color:var(--acc);color:#fff}td small{display:block;color:var(--mut)}
+#login{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:9}#login.on{display:flex}#login form{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:22px;width:min(340px,100% - 32px);display:grid;gap:10px}#login input{width:100%}#me{color:var(--mut)}
 .jog{display:grid;grid-template-columns:repeat(3,52px);gap:6px}.jog button{height:44px}
 label{display:flex;gap:6px;align-items:center}h2{font-size:16px;margin:0 0 10px}
 </style></head><body>
 <header><h1>screwpick</h1>
-<nav><button data-t="run" class="on">Run</button><button data-t="layout">Layout</button><button data-t="calib">Calibrate</button><button data-t="print">Print bins</button><button data-t="models">Models</button></nav>
-<span id="status">…</span><button class="estop" onclick="cmd('estop')">STOP NOW</button></header>
+<nav><button data-t="run" class="on">Run</button><button data-t="layout">Layout</button><button data-t="calib">Calibrate</button><button data-t="print">Print bins</button><button data-t="models">Models</button><button data-t="users">Users</button></nav>
+<span id="status">…</span><span id="me"></span><button class="estop" onclick="cmd('estop')">STOP NOW</button></header>
+<div id="login"><form onsubmit="doLogin(event)"><h2 id="logtitle">Log in to screwpick</h2><p id="loghelp" class="mut" hidden>No account yet: choose a user name and a password (6 characters or more). This first account can add others in the Users tab.</p><input id="luser" placeholder="user name" autocomplete="username" required><input id="lpass" type="password" placeholder="password" autocomplete="current-password" required><input id="lpass2" type="password" placeholder="password again" autocomplete="new-password" hidden><button class="b p" type="submit">Log in</button><span id="logmsg" class="bad"></span></form></div>
 <main>
 <section id="run" class="on">
  <div class="card row">
@@ -43,6 +45,7 @@ label{display:flex;gap:6px;align-items:center}h2{font-size:16px;margin:0 0 10px}
   <div class="card"><img id="shot" class="shot" alt=""><div id="plan" class="mut" style="margin-top:8px"></div></div>
   <div>
    <div class="card"><h2>Sorted</h2><div id="counts" class="mut">nothing yet</div></div>
+   <div class="card"><h2>Wild bins</h2><div id="wild" class="mut">none claimed yet</div><p class="mut" style="margin:6px 0 0">Empty a bin, then release it so it can collect a new kind. <button class="b" onclick="release(null)">Release all</button></p></div>
    <div class="card"><h2>Parts in the last photo</h2><table id="parts"></table></div>
   </div>
  </div>
@@ -68,7 +71,8 @@ label{display:flex;gap:6px;align-items:center}h2{font-size:16px;margin:0 0 10px}
     <div class="row"><label>columns<input id="cols" type="number" min="1"></label><label>rows<input id="rows" type="number" min="1"></label></div>
     <div class="row" style="margin-top:6px"><label>origin X<input id="ox" type="number" step="0.1"></label><label>Y<input id="oy" type="number" step="0.1"></label></div>
     <div class="row" style="margin-top:6px"><label>plate thickness mm<input id="pt" type="number" step="0.05"></label></div>
-    <p class="mut">Origin: printer X/Y of the grid's front-left corner. Rules: <b>DIN912_M4x16</b> (part number), <b>DIN912_M4</b> (class), <b>DIN912</b> (family), wildcards like <b>DIN912_M*</b> or <b>*</b>. The most specific rule wins.</p>
+    <div class="row" style="margin-top:6px"><label>each wild bin collects one <select id="wildby"><option value="part">part number (DIN912_M4x16)</option><option value="class">class (DIN912_M4)</option><option value="family">family (DIN912)</option></select></label></div>
+    <p class="mut">Origin: printer X/Y of the grid's front-left corner. Rules: <b>DIN912_M4x16</b> (part number), <b>DIN912_M4</b> (class), <b>DIN912</b> (family), wildcards like <b>DIN912_M*</b> or <b>*</b>. The most specific rule wins. <b>Wild</b> bins have no rules: the first part of a new kind claims a free one, which then collects that kind. A layout of only wild bins sorts by itself; bins the camera finds that are not in the layout join as wild bins.</p>
    </div>
   </div>
  </div>
@@ -106,6 +110,13 @@ label{display:flex;gap:6px;align-items:center}h2{font-size:16px;margin:0 0 10px}
  <div class="card"><table id="printlist"></table></div>
 </section>
 
+<section id="users">
+ <div class="card"><h2>My password</h2><div class="row"><input id="oldpw" type="password" placeholder="current password"><input id="newpw" type="password" placeholder="new password"><button class="b" onclick="changePw()">Change</button><button class="b" onclick="logout()">Log out</button></div></div>
+ <div class="card"><h2>Users</h2><table id="ulist"></table>
+  <div class="row" style="margin-top:10px"><input id="nuser" placeholder="new user name"><input id="npass" type="password" placeholder="password"><button class="b p" onclick="addUser()">Add user</button></div>
+  <p class="mut">Everyone with an account can do everything. Forgot every password? On the Pi: <code>screwpick user add NAME</code>.</p><span id="umsg" class="mut"></span></div>
+</section>
+
 <section id="models">
  <div class="card"><h2>In use</h2><div id="loaded" class="mut">…</div></div>
  <div class="card">
@@ -124,9 +135,21 @@ label{display:flex;gap:6px;align-items:center}h2{font-size:16px;margin:0 0 10px}
 <script>
 const $=id=>document.getElementById(id);
 let S={},lay=null,sel=null,workStart=null,markers=[];
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");history.replaceState(null,"","#"+b.dataset.t);if(b.dataset.t==="models")loadModels();else if(b.dataset.t!=="run")loadLayout();});
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");history.replaceState(null,"","#"+b.dataset.t);if(b.dataset.t==="models")loadModels();else if(b.dataset.t==="users")loadUsers();else if(b.dataset.t!=="run")loadLayout();});
 setTimeout(()=>{const t=location.hash.slice(1),b=t&&document.querySelector(`nav button[data-t="${t}"]`);if(b)b.click();});
-async function api(path,body){const r=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j;}
+async function api(path,body){const r=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json();if(r.status===401){showLogin(false);}if(!r.ok)throw new Error(j.error||r.status);return j;}
+let first=false;
+function showLogin(isFirst){first=isFirst;$("login").classList.add("on");$("logtitle").textContent=isFirst?"Create the first account":"Log in to screwpick";$("loghelp").hidden=!isFirst;$("lpass2").hidden=!isFirst;$("lpass2").required=isFirst;}
+async function session(){try{const j=await api("api/session");$("me").textContent=j.user?j.user:"";if(j.login&&!j.user)showLogin(j.first_account);else{$("login").classList.remove("on");poll();}}catch(e){}}
+async function doLogin(e){e.preventDefault();if(first&&$("lpass").value!==$("lpass2").value){flash("logmsg","the passwords differ",1);return;}
+ try{await api(first?"api/setup":"api/login",{user:$("luser").value,password:$("lpass").value});$("lpass").value=$("lpass2").value="";flash("logmsg","");session();}catch(err){flash("logmsg",err.message,1);$("logmsg").className="bad";}}
+async function logout(){await api("api/logout",{});location.reload();}
+async function loadUsers(){try{const j=await api("api/users");$("ulist").innerHTML=j.users.map(u=>`<tr><td>${esc(u)}${u===j.me?" <span class=tag>you</span>":""}</td><td>${u===j.me?"":`<button class="b" onclick="delUser('${esc(u)}')">Remove</button>`}</td></tr>`).join("");}catch(e){flash("umsg",e.message,1);}}
+async function addUser(){try{await api("api/users/add",{user:$("nuser").value,password:$("npass").value});$("nuser").value=$("npass").value="";flash("umsg","added");loadUsers();}catch(e){flash("umsg",e.message,1);}}
+async function delUser(u){if(!confirm("Remove "+u+"?"))return;try{await api("api/users/remove",{user:u});loadUsers();}catch(e){flash("umsg",e.message,1);}}
+async function changePw(){try{await api("api/users/password",{old:$("oldpw").value,password:$("newpw").value});$("oldpw").value=$("newpw").value="";flash("umsg","password changed");}catch(e){flash("umsg",e.message,1);}}
+async function release(m){try{const j=await api("api/wild/release",{marker:m});S.claims=j.claims;renderWild();if(lay)render();}catch(e){flash("msg",e.message,1);}}
+function renderWild(){const c=Object.entries(S.claims||{});$("wild").innerHTML=c.length?c.map(([m,k])=>`bin ${esc(m)}: <b>${esc(k)}</b> <button class="b" onclick="release(${+m})">Release</button>`).join("<br>"):"none claimed yet";}
 function flash(id,text,bad){$(id).textContent=text;$(id).className=bad?"bad":"mut";}
 async function cmd(c){try{const j=await api("api/command",{command:c,strategy:$("strategy").value});flash("msg",j.result);}catch(e){flash("msg",e.message,1);}poll();}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
@@ -140,14 +163,14 @@ async function poll(){try{S=await api("api/state");}catch(e){$("status").textCon
  const c=Object.entries(S.counts); $("counts").innerHTML=c.length?c.map(([m,n])=>`bin ${esc(m)}: <b>${n}</b>`).join(" · ")+` <span class="mut">(failed picks: ${S.failed_picks})</span>`:"nothing yet";
  $("parts").innerHTML="<tr><th>class</th><th>length</th><th>score</th><th>free mm</th></tr>"+S.parts.filter(p=>p.in_work!==false).map(p=>`<tr><td>${esc(p.cls)}</td><td>${p.length??"–"}</td><td>${p.score}</td><td>${p.gap??"–"}</td></tr>`).join("");
  $("events").textContent=S.events.slice().reverse().join("\n");
- renderPairs(S.calib_pairs||[]);}
-setInterval(poll,1500);poll();
+ renderPairs(S.calib_pairs||[]);renderWild();if(lay&&$("layout").classList.contains("on")&&!workStart)render();}
+setInterval(()=>{if(!$("login").classList.contains("on"))poll();},1500);session();
 
 // ---------------------------------------------------------------- layout
 const CELL=64;
 async function loadLayout(){try{const j=await api("api/layout");lay=j.layout;showProblems(j.problems);fillGridInputs();render();renderPrint();}catch(e){flash("laymsg",e.message,1);}}
-function fillGridInputs(){$("cols").value=lay.cols;$("rows").value=lay.rows;$("ox").value=lay.origin[0];$("oy").value=lay.origin[1];$("pt").value=lay.plate_thickness_mm;}
-["cols","rows","ox","oy","pt"].forEach(id=>$(id).onchange=()=>{lay.cols=+$("cols").value;lay.rows=+$("rows").value;lay.origin=[+$("ox").value,+$("oy").value];lay.plate_thickness_mm=+$("pt").value;render();});
+function fillGridInputs(){$("wildby").value=lay.wild_by||"class";$("cols").value=lay.cols;$("rows").value=lay.rows;$("ox").value=lay.origin[0];$("oy").value=lay.origin[1];$("pt").value=lay.plate_thickness_mm;}
+["cols","rows","ox","oy","pt","wildby"].forEach(id=>$(id).onchange=()=>{lay.wild_by=$("wildby").value;lay.cols=+$("cols").value;lay.rows=+$("rows").value;lay.origin=[+$("ox").value,+$("oy").value];lay.plate_thickness_mm=+$("pt").value;render();});
 function showProblems(p){$("problems").innerHTML=(p||[]).map(x=>`<li>${esc(x)}</li>`).join("");}
 function mode(){return document.querySelector("input[name=mode]:checked").value;}
 function render(){const W=lay.cols*CELL,H=lay.rows*CELL,svg=$("grid");svg.setAttribute("viewBox",`-2 -2 ${W+4} ${H+4}`);
@@ -155,28 +178,29 @@ function render(){const W=lay.cols*CELL,H=lay.rows*CELL,svg=$("grid");svg.setAtt
  for(let x=0;x<lay.cols;x++)for(let y=0;y<lay.rows;y++)s+=`<rect x="${x*CELL}" y="${Y(y,1)}" width="${CELL}" height="${CELL}" fill="none" stroke="var(--line)" data-cx="${x}" data-cy="${y}" style="pointer-events:all"/>`;
  const w=lay.work; s+=`<rect x="${w.x*CELL+2}" y="${Y(w.y,w.d)+2}" width="${w.w*CELL-4}" height="${w.d*CELL-4}" fill="var(--work)" rx="4" pointer-events="none"/><text x="${(w.x+w.w/2)*CELL}" y="${Y(w.y,w.d)+w.d*CELL/2}" text-anchor="middle">working area</text>`;
  for(const b of lay.bins){const on=b.marker===sel;s+=`<g data-m="${b.marker}" style="cursor:pointer"><rect x="${b.x*CELL+3}" y="${Y(b.y,b.d)+3}" width="${b.w*CELL-6}" height="${b.d*CELL-6}" rx="5" fill="var(--bin)" stroke="${on?"var(--acc)":"var(--mut)"}" stroke-width="${on?3:1}"/>`+
-  `<text x="${b.x*CELL+8}" y="${Y(b.y,b.d)+18}">#${b.marker}${b.role!=="sort"?" "+esc(b.role):""}</text><text x="${b.x*CELL+8}" y="${Y(b.y,b.d)+34}" class="mut">${esc((b.label||b.holds.join(",")).slice(0,10*b.w))}</text></g>`;}
+  `<text x="${b.x*CELL+8}" y="${Y(b.y,b.d)+16}">#${b.marker}${b.role!=="sort"?" "+esc(b.role):""}</text><text x="${b.x*CELL+8}" y="${Y(b.y,b.d)+28}" class="mut">${esc((b.label||b.holds.join(",")||((S.claims||{})[b.marker]?"→"+(S.claims||{})[b.marker]:"")).slice(0,12*b.w))}</text></g>`;}
  if(workStart)s+=`<rect x="${workStart[0]*CELL}" y="${Y(workStart[1],1)}" width="${CELL}" height="${CELL}" fill="none" stroke="var(--acc)" stroke-width="3"/>`;
  svg.innerHTML=s;
  svg.querySelectorAll("rect[data-cx]").forEach(r=>r.onclick=()=>cellClick(+r.dataset.cx,+r.dataset.cy));
  svg.querySelectorAll("g[data-m]").forEach(g=>g.onclick=e=>{e.stopPropagation();if(mode()==="select"){sel=+g.dataset.m;render();panel();}});}
 function nextMarker(){const used=new Set(lay.bins.map(b=>b.marker));for(let m=100;m<250;m++)if(!used.has(m))return m;return null;}
 function cellClick(x,y){const m=mode();
- if(m==="add"){const id=nextMarker();if(id===null)return;lay.bins.push({marker:id,x,y,w:+$("nw").value,d:+$("nd").value,height_u:+$("nu").value,holds:[],role:"sort",label:""});sel=id;render();panel();}
+ if(m==="add"){const id=nextMarker();if(id===null)return;lay.bins.push({marker:id,x,y,w:+$("nw").value,d:+$("nd").value,height_u:+$("nu").value,holds:[],role:"wild",label:""});sel=id;render();panel();}
  else if(m==="work"){if(!workStart){workStart=[x,y];render();}else{const[x0,y0]=workStart;lay.work={x:Math.min(x0,x),y:Math.min(y0,y),w:Math.abs(x-x0)+1,d:Math.abs(y-y0)+1};workStart=null;render();}}
  else{sel=null;render();panel();}}
 function panel(){const b=lay.bins.find(b=>b.marker===sel),p=$("binpanel");
  if(!b){p.innerHTML='<h2>Bin</h2><p class="mut">Click a bin in the grid.</p>';return;}
- const roles=["sort","unknown","unsure","overflow","kit","all"];
+ const roles=["wild","sort","unknown","unsure","overflow","kit","all"],claim=(S.claims||{})[b.marker];
  p.innerHTML=`<h2>Bin #${b.marker}</h2>
  <div class="row"><label>marker<input id="bm" type="number" min="100" max="249" value="${b.marker}"></label><label>role<select id="br">${roles.map(r=>`<option${r===b.role?" selected":""}>${r}</option>`).join("")}</select></label></div>
  <p><label>holds<input id="bh" style="flex:1" value="${esc(b.holds.join(", "))}" placeholder="DIN912_M4, DIN934_M4"></label></p>
  <p><label>label<input id="bl" style="flex:1" value="${esc(b.label)}"></label></p>
  <div class="row"><label>w<input id="bw" type="number" min="1" value="${b.w}"></label><label>d<input id="bd" type="number" min="1" value="${b.d}"></label><label>height u<input id="bu" type="number" min="3" value="${b.height_u}"></label></div>
+ ${b.role==="wild"?`<p>collects: <b>${claim?esc(claim):"nothing yet (free)"}</b> ${claim?`<button class="b" onclick="release(${b.marker})">Release</button>`:""}</p>`:""}
  <div class="row" style="margin-top:10px"><button class="b" onclick="turnBin()">Turn 90°</button><button class="b" onclick="delBin()">Remove</button>
  <a href="api/print/bin?marker=${b.marker}&fmt=3mf">3MF</a> <a href="api/print/bin?marker=${b.marker}&fmt=stl">STL</a></div>
- <p class="mut">Role "sort" uses the rules in holds. "unknown", "unsure", "overflow", "all", "kit" catch what their name says.</p>`;
- const upd=()=>{b.marker=+$("bm").value;b.role=$("br").value;b.holds=$("bh").value.split(",").map(s=>s.trim()).filter(Boolean);b.label=$("bl").value;b.w=+$("bw").value;b.d=+$("bd").value;b.height_u=+$("bu").value;sel=b.marker;render();};
+ <p class="mut">"wild": no rules, it claims the first new kind. "sort": uses the rules in holds (typing rules makes a wild bin a sort bin). "unknown", "unsure", "overflow", "all", "kit" catch what their name says.</p>`;
+ const upd=()=>{b.marker=+$("bm").value;b.role=$("br").value;b.holds=$("bh").value.split(",").map(s=>s.trim()).filter(Boolean);if(b.holds.length&&b.role==="wild")b.role="sort";else if(!b.holds.length&&b.role==="sort")b.role="wild";b.label=$("bl").value;b.w=+$("bw").value;b.d=+$("bd").value;b.height_u=+$("bu").value;sel=b.marker;render();panel();};
  ["bm","br","bh","bl","bw","bd","bu"].forEach(id=>$(id).onchange=upd);}
 function turnBin(){const b=lay.bins.find(b=>b.marker===sel);[b.w,b.d]=[b.d,b.w];render();panel();}
 function delBin(){lay.bins=lay.bins.filter(b=>b.marker!==sel);sel=null;render();panel();}
@@ -227,6 +251,7 @@ function upload(file){
  xhr.upload.onprogress=e=>{if(e.lengthComputable){bar.value=e.loaded/e.total;flash("upmsg",`uploading ${(e.loaded/1e6).toFixed(1)} / ${(e.total/1e6).toFixed(1)} MB`);}};
  xhr.upload.onload=()=>flash("upmsg","uploaded, checking the model…");
  xhr.onload=()=>{bar.hidden=true;let j={};try{j=JSON.parse(xhr.responseText);}catch(e){}
+  if(xhr.status===401)showLogin(false);
   if(xhr.status>=400){flash("upmsg",j.error||("upload failed: "+xhr.status),1);return;}
   M=j;renderModels();$("mname").value="";flash("upmsg",`stored: ${j.model.name} (${j.model.task})`);};
  xhr.onerror=()=>{bar.hidden=true;flash("upmsg","upload failed (connection lost?)",1);};

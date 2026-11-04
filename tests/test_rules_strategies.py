@@ -47,6 +47,9 @@ def test_destination_most_specific_rule_wins(layout):
 
 def test_destination_overflow_and_no_bin(layout):
     layout.bins[7].holds = []
+    for b in layout.bins:  # no wild bins here (see test_wild_auth for those)
+        if b.role == "wild":
+            b.role = "sort"
     m = {b.marker: b for b in layout.bins}
     assert destination(P("ISO7380_M3", 8.0), layout, 0.5).bin is m[102]  # overflow
     layout.bins[2].role = "sort"

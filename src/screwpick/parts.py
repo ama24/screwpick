@@ -25,6 +25,7 @@ class Part:
     length_mm: float | None = None  # snapped (or rounded, for rod) length; None = not measured
     measurable: bool = False
     unknown: bool = False
+    has_length: bool = False  # its class is measured (screws, standoffs, rod); nuts are not
     bed_xy: tuple[float, float] = (0.0, 0.0)  # printer X/Y (set by to_bed)
     bed_angle: float = 0.0
     gap_mm: float = math.inf  # free space to the nearest other part (<= 0: touching)

@@ -92,6 +92,7 @@ def parts_from_result(
                 length_mm=None if length is None else float(length),
                 measurable=bool(o.get("measurable", False)),
                 unknown=bool(o.get("unknown", False)),
+                has_length=hr is not None,
             )
         )
     return out

@@ -5,13 +5,17 @@ Each bin holds a list of rules, matched against the part's names, most specific 
   DIN912_M4      the class (any length)
   DIN912         the family (any size); wildcards work too: DIN912_M*, *_M3, *
 Special bins by role: "unknown" (UNKNOWN class), "unsure" (low detection score, or a length that
-cannot be measured yet), "overflow" (no rule matched), "all" (everything), "kit" (kit strategy).
+cannot be measured yet), "overflow" (no rule matched), "all" (everything), "kit" (kit strategy),
+"wild" (no fixed contents: the first part of a kind no other bin takes claims a free wild bin,
+which then collects that kind - part number, class or family, see Layout.wild_by - until it is
+released).
 """
 
 from __future__ import annotations
 
 import fnmatch
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from .layout import Bin, Layout
@@ -60,16 +64,51 @@ class Decision:
     bin: Bin | None
     reason: str
     waiting: bool = False  # a better bin needs the part's length, which is not measured yet
+    claim: str | None = None  # a free wild bin is claimed for this key when the drop succeeds
 
 
 def _role(layout: Layout, role: str) -> Bin | None:
     return next((b for b in layout.bins if b.role == role), None)
 
 
-def destination(p: Part, layout: Layout, min_score: float) -> Decision:
+def wild_key(p: Part, wild_by: str) -> str | None:
+    """What a wild bin collects for this part; None = its length is needed but not measured."""
     if p.unknown:
-        b = _role(layout, "unknown") or _best_rule(p, layout)[0] or _role(layout, "overflow")
-        return Decision(b, "unknown part" if b else "no bin for unknown parts")
+        return UNKNOWN
+    if wild_by == "family":
+        return family(p.cls)
+    if wild_by == "part" and p.has_length:
+        return part_number(p)
+    return p.cls
+
+
+def _wild(p: Part, layout: Layout, claims: Mapping[int, str]) -> Decision | None:
+    wild = [b for b in layout.bins if b.role == "wild"]
+    if not wild:
+        return None
+    key = wild_key(p, layout.wild_by)
+    if key is None:
+        return Decision(
+            None, "waiting for a length measurement (wild bins sort by part number)", waiting=True
+        )
+    for b in wild:
+        if claims.get(b.marker) == key:
+            return Decision(b, f"wild bin {b.marker} collects {key}")
+    free = next((b for b in wild if b.marker not in claims), None)
+    if free is not None:
+        return Decision(free, f"new kind {key}: wild bin {free.marker}", claim=key)
+    return None
+
+
+def destination(
+    p: Part, layout: Layout, min_score: float, claims: Mapping[int, str] | None = None
+) -> Decision:
+    claims = claims or {}
+    if p.unknown:
+        b = _role(layout, "unknown") or _best_rule(p, layout)[0]
+        if b is not None:
+            return Decision(b, "unknown part")
+        return _wild(p, layout, claims) or _last_resort(layout, "no bin for unknown parts")
     if p.score < min_score:
         b = _role(layout, "unsure")
         if b is not None:
@@ -79,8 +118,12 @@ def destination(p: Part, layout: Layout, min_score: float) -> Decision:
         return Decision(None, "waiting for a length measurement", waiting=True)
     if best is not None:
         return Decision(best, f"rule of bin {best.marker}")
+    return _wild(p, layout, claims) or _last_resort(layout, "no bin holds it")
+
+
+def _last_resort(layout: Layout, why: str) -> Decision:
     b = _role(layout, "all") or _role(layout, "overflow")
-    return Decision(b, "overflow" if b else "no bin holds it")
+    return Decision(b, "overflow" if b else why)
 
 
 def _best_rule(p: Part, layout: Layout) -> tuple[Bin | None, bool]:
