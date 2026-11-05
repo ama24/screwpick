@@ -69,14 +69,18 @@ class SimWorld:
         m = 12.0
         for _ in range(n):
             cls, lengths, body, width = rng.choice(SAMPLE)
+            while True:  # not on a corner-style plate's post
+                x, y = rng.uniform(x0 + m, x1 - m), rng.uniform(y0 + m, y1 - m)
+                if layout.in_work((x, y), m / 2):
+                    break
             length = float(rng.choice(lengths)) if lengths else None
             footprint = (length + width * 0.6) if length else float(body or 6.0)
             head_r = width / 2 if lengths else None
             self.parts.append(
                 SimPart(
                     cls,
-                    rng.uniform(x0 + m, x1 - m),
-                    rng.uniform(y0 + m, y1 - m),
+                    x,
+                    y,
                     rng.uniform(0, 180),
                     length,
                     (footprint, width if lengths else float(body or 6.0)),
@@ -103,8 +107,10 @@ class SimWorld:
             return
         x0, y0, x1, y1 = self.layout.work_rect()
         for p in self.parts:
-            p.x = min(max(p.x + rng.uniform(-6, 6), x0 + 8), x1 - 8)
-            p.y = min(max(p.y + rng.uniform(-6, 6), y0 + 8), y1 - 8)
+            x = min(max(p.x + rng.uniform(-6, 6), x0 + 8), x1 - 8)
+            y = min(max(p.y + rng.uniform(-6, 6), y0 + 8), y1 - 8)
+            if self.layout.in_work((x, y), 4.0):  # a corner post stops it
+                p.x, p.y = x, y
             p.angle = (p.angle + rng.uniform(-30, 30)) % 180
 
 
@@ -239,7 +245,7 @@ class SimVision:
                 )
             )
         markers = []
-        for b in lay.bins:  # each code where its bin's shelf is, its top edge towards the shelf
+        for b in lay.bins:  # each code on its bin's shelf or post, its top edge to the back
             mx, my = lay.marker_centre(b)
             markers.append(
                 MarkerPose(
@@ -287,6 +293,9 @@ class SimVision:
             )
         x0, y0, x1, y1 = lay.work_rect()
         cv2.rectangle(img, px(x0, y0), px(x1, y1), (244, 242, 237), -1)
+        post = lay.work_keepout()
+        if post is not None:
+            cv2.rectangle(img, px(post[0], post[1]), px(post[2], post[3]), (210, 216, 217), -1)
         for sp in plate:
             poly = np.array([px(*p) for p in _rect(sp.x, sp.y, sp.size[0], sp.size[1], sp.angle)])
             colour = (201, 163, 184) if sp.cls == "UNKNOWN" else (176, 169, 143)

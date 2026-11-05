@@ -1,7 +1,8 @@
 """Bin markers: ArUco codes (a sturdy kind of QR code, read reliably at 1.6 mm per cell).
 
-DICT_4X4_250, ids 100-249. The camera calibration uses DICT_5X5_100 for its board and the first
-50 codes of the 4x4 family for its corner markers, so these never get confused with them.
+DICT_4X4_250, ids 50-249 (50-99 on corner-post bins, 100-249 on shelf bins). The camera
+calibration uses DICT_5X5_100 for its board and the first 50 codes of the 4x4 family for its
+corner markers, so these never get confused with them.
 A marker's top edge points to the back of its bin (+Y of the bin).
 """
 
@@ -106,7 +107,7 @@ def detect(image: np.ndarray) -> list[SeenMarker]:
     return [
         SeenMarker(int(i), np.asarray(c, dtype=float).reshape(4, 2))
         for c, i in zip(corners, ids.ravel(), strict=True)
-        if 100 <= int(i) < 250
+        if int(i) in binspec.MARKER_IDS
     ]
 
 

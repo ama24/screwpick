@@ -140,7 +140,7 @@ ul.plain{margin:8px 0 0;padding-left:18px}
  <div class="card row" style="gap:14px">
   <span class="seg"><label><input type="radio" name="mode" value="select" checked>Select</label><label><input type="radio" name="mode" value="add">Add bin</label><label id="workmode"><input type="radio" name="mode" value="work">Working area</label></span>
   <span class="note" id="modehelp">Click a bin to see and edit it.</span>
-  <span class="row" style="margin-left:auto"><label>size<input id="nw" type="number" min="1" value="1" style="width:56px">×<input id="nd" type="number" min="1" value="1" style="width:56px"></label><label>height<input id="nu" type="number" min="3" value="3" style="width:56px">u</label></span>
+  <span class="row" style="margin-left:auto"><label>size<input id="nw" type="number" min="1" value="1" style="width:56px">×<input id="nd" type="number" min="1" value="1" style="width:56px"></label><label>height<input id="nu" type="number" min="3" value="3" style="width:56px">u</label><label>code<select id="ns"><option value="shelf">on the shelf</option><option value="corner">on a corner post</option></select></label></span>
  </div>
  <div class="cols">
   <div class="card"><svg id="grid" style="width:100%;height:auto;display:block"></svg>
@@ -192,7 +192,7 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 
 <section id="print">
  <div class="card"><h2>Bin sizes</h2>
-  <p class="note">Each size has its own range of codes, so the camera knows a bin's size from its code. Every plate is a full build plate of one size for a 220 × 220 bed: all the same height, so one colour change at the rim (21 mm for 3u, 42 mm for 6u) makes all the codes black. The same files are in the repository under <code>prints/</code>.</p>
+  <p class="note">Each size has its own range of codes, so the camera knows a bin's size from its code, and whether the code sits on a shelf along the back or on a post in the back-right corner (codes 50–99). Use a corner tray as the plate: nothing overhangs there, so no part gets trapped. Every plate is a full build plate of one size for a 220 × 220 bed: all the same height, so one colour change at the rim (21 mm for 3u, 42 mm for 6u) makes all the codes black. The same files are in the repository under <code>prints/</code>.</p>
   <table id="sizelist"></table>
  </div>
  <div class="card"><h2>Baseplate</h2>
@@ -294,7 +294,8 @@ const HELP={select:"Click a bin to see and edit it.",add:"Click an empty cell to
 document.querySelectorAll("input[name=mode]").forEach(r=>r.onchange=()=>{$("modehelp").textContent=HELP[mode()];workStart=null;if(lay)render();});
 let SIZES=[];
 async function loadLayout(){try{const j=await api("api/layout");lay=j.layout;SIZES=j.sizes||[];showProblems(j.problems);fillGridInputs();render();renderPrint();renderSizes();}catch(e){flash("laymsg",e.message,1);}}
-function renderSizes(){$("sizelist").innerHTML="<tr><th>size</th><th>codes</th><th>for</th><th>plates</th></tr>"+SIZES.map(s=>{const plates=[];for(let f=s.first;f<=s.last;f+=s.per_plate)plates.push(`<a href="api/print/plate?size=${s.name}&first=${f}">${f}–${Math.min(f+s.per_plate-1,s.last)}</a>`);return `<tr><td><b>${s.w}×${s.d}</b> · ${s.height_u}u</td><td>${s.first}–${s.last}</td><td class="note">${esc(s.use)}</td><td>${plates.join(" · ")}</td></tr>`;}).join("")+'<tr><td class="note" colspan="4">240–249: any other size, set by hand in the layout</td></tr>';}
+function renderSizes(){$("sizelist").innerHTML="<tr><th>size</th><th>codes</th><th>for</th><th>plates</th></tr>"+SIZES.map(s=>{const plates=[];for(let f=s.first;f<=s.last;f+=s.per_plate)plates.push(`<a href="api/print/plate?size=${s.name}&first=${f}">${f}–${Math.min(f+s.per_plate-1,s.last)}</a>`);return `<tr><td><b>${s.w}×${s.d}</b> · ${s.height_u}u${s.style==="corner"?" · corner":""}</td><td>${s.first}–${s.last}</td><td class="note">${esc(s.use)}</td><td>${plates.join(" · ")}</td></tr>`;}).join("")+'<tr><td class="note" colspan="4">240–249: any other size, set by hand in the layout (shelf). 50–99: the code on a post in the back-right corner instead of a shelf: nothing overhangs, so no part gets trapped (best for the plate).</td></tr>';}
+function styleOf(m){return m>=50&&m<100?"corner":"shelf";}
 function fillGridInputs(){$("wildby").value=lay.wild_by||"part";$("cols").value=lay.cols;$("rows").value=lay.rows;$("ox").value=lay.origin[0];$("oy").value=lay.origin[1];$("pt").value=lay.plate_thickness_mm;}
 ["cols","rows","ox","oy","pt","wildby"].forEach(id=>$(id).onchange=()=>{lay.wild_by=$("wildby").value;lay.cols=+$("cols").value;lay.rows=+$("rows").value;lay.origin=[+$("ox").value,+$("oy").value];lay.plate_thickness_mm=+$("pt").value;render();});
 function showProblems(p){$("problems").innerHTML=(p||[]).map(x=>`<li>${esc(x)}</li>`).join("");}
@@ -314,7 +315,7 @@ function render(){const W=lay.cols*CELL,H=lay.rows*CELL,svg=$("grid"),rm=readyMa
  for(const b of lay.bins){const on=b.marker===sel,r=rm[b.marker],t=binText(b),x0=b.x*CELL+4,y0=Y(b.y,b.d)+4,bw=b.w*CELL-8,bh=b.d*CELL-8;
   const fill=t.plate?"var(--work)":r?"var(--ok-soft)":t.special?"var(--cell)":"#fff",stroke=on?"var(--acc)":r?"var(--ok)":t.plate?"#c9d6db":"#d9d8d2";
   s+=`<g data-m="${b.marker}" style="cursor:pointer"><rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="${on?1.6:0.8}" ${t.free&&!on?'stroke-dasharray="3 2.5"':""}/>`+
-   (()=>{const k=CELL*14/42,rot=(b.rot||0)%360,sh={0:[x0,y0,bw,k],180:[x0,y0+bh-k,bw,k],90:[x0,y0,k,bh],270:[x0+bw-k,y0,k,bh]}[rot];
+   (()=>{const k=CELL*14/42,rot=(b.rot||0)%360,sh=styleOf(b.marker)==="corner"?{0:[x0+bw-k,y0,k,k],90:[x0,y0,k,k],180:[x0,y0+bh-k,k,k],270:[x0+bw-k,y0+bh-k,k,k]}[rot]:{0:[x0,y0,bw,k],180:[x0,y0+bh-k,bw,k],90:[x0,y0,k,bh],270:[x0+bw-k,y0,k,bh]}[rot];
      return `<rect x="${sh[0]+1}" y="${sh[1]+1}" width="${sh[2]-2}" height="${sh[3]-2}" rx="5" fill="${t.plate?"#dfe7ea":"var(--line2)"}" opacity="${t.plate?1:0.55}"/>`;})()+
    `<text x="${x0+7}" y="${y0+11}" font-size="5.6" fill="var(--soft)">${b.marker}</text>`+
    `<text x="${x0+bw-7}" y="${y0+11}" font-size="5.6" fill="var(--soft)" text-anchor="end">${esc(r?"":t.top)}</text>`+
@@ -328,10 +329,10 @@ function render(){const W=lay.cols*CELL,H=lay.rows*CELL,svg=$("grid"),rm=readyMa
  svg.innerHTML=s;
  svg.querySelectorAll("rect[data-cx]").forEach(r=>r.onclick=()=>cellClick(+r.dataset.cx,+r.dataset.cy));
  svg.querySelectorAll("g[data-m]").forEach(g=>g.onclick=e=>{e.stopPropagation();if(mode()==="select"){sel=+g.dataset.m;render();panel();}});}
-function nextMarker(w,d,u){const used=new Set(lay.bins.map(b=>b.marker));const s=SIZES.find(s=>s.height_u===u&&((s.w===w&&s.d===d)||(s.w===d&&s.d===w)));
+function nextMarker(w,d,u,st){const used=new Set(lay.bins.map(b=>b.marker));const s=SIZES.find(s=>s.style===st&&s.height_u===u&&((s.w===w&&s.d===d)||(s.w===d&&s.d===w)));
  const [a,z]=s?[s.first,s.last]:[240,249];for(let m=a;m<=z;m++)if(!used.has(m))return m;return null;}
 function cellClick(x,y){const m=mode();
- if(m==="add"){const w=+$("nw").value,d=+$("nd").value,u=+$("nu").value,id=nextMarker(w,d,u);if(id===null){flash("laymsg","no free code left for that size",1);return;}lay.bins.push({marker:id,x,y,w,d,height_u:u,holds:[],role:"wild",label:""});sel=id;render();panel();}
+ if(m==="add"){const w=+$("nw").value,d=+$("nd").value,u=+$("nu").value,id=nextMarker(w,d,u,$("ns").value);if(id===null){flash("laymsg","no free code left for that size",1);return;}lay.bins.push({marker:id,x,y,w,d,height_u:u,holds:[],role:"wild",label:""});sel=id;render();panel();}
  else if(m==="work"){if(!workStart){workStart=[x,y];render();}else{const[x0,y0]=workStart;lay.work={x:Math.min(x0,x),y:Math.min(y0,y),w:Math.abs(x-x0)+1,d:Math.abs(y-y0)+1};workStart=null;render();}}
  else{sel=null;render();panel();}}
 function panel(){const b=lay.bins.find(b=>b.marker===sel),p=$("binpanel");
@@ -346,7 +347,7 @@ function panel(){const b=lay.bins.find(b=>b.marker===sel),p=$("binpanel");
  <label>role<select id="br">${roles.map(x=>`<option${x===b.role?" selected":""}>${x}</option>`).join("")}</select></label>
  <label>rules<input id="bh" style="flex:1" value="${esc(b.holds.join(", "))}" placeholder="none: wild"></label>
  <label>label<input id="bl" style="flex:1" value="${esc(b.label)}" placeholder="optional"></label>
- <div class="row"><label>marker<input id="bm" type="number" min="100" max="249" value="${b.marker}"></label></div>
+ <div class="row"><label>marker<input id="bm" type="number" min="50" max="249" value="${b.marker}"></label><span class="note">code on ${styleOf(b.marker)==="corner"?"a corner post":"the shelf"}</span></div>
  <div class="row"><label>size<input id="bw" type="number" min="1" value="${b.w}" style="width:56px">×<input id="bd" type="number" min="1" value="${b.d}" style="width:56px"></label><label>height<input id="bu" type="number" min="3" value="${b.height_u}" style="width:56px">u</label></div></div>
  <div class="row" style="margin-top:14px"><button class="b s" onclick="turnBin()">Turn 90°</button><button class="b s" onclick="delBin()">Remove</button><span class="note">print: <a href="api/print/bin?marker=${b.marker}&fmt=3mf">3MF</a> · <a href="api/print/bin?marker=${b.marker}&fmt=stl">STL</a></span></div>
  <p class="note" style="margin-top:12px">Typing rules turns a wild bin into a rule bin; clearing them makes it wild again.</p>`;

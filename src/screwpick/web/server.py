@@ -409,6 +409,7 @@ def _sizes() -> list[dict[str, Any]]:
                 "last": s.markers.stop - 1,
                 "per_plate": cols * rows,
                 "use": s.use,
+                "style": s.style,
             }
         )
     return out
