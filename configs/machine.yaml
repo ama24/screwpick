@@ -75,6 +75,10 @@ run:
     distance_mm: 4
     feed: 9000
     max_in_a_row: 3
+  fill:                        # how full the bins are (an estimate, see README)
+    shape: 0.5                 # a part's volume = outline area x height x this
+    packing: 0.3               # loose parts fill this share of a bin's room
+    full_at: 0.9               # a bin this full asks to be emptied
 
 standby:                       # automatic mode
   interval_s: 60               # look for new parts this often

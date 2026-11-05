@@ -16,6 +16,8 @@ from typing import Any
 
 import yaml
 
+from .fill import Fill
+
 PICKER_MODES = ("vacuum", "gripper", "tweezers", "both")
 PRINTER_DRIVERS = ("moonraker", "sim")
 
@@ -126,6 +128,7 @@ class Run:
     # its bin: the Pi's thinking time hides behind the move
     pipeline: bool = True
     shake: Shake = field(default_factory=Shake)
+    fill: Fill = field(default_factory=Fill)  # how full the bins are (estimated, see fill.py)
 
 
 @dataclass

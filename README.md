@@ -229,6 +229,24 @@ machine could move complete bins aside by itself.
 
 So you can put a new printed bin on the bed and it's used straight away.
 
+## How full the bins are
+
+Cells are named like a chess board: a column letter from the left and a row number from the
+front (A1 is front-left), so the machine can say "bin E1". Every bin in the Layout tab shows
+how many parts went in since it was last emptied (the small number at its top right), and a
+bar for how full it is, turning amber when it is full (`run.fill.full_at`, 90 %).
+
+How full is an estimate, the same for screws or anything else the model learns:
+- **each part's volume** from what the camera measured: the area of its outline on the plate
+  times its height, times `run.fill.shape` (0.5: a lying screw fills about half of that box);
+- **each bin's room** from its Gridfinity size: the inside from the floor to the rim, without
+  the code's shelf or post. A 1x2 holds about twice a 1x1, a 6-unit bin about three times a
+  3-unit one (the foot and floor are the same);
+- loose parts never fill a bin solid: `run.fill.packing` (0.3) is the share they occupy.
+
+The bin's panel says "about 60 % full, room for about 8 more like them". Tune `packing` once
+you have filled a bin by hand: if it overflowed at 70 %, lower it.
+
 ## Login
 
 The page needs a user name and password (`web.require_login`, on by default):

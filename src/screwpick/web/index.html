@@ -313,22 +313,26 @@ function render(){const W=lay.cols*CELL,H=lay.rows*CELL,svg=$("grid"),rm=readyMa
  const w=lay.work;if(lay.work_marker==null)s+=`<rect x="${w.x*CELL+3}" y="${Y(w.y,w.d)+3}" width="${w.w*CELL-6}" height="${w.d*CELL-6}" rx="9" fill="var(--work)" pointer-events="none"/>`+
   `<text x="${(w.x+w.w/2)*CELL}" y="${Y(w.y,w.d)+w.d*CELL/2+2}" text-anchor="middle" font-size="6.2" letter-spacing="1.2" fill="#9aa9ae">WORKING AREA</text>`;
  for(const b of lay.bins){const on=b.marker===sel,r=rm[b.marker],t=binText(b),x0=b.x*CELL+4,y0=Y(b.y,b.d)+4,bw=b.w*CELL-8,bh=b.d*CELL-8;
-  const fill=t.plate?"var(--work)":r?"var(--ok-soft)":t.special?"var(--cell)":"#fff",stroke=on?"var(--acc)":r?"var(--ok)":t.plate?"#c9d6db":"#d9d8d2";
+  const f=(S.fill||{})[b.marker],fill=t.plate?"var(--work)":r?"var(--ok-soft)":t.special?"var(--cell)":"#fff",stroke=on?"var(--acc)":r?"var(--ok)":t.plate?"#c9d6db":"#d9d8d2";
   s+=`<g data-m="${b.marker}" style="cursor:pointer"><rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="${on?1.6:0.8}" ${t.free&&!on?'stroke-dasharray="3 2.5"':""}/>`+
    (()=>{const k=CELL*14/42,rot=(b.rot||0)%360,sh=styleOf(b.marker)==="corner"?{0:[x0+bw-k,y0,k,k],90:[x0,y0,k,k],180:[x0,y0+bh-k,k,k],270:[x0+bw-k,y0+bh-k,k,k]}[rot]:{0:[x0,y0,bw,k],180:[x0,y0+bh-k,bw,k],90:[x0,y0,k,bh],270:[x0+bw-k,y0,k,bh]}[rot];
      return `<rect x="${sh[0]+1}" y="${sh[1]+1}" width="${sh[2]-2}" height="${sh[3]-2}" rx="5" fill="${t.plate?"#dfe7ea":"var(--line2)"}" opacity="${t.plate?1:0.55}"/>`;})()+
-   `<text x="${x0+7}" y="${y0+11}" font-size="5.6" fill="var(--soft)">${b.marker}</text>`+
-   `<text x="${x0+bw-7}" y="${y0+11}" font-size="5.6" fill="var(--soft)" text-anchor="end">${esc(r?"":t.top)}</text>`+
+   `<text x="${x0+7}" y="${y0+11}" font-size="5.6" fill="var(--soft)"><tspan font-weight="600" fill="var(--mut)">${cellName(b.x,b.y)}</tspan> · ${b.marker}</text>`+
+   (f&&f.count&&!r?`<rect x="${x0+bw-7-countW(f.count)}" y="${y0+4}" width="${countW(f.count)}" height="9.5" rx="4.75" fill="${f.full?"var(--warn)":"var(--ink)"}"/><text x="${x0+bw-7-countW(f.count)/2}" y="${y0+10.9}" font-size="6" font-weight="600" fill="#fff" text-anchor="middle">${f.count}</text>`
+    :`<text x="${x0+bw-7}" y="${y0+11}" font-size="5.6" fill="var(--soft)" text-anchor="end">${esc(r?"":t.top)}</text>`)+
    `<text x="${x0+7}" y="${y0+bh/2+3}" font-size="7.6" font-weight="600" fill="${t.free?"var(--soft)":"var(--ink)"}">${esc(t.lines[0].slice(0,11*b.w))}</text>`+
    `<text x="${x0+7}" y="${y0+bh/2+13}" font-size="7.6" fill="var(--mut)">${esc(t.lines[1].slice(0,11*b.w))}</text>`;
   if(r)s+=`<circle cx="${x0+bw-11}" cy="${y0+9}" r="5" fill="var(--ok)"/><path d="M${x0+bw-13.4} ${y0+9.2} l1.8 1.8 l3.2 -3.4" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`+
    `<text x="${x0+7}" y="${y0+bh-7}" font-size="5.6" fill="var(--ok)">ready · ${r.count}</text>`;
-  else if((S.bin_counts||{})[b.marker])s+=`<text x="${x0+7}" y="${y0+bh-7}" font-size="5.6" fill="var(--soft)">${(S.bin_counts||{})[b.marker]} in it</text>`;
+  else if(f&&f.count&&!t.plate){const share=Math.min(1,f.share),bar=bw-14;
+   s+=`<g><title>${f.full?"full: empty it soon":`about ${Math.round(share*100)} % full, room for about ${f.more} more`}</title><rect x="${x0+7}" y="${y0+bh-6}" width="${bar}" height="2.4" rx="1.2" fill="var(--line2)"/><rect x="${x0+7}" y="${y0+bh-6}" width="${Math.max(2.4,bar*share)}" height="2.4" rx="1.2" fill="${f.full?"var(--warn)":"var(--acc)"}"/></g>`;}
   s+="</g>";}
  if(workStart)s+=`<rect x="${workStart[0]*CELL+2}" y="${Y(workStart[1],1)+2}" width="${CELL-4}" height="${CELL-4}" rx="7" fill="none" stroke="var(--acc)" stroke-width="1.6"/>`;
  svg.innerHTML=s;
  svg.querySelectorAll("rect[data-cx]").forEach(r=>r.onclick=()=>cellClick(+r.dataset.cx,+r.dataset.cy));
  svg.querySelectorAll("g[data-m]").forEach(g=>g.onclick=e=>{e.stopPropagation();if(mode()==="select"){sel=+g.dataset.m;render();panel();}});}
+function cellName(x,y){let c="",n=x;for(;;){c=String.fromCharCode(65+n%26)+c;n=Math.floor(n/26)-1;if(n<0)break;}return c+(y+1);}
+function countW(n){return 5+String(n).length*3.6;}
 function nextMarker(w,d,u,st){const used=new Set(lay.bins.map(b=>b.marker));const s=SIZES.find(s=>s.style===st&&s.height_u===u&&((s.w===w&&s.d===d)||(s.w===d&&s.d===w)));
  const [a,z]=s?[s.first,s.last]:[240,249];for(let m=a;m<=z;m++)if(!used.has(m))return m;return null;}
 function cellClick(x,y){const m=mode();
@@ -338,10 +342,10 @@ function cellClick(x,y){const m=mode();
 function panel(){const b=lay.bins.find(b=>b.marker===sel),p=$("binpanel");
  if(!b){p.innerHTML='<h2>Bin</h2><p class="note">Click a bin in the grid.</p>';return;}
  const roles=["wild","sort","work","unknown","unsure","overflow","kit","all"],claim=(S.claims||{})[b.marker],r=readyMap()[b.marker],n=(S.bin_counts||{})[b.marker]||0;
- p.innerHTML=`<h2>Bin ${b.marker}</h2>
+ const f=(S.fill||{})[b.marker];p.innerHTML=`<h2>Bin ${b.marker} · ${cellName(b.x,b.y)}</h2>
  ${r?`<div class="notice" style="margin-bottom:14px;padding:10px 12px"><span class="check">✓</span><div><b>Ready to take out</b><br><span class="note">${esc(r.what)} · ${r.count} part${r.count===1?"":"s"}</span></div></div>`:""}
  ${b.role==="wild"?`<p>${claim?`Collects <b>${esc(claim)}</b>`:'<span class="mut">Free: the next new kind goes here.</span>'}</p>`:""}
- ${n?`<p class="note">${n} part${n===1?"":"s"} in it since it was last emptied.</p>`:""}
+ ${n?`<p class="note">${n} part${n===1?"":"s"} in it since it was last emptied${f&&b.role!=="work"?`: about ${Math.round(Math.min(1,f.share)*100)} % full${f.full?" (full)":`, room for about ${f.more} more like them`}`:""}. Estimated from the size of each part the camera saw.</p>`:""}
  ${n||claim?`<p><button class="b s" onclick="emptied(${b.marker})">Emptied</button></p>`:""}
  <div style="display:grid;gap:10px;margin-top:6px">
  <label>role<select id="br">${roles.map(x=>`<option${x===b.role?" selected":""}>${x}</option>`).join("")}</select></label>

@@ -168,6 +168,22 @@ class Layout:
         """The same, in the plate frame (z = 0 where the parts lie), for the camera's rays."""
         return self.marker_z(height_u) - self.surface_z()
 
+    def cell_name(self, x: int, y: int) -> str:
+        """A cell as on a chess board: column letter from the left, row number from the front
+        (A1 = front-left)."""
+        col = ""
+        n = x
+        while True:
+            col = chr(ord("A") + n % 26) + col
+            n = n // 26 - 1
+            if n < 0:
+                break
+        return f"{col}{y + 1}"
+
+    def bin_name(self, b: Bin) -> str:
+        """Where a bin stands: the cell of its front-left corner, e.g. B1."""
+        return self.cell_name(b.x, b.y)
+
     def bin_by_marker(self, marker: int | None) -> Bin | None:
         return next((b for b in self.bins if b.marker == marker), None)
 

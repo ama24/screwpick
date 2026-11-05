@@ -22,6 +22,7 @@ import numpy as np
 
 from .analysis import ModelChoice
 from .config import Machine
+from .fill import BinFill, bin_room_mm3, item_volume_mm3
 from .grip import jaw_angle
 from .io import read_json, write_json
 from .layout import Layout, yaw_from_up
@@ -77,7 +78,7 @@ class Runner:
         self.last_shot: Shot | None = None
         self._claims_lock = threading.RLock()
         # wild bin marker -> what it collects; bin marker -> parts in it since it was emptied
-        self.claims, self.bin_counts = self._load_claims()
+        self.claims, self.bin_counts, self.bin_volume = self._load_claims()
         self.ready: dict[int, dict[str, Any]] = {}  # bins that can be taken out
         self._load_tool()
         self._load_machine()
@@ -426,6 +427,9 @@ class Runner:
                 with self._claims_lock:
                     mk = prev.bin.marker
                     self.bin_counts[mk] = self.bin_counts.get(mk, 0) + 1
+                    if prev.part is not None:
+                        vol = item_volume_mm3(prev.part, self.m.run.fill)
+                        self.bin_volume[mk] = self.bin_volume.get(mk, 0.0) + vol
                     self._save_claims()
             self._set(
                 counts=dict(planner.sorted_count),
@@ -1016,15 +1020,16 @@ class Runner:
         assert p is not None
         return p
 
-    def _load_claims(self) -> tuple[dict[int, str], dict[int, int]]:
-        """(what each wild bin collects, how many parts each bin received)."""
+    def _load_claims(self) -> tuple[dict[int, str], dict[int, int], dict[int, float]]:
+        """(what each wild bin collects, how many items each bin received, their volume)."""
         if not self.claims_path.is_file():
-            return {}, {}
+            return {}, {}, {}
         d = read_json(self.claims_path) or {}
         claims = d.get("claims", {}) if "claims" in d else d  # older files: claims only
         return (
             {int(k): str(v) for k, v in claims.items()},
             {int(k): int(v) for k, v in d.get("counts", {}).items()},
+            {int(k): float(v) for k, v in d.get("volumes", {}).items()},
         )
 
     def _save_claims(self) -> None:
@@ -1033,6 +1038,7 @@ class Runner:
             {
                 "claims": {str(k): v for k, v in sorted(self.claims.items())},
                 "counts": {str(k): v for k, v in sorted(self.bin_counts.items())},
+                "volumes": {str(k): round(v, 1) for k, v in sorted(self.bin_volume.items())},
             },
         )
 
@@ -1062,17 +1068,40 @@ class Runner:
             for mk in markers:
                 self.claims.pop(mk, None)
                 self.bin_counts.pop(mk, None)
+                self.bin_volume.pop(mk, None)
                 self.ready.pop(mk, None)
             self._save_claims()
             if markers:
                 self.note(f"emptied: bin {', '.join(map(str, markers))}")
             return self.bins_state()
 
+    def bin_fill(self, layout: Layout) -> dict[int, dict[str, Any]]:
+        """Every bin on the bed: where it stands, how many items went in, how full it is
+        (estimated) and about how many more fit."""
+        f = self.m.run.fill
+        out: dict[int, dict[str, Any]] = {}
+        for b in layout.bins:
+            room = bin_room_mm3(*b.own_size(), b.height_u, b.marker)
+            bf = BinFill(self.bin_counts.get(b.marker, 0), self.bin_volume.get(b.marker, 0.0))
+            out[b.marker] = {
+                "cell": layout.bin_name(b),
+                "count": bf.count,
+                "share": round(bf.share(room, f), 3),
+                "more": bf.more(room, f) if bf.count else None,
+                "full": bf.share(room, f) >= f.full_at,
+            }
+        return out
+
     def bins_state(self) -> dict[str, Any]:
+        try:
+            fill = {str(k): v for k, v in self.bin_fill(self.layout()).items()}
+        except Exception:  # noqa: BLE001 - a broken layout file must not break the page
+            fill = {}
         return {
             "claims": {str(k): v for k, v in sorted(self.claims.items())},
             "bin_counts": {str(k): v for k, v in sorted(self.bin_counts.items())},
             "ready": list(self.ready.values()),
+            "fill": fill,
         }
 
     # ------------------------------------------------------------------ models
