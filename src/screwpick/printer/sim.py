@@ -285,10 +285,17 @@ class SimVision:
             )
         shot = Shot(name, parts, markers)
         if self.out is not None:
-            shot.vis = self._draw(name, lay, plate)
+            painted = [T.apply(work.outline)] if work is not None else None
+            shot.vis = self._draw(name, lay, plate, painted)
         return shot
 
-    def _draw(self, name: str, lay: Layout, plate: list[SimPart]) -> Path | None:
+    def _draw(
+        self,
+        name: str,
+        lay: Layout,
+        plate: list[SimPart],
+        keep: list[np.ndarray] | None = None,  # painted: only this (bed mm) is left
+    ) -> Path | None:
         try:
             import cv2
         except ImportError:
@@ -339,6 +346,11 @@ class SimVision:
                 1,
                 cv2.LINE_AA,
             )
+        if keep is not None:  # what the model sees: the rest painted the floor's colour
+            mask = np.zeros(img.shape[:2], np.uint8)
+            for poly in keep:
+                cv2.fillPoly(mask, [np.array([px(*q) for q in poly], np.int32)], 255)
+            img[mask == 0] = (244, 242, 237)
         path = self.out / f"{name}_vis.jpg"
         cv2.imwrite(str(path), img)
         return path

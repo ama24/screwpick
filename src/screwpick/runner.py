@@ -37,6 +37,7 @@ from .rules import family, wild_key
 from .setup import KEYS as SETUP_KEYS
 from .setup import Setup
 from .strategies import STRATEGIES, Plan, Planner
+from .todo import TodoList
 from .transform import BedCalibration, Transform2D
 from .trayview import WorkArea
 from .trayview import rect as tray_rect
@@ -95,11 +96,16 @@ class Runner:
         self._ok = threading.Event()  # second OK: the bins are changed
         self.swap_phase = ""  # "" sorting | parked (waiting for the second OK)
         self._no_swap_said = ""
+        self.mask_checked = False  # the tray view was checked and saved (Calibrate tab)
+        self.markers_seen: set[int] = set()  # every code the camera has read
         self._load_tool()
         self._load_machine()
         setup_path = self.m.path(self.m.paths.setup)
         assert setup_path is not None
         self.setup = Setup(setup_path)
+        todo_path = self.m.path(self.m.paths.todo)
+        assert todo_path is not None
+        self.todo = TodoList(todo_path)
         # the simulator needs no setup; a real printer does
         self.require_setup = self.m.printer.driver != "sim"
         self._setup_homed = False  # homed from the Setup tab since the program started
@@ -192,6 +198,7 @@ class Runner:
             "driver": self.m.printer.driver,
             **self.bins_state(),
             "requests": [r.to_dict() for r in self.requests],
+            "mask_margin_mm": self.m.camera.mask_margin_mm,
             "swap_phase": self.swap_phase,
             "auto": self.saved_mode()[0],
             "tip_offset_z": self.m.tool.offset[2],
@@ -345,11 +352,52 @@ class Runner:
         if T is None or not self.m.camera.mask:
             return None
         Ti = T.inverse()
+        g = self.m.camera.mask_margin_mm  # + keeps more of the wall, - paints more of the floor
+        x0, y0, x1, y1 = layout.work_rect()
         post = layout.work_keepout()
-        return WorkArea(
-            Ti.apply(tray_rect(*layout.work_rect())),
-            [Ti.apply(tray_rect(*post))] if post is not None else [],
-        )
+        holes = []
+        if post is not None:
+            px0, py0, px1, py1 = post
+            holes = [Ti.apply(tray_rect(px0 + g, py0 + g, px1 - g, py1 - g))]
+        return WorkArea(Ti.apply(tray_rect(x0 - g, y0 - g, x1 + g, y1 + g)), holes)
+
+    # ------------------------------------------------------------------ what the model sees
+    def mask_preview(self, margin_mm: float) -> dict[str, Any]:
+        """A photo painted with this margin (not saved): the Run tab's picture shows what the
+        model sees."""
+        self._idle()
+        layout, T = self.layout(), self.transform()
+        with self._lock:
+            self.motion.preflight(home=False)
+        old = self.m.camera.mask_margin_mm
+        self.m.camera.mask_margin_mm = float(margin_mm)
+        try:
+            shot = self.take_shot(layout, T)
+        finally:
+            self.m.camera.mask_margin_mm = old
+        return {
+            "image": shot.vis.name if shot.vis else None,
+            "parts": len(shot.parts),
+            "margin_mm": float(margin_mm),
+        }
+
+    def mask_save(self, margin_mm: float) -> dict[str, Any]:
+        p = self.m.path(self.m.paths.machine)
+        assert p is not None
+        kept = read_json(p) if p.is_file() else {}
+        write_json(p, {**kept, "mask_margin_mm": float(margin_mm)})
+        self.m.camera.mask_margin_mm = float(margin_mm)
+        self.mask_checked = True
+        self.note(f"tray view saved: margin {float(margin_mm):g} mm")
+        return {"margin_mm": float(margin_mm), "saved": True}
+
+    # ------------------------------------------------------------------ on the machine
+    def todo_state(self) -> dict[str, Any]:
+        return {"items": self.todo.state(self)}
+
+    def todo_tick(self, key: str, done: bool) -> dict[str, Any]:
+        self.todo.tick(key, done)
+        return self.todo_state()
 
     def _head_shot(
         self, layout: Layout, T: Transform2D | None, area: str, work: WorkArea | None = None
@@ -409,6 +457,7 @@ class Runner:
         return self._finish_shot(shot, layout, T)
 
     def _finish_shot(self, shot: Shot, layout: Layout, T: Transform2D | None) -> Shot:
+        self.markers_seen |= {mk.marker for mk in shot.markers}
         if T is not None:
             to_bed(shot.parts, T)
         compute_gaps(shot.parts)
@@ -962,6 +1011,9 @@ class Runner:
         for k, v in (read_json(p) or {}).items():
             if k in self.MACHINE_KEYS:
                 setattr(self.m.printer, k, v)
+            elif k == "mask_margin_mm":
+                self.m.camera.mask_margin_mm = float(v)
+                self.mask_checked = True
 
     def machine_values(self) -> dict[str, Any]:
         return {k: getattr(self.m.printer, k) for k in self.MACHINE_KEYS}
@@ -996,7 +1048,8 @@ class Runner:
             raise
         p = self.m.path(self.m.paths.machine)
         assert p is not None
-        write_json(p, new)
+        kept = read_json(p) if p.is_file() else {}  # e.g. the tray view's margin
+        write_json(p, {**kept, **new})
         self.setup.reset("machine")
         self.note("machine values saved: confirm them in the Setup tab")
         return self.setup_state()

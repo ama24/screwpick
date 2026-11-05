@@ -17,6 +17,8 @@ POST /api/models/activate   {"role": stage1|stage2|classifier, "id": … or null
 POST /api/models/weights    {"id", "path"};  /rename {"id", "name"};  /delete {"id"}
 POST /api/models/test       {"id"}: run it on the last photo, nothing is switched
 POST /api/bins/emptied      {"marker": id or null}: a bin was emptied (null: all ready ones)
+GET  /api/todo               the Setup tab's "On the machine" list; POST /api/todo {"key", "done"}
+POST /api/mask/preview      {"margin"}: a photo painted as the model will see it; /api/mask/save {"margin"}
 GET  /api/files              the Files tab: each file, where it lives, which copy is in use
 POST /api/files/upload?key=… (raw file) keep a file; /api/files/remove {"key"}; GET /api/files/download?key=…
 POST /api/bins/full         {"marker": id}: this bin is full (learns the packing, asks to empty it)
@@ -263,6 +265,15 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json(r.models_state())
         elif method == "POST" and path == "/api/models/test":
             self._json(r.test_model(str(self._body()["id"])))
+        elif method == "GET" and path == "/api/todo":
+            self._json(r.todo_state())
+        elif method == "POST" and path == "/api/todo":
+            b = self._body()
+            self._json(r.todo_tick(str(b["key"]), bool(b.get("done", True))))
+        elif method == "POST" and path == "/api/mask/preview":
+            self._json(r.mask_preview(float(self._body().get("margin", 0.0))))
+        elif method == "POST" and path == "/api/mask/save":
+            self._json(r.mask_save(float(self._body().get("margin", 0.0))))
         elif method == "GET" and path == "/api/files":
             self._json(r.files_state())
         elif method == "POST" and path == "/api/files/upload":

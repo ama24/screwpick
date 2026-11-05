@@ -93,3 +93,46 @@ def test_the_model_sees_only_the_tray_except_for_the_bin_check(machine):
     machine.camera.mask = False
     runner.take_shot(lay, Transform2D.identity())
     assert not vision.painted[-1]
+
+
+def test_tray_view_margin_preview_and_save(machine):
+    lay = Layout.default()
+    lay.save(machine.path(machine.paths.layout))
+    world = SimWorld(seed=1)
+    x0, y0, x1, y1 = lay.work_rect()
+    world.parts = [SimPart("DIN934_M4", x0 + 1.0, (y0 + y1) / 2, 0.0, None, (7.0, 7.0), 3.2)]
+    vision = SimVision(world, lambda: lay, Transform2D.identity, machine.path("runs"))
+    runner = Runner(machine, SimPrinter(machine, world), vision)
+    runner.printer.gcode("G28")
+    assert runner.mask_preview(-3.0)["parts"] == 0  # 3 mm more of the edge painted: it is gone
+    res = runner.mask_preview(2.0)
+    assert res["parts"] == 1 and res["image"].endswith("_vis.jpg")
+    assert machine.camera.mask_margin_mm == 0.0  # a preview changes nothing
+    todo = {t["key"]: t for t in runner.todo_state()["items"]}
+    assert not todo["trayview"]["done"]
+    runner.mask_save(2.0)
+    again = Runner(machine, SimPrinter(machine, world), vision)  # kept in machine.json
+    assert machine.camera.mask_margin_mm == 2.0 and again.mask_checked
+    todo = {t["key"]: t for t in again.todo_state()["items"]}
+    assert todo["trayview"]["done"] and todo["trayview"]["why"] == "tray view saved"
+
+
+def test_on_the_machine_list(machine):
+    lay = Layout.default()
+    lay.save(machine.path(machine.paths.layout))
+    world = SimWorld(seed=1)
+    runner = Runner(
+        machine, SimPrinter(machine, world), SimVision(world, lambda: lay, Transform2D.identity)
+    )
+    items = {t["key"]: t for t in runner.todo_state()["items"]}
+    assert set(items) >= {"calibration", "arm", "screen", "menu", "cornerbin", "full", "items"}
+    assert all(t["how"] for t in items.values())
+    assert [k for k, t in items.items() if t["done"]] == []
+    runner.todo_tick("arm", True)
+    assert {t["key"]: t for t in runner.todo_state()["items"]}["arm"]["done"]
+    runner.markers_seen.add(90)  # a corner bin's code was read
+    assert {t["key"]: t for t in runner.todo_state()["items"]}["cornerbin"]["done"]
+    runner.todo_tick("arm", False)
+    assert not {t["key"]: t for t in runner.todo_state()["items"]}["arm"]["done"]
+    with pytest.raises(ValueError):
+        runner.todo_tick("nope", True)

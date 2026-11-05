@@ -321,6 +321,20 @@ the Run tab shows what the model saw.
 The codes are always read from the photo itself, and the check after a bin change looks at it
 unpainted (it must see into the bins).
 
+**Check it once, in the Calibrate tab → What the model sees:** take a photo and look; the
+painted edge should sit at the foot of the tray's walls. The margin moves it: + keeps a strip
+of the wall's foot (parts lying right against the wall stay whole), − paints more of the
+floor's edge. Save keeps it (`camera.mask_margin_mm`).
+
+## On the machine (Setup tab)
+
+The Setup tab ends with a list of what only you can do on the real machine: the calibration
+with the board in the tray, checking what the model sees, measuring for the camera arm, the
+Pi's clearance in the screen holder, the printer menu, the picker, a corner bin read by the
+camera, Full taught once, the parts table. They never block sorting. Some tick themselves off
+when the program notices (a calibration dropped, a corner bin's code read, a bin marked Full);
+the others you tick with Done.
+
 ## A camera on the tool head (optional)
 
 `camera.source: head` uses a camera on the tool head instead of the one above the bed. It is

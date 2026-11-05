@@ -45,6 +45,7 @@ class Paths:
     setup: str = "../data/setup.json"  # the Setup tab's checklist
     machine: str = "../data/machine.json"  # limits/positions set in the Setup tab (over this file)
     files: str = "../data/files"  # files dropped in the Files tab (calibration, items.json, ...)
+    todo: str = "../data/todo.json"  # the Setup tab's "On the machine" ticks
 
 
 @dataclass
@@ -60,6 +61,9 @@ class Camera:
     # photo keeps its size, so the model sees the parts at its trained scale
     mask: bool = True
     mask_colour: str = "auto"  # auto: the tray floor's own colour | #RRGGBB, e.g. #FFFFFF
+    # + keeps this much of the wall's foot, - paints this much more of the floor's edge
+    # (Calibrate tab: What the model sees)
+    mask_margin_mm: float = 0.0
 
 
 @dataclass
