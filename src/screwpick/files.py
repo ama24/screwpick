@@ -76,8 +76,8 @@ SLOTS: tuple[Slot, ...] = (
         "Camera calibration",
         "calibration.json",
         "json",
-        "screw-sorting project: data/calibration/calibration.json, made by its calibration tool "
-        "(screwsynth-calibrate) from the ChArUco photos taken on this Pi (screwrig).",
+        "Made here: Calibrate tab, Camera calibration (it lands in this slot by itself). Or the "
+        "screw-sorting project's data/calibration/calibration.json.",
         "Turns pixels into millimetres on the plate, without the lens' distortion: where the "
         "parts are, and their lengths.",
         "The nominal camera (straight down from the set height): positions and lengths less exact.",
@@ -88,7 +88,7 @@ SLOTS: tuple[Slot, ...] = (
         "Head camera calibration",
         "head_calibration.json",
         "json",
-        "The same tool as the camera calibration, with the photos taken by the head camera.",
+        "Made here: Calibrate tab, Camera calibration, with camera.source: head.",
         "The same, for a camera on the tool head (camera.source: head).",
         "The nominal camera. Only needed with a head camera.",
         _calibration,

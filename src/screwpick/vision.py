@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import re
 import subprocess
+import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -254,6 +255,41 @@ class CameraVision:
         from screwsynth.measure.infer import load_scene
 
         return load_scene(photo, self.calibration, self.nominal)
+
+    def grab(self) -> tuple[np.ndarray, dict[str, Any]]:
+        """One full-resolution frame (BGR) and its metadata, for calibration and real photos:
+        lossless, with the locked settings when there are some."""
+        import cv2
+
+        if self.cam is not None:
+            return self.cam.grab()
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "frame.png"
+            cmd = ["rpicam-still", "-n", "-t", "500", "--width", "4608", "--height", "2592"]
+            subprocess.run([*cmd, "-e", "png", "-o", str(p)], check=True, capture_output=True)
+            img = cv2.imread(str(p), cv2.IMREAD_COLOR)
+        if img is None:
+            raise OSError("rpicam-still gave no picture")
+        return img, {}
+
+    def lock_camera(self, out: Path, distance_mm: float) -> dict[str, Any]:
+        """screwrig's lock (exposure, gain, white balance, focus sweep) written to `out`; the
+        camera is then reopened with exactly those settings."""
+        import argparse
+
+        from screwrig import lock
+        from screwrig.camera import Camera as RigCamera
+        from screwsynth.common.io import read_json
+
+        if self.cam is not None:  # one program at a time may hold the camera
+            self.cam.close()
+            self.cam = None
+        lock.run(
+            argparse.Namespace(out=str(out), settle=3.0, distance_mm=distance_mm, exposure_us=None)
+        )
+        settings = read_json(out)
+        self.cam = RigCamera(settings)
+        return settings
 
     def _snap(self, path: Path) -> None:
         import cv2

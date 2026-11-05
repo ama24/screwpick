@@ -18,6 +18,7 @@ import yaml
 
 from .fill import Fill
 from .headcam import HeadCamera
+from .photos import Calibration
 
 PICKER_MODES = ("vacuum", "gripper", "tweezers", "both")
 PRINTER_DRIVERS = ("moonraker", "sim")
@@ -46,6 +47,8 @@ class Paths:
     machine: str = "../data/machine.json"  # limits/positions set in the Setup tab (over this file)
     files: str = "../data/files"  # files dropped in the Files tab (calibration, items.json, ...)
     todo: str = "../data/todo.json"  # the Setup tab's "On the machine" ticks
+    captures: str = "../data/captures"  # calibration photos, locked camera settings
+    sessions: str = "../data/real"  # real-photo sessions (Photos tab), screwsynth's format
 
 
 @dataclass
@@ -185,6 +188,7 @@ class Machine:
     models: Models = field(default_factory=Models)
     standby: Standby = field(default_factory=Standby)
     web: Web = field(default_factory=Web)
+    calibration: Calibration = field(default_factory=Calibration)  # Calibrate tab: the board
     base_dir: Path = field(default_factory=Path.cwd)  # folder of the config file
 
     def path(self, value: str | None) -> Path | None:

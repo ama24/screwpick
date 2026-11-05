@@ -6,6 +6,11 @@ screw sorter. The camera and model code come from
 and `screwrig`), installed in the same environment. screwpick imports their code; they never
 import screwpick.
 
+**screwpick is the only program that moves the printer.** The camera calibration and real-photo
+sessions are pages of screwpick (`photos.py`: Calibrate and Photos tabs); screwrig is used only
+for the camera (lock, grab, save) and screwsynth for the calibration maths and session format.
+Never add another program or path that sends G-code.
+
 **screwpick runs on its own.** It never reads the other repositories' folders for data: files
 from them (camera calibrations, screwsynth config.yaml, classes.yaml, items.json) are dropped in
 the web page's Files tab (`files.py`, kept in `paths.files`; order: dropped > machine.yaml path >
