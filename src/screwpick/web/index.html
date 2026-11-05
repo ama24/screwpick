@@ -100,7 +100,7 @@ ul.plain{margin:8px 0 0;padding-left:18px}
  <nav><button data-t="setup">Setup<span id="setupbadge" class="badge" hidden></span></button><button data-t="run" class="on">Run</button><button data-t="layout">Layout</button><button data-t="calib">Calibrate</button><button data-t="print">Print bins</button><button data-t="models">Models</button><button data-t="users">Users</button></nav>
  <div class="right"><span id="status"><span class="dot"></span>…</span><span id="me"></span><button class="estop" onclick="cmd('estop')">STOP</button></div>
 </div></header>
-<div id="swap"><div class="notice"><span class="check">!</span><div><b>Bin change</b><span class="note"> · empty these bins, or put an empty bin in their place. The machine waits parked (bed out) once nothing else can be sorted. Then press OK: the camera checks what stands there now.</span><ul id="swaplist"></ul><button class="ok" onclick="cmd('ok')">OK, done</button></div></div></div>
+<div id="swap"><div class="notice"><span class="check">!</span><div><b>Bin change</b><span class="note" id="swapnote"></span><ul id="swaplist"></ul><button class="ok" id="swapok" onclick="cmd('ok')">OK</button></div></div></div>
 <div id="ready"><div class="notice"><span class="check">✓</span><div><b>Ready to take out</b><span class="note"> · nothing on the plate goes into these bins any more. Empty them, then press Emptied.</span><ul id="readylist"></ul></div></div></div>
 
 <div id="login"><form onsubmit="doLogin(event)">
@@ -268,8 +268,10 @@ async function emptied(m){try{const j=await api("api/bins/emptied",{marker:m});O
 function readyMap(){const r={};for(const x of S.ready||[])r[x.marker]=x;return r;}
 function swapMap(){const r={};for(const x of S.requests||[])r[x.marker]=x;return r;}
 function renderBins(){
- const reqs=S.requests||[];
- $("swap").classList.toggle("on",reqs.length>0);
+ const reqs=S.requests||[],parked=S.swap_phase==="parked";
+ $("swap").classList.toggle("on",reqs.length>0||parked);
+ $("swapnote").textContent=parked?" · the machine is parked (bed out). Empty these bins or put an empty bin in their place, then press OK: the camera checks what stands there now and sorting goes on.":" · the machine keeps sorting everything else. Press OK when you want to change the bins: it parks first (bed out).";
+ $("swapok").textContent=parked?"OK, bins changed":"OK, park for the change";
  $("swaplist").innerHTML=reqs.map(x=>`<li><b>${esc(x.cell)}</b><span>${esc(x.what)}</span><span class="mut">${x.count} · ${x.why==="full"?"full":"for "+esc(x.for_kind||"")}</span></li>`).join("");
  const ready=S.ready||[];
  $("ready").classList.toggle("on",ready.length>0);

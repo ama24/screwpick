@@ -258,18 +258,22 @@ The machine asks for a bin change when
 
 The request shows at the top of the web page ("Bin change: E1 DIN934_M4 30 · full"), the bin
 is outlined in amber in the Layout tab, the console and the printer's display say it. The
-machine keeps sorting everything else; when only the waiting parts are left it parks (bed out,
-safe for your hands) and waits.
+machine never stops for it: it keeps sorting everything else (when only the waiting parts are
+left, it waits).
 
-Empty the bin, or put another (empty) bin in its place, then press **OK, done** in the page or
-**OK, bin changed** in the printer menu. The next photo checks what stands there now:
+The OK takes two presses, in the page or with **OK (bin change)** in the printer menu:
+1. **OK, park for the change:** the machine finishes its move and parks (bed out, safe for
+   your hands);
+2. empty the bin, or put another (empty) bin in its place, then **OK, bins changed**. The next
+   photo checks what stands there now, and sorting goes on:
 - **the same code:** the bin was emptied; its count starts again, a wild bin is free again;
 - **another code:** a different bin stands there; it becomes a wild bin (or takes up its old
   rules, if it was used before). The old bin is kept aside with what it holds: put it back
   later and its count and contents come back with it;
 - **no code:** the cell is empty; the old bin is kept aside the same way.
 
-OK also works when the machine is not sorting: it takes a photo and does the same check.
+OK also works when the machine is not sorting: the first press only confirms, the second
+takes a photo and does the same check.
 
 ## A camera on the tool head (optional)
 
@@ -474,7 +478,7 @@ These rules apply to every strategy:
 ## Printer menu
 
 `screwpick.cfg` adds **Screw sorter** to the printer's display menu: *Sort*, *Clear plate*,
-*Pick kit*, *One pick*, *OK, bin changed*, *Pause*, *Resume*, *Stop*, *Picker mounted*,
+*Pick kit*, *One pick*, *OK (bin change)*, *Pause*, *Resume*, *Stop*, *Picker mounted*,
 *Hotend mounted*. You can also
 type the commands in any Klipper console: `SCREWPICK CMD=start STRATEGY=sort`.
 

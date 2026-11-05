@@ -94,11 +94,14 @@ def test_a_new_kind_asks_for_a_bin_and_the_ok_checks_it(machine, swap):
     assert req.marker == 103 and req.what == "DIN934_M4" and req.count == 3  # done, fullest
     assert "ISO7380_M4x8 needs a bin: empty bin D1" in runner.state.message
     assert len(world.parts) == 1  # everything else is sorted
+    assert runner.command("ok").startswith("OK: parking")  # first OK: park
+    _wait_for(runner, "parked")
+    assert runner.snapshot()["swap_phase"] == "parked"
     if swap:
         seen = Layout.from_dict(lay.to_dict())
         seen.bins = [b for b in seen.bins if b.marker != 103] + [Bin(marker=135, x=3, y=0)]
         cam["layout"] = seen
-    assert runner.command("ok").startswith("OK")
+    assert runner.command("ok").startswith("OK: checking")  # second OK: bins changed
     _wait_for(runner, "done")
     saved = runner.layout()
     target = 135 if swap else 103
@@ -122,5 +125,33 @@ def test_ok_while_idle_checks_the_bins(machine):
     runner.printer.gcode("G28")  # the OK checks with a photo: the printer is homed
     runner.requests.append(BinRequest(104, "E1", "full", "B", 30))
     runner.bin_counts[104] = 30
+    assert runner.command("ok") == "OK: change the bins, then OK again"
     assert runner.command("ok") == "OK: bin E1 emptied: it starts again"
     assert runner.requests == [] and 104 not in runner.bin_counts
+
+
+def test_a_full_bin_does_not_stop_the_rest_and_ok_parks_mid_run(machine):
+    machine.run.shake.enabled = False
+    lay = _lay()
+    path = machine.path(machine.paths.layout)
+    lay.save(path)
+    world = _world(lay)
+    n = len(world.parts)
+    runner = Runner(
+        machine, SimPrinter(machine, world), SimVision(world, lambda: lay, Transform2D.identity)
+    )
+    runner.claims[103] = "DIN934_M4"  # its bin is already full
+    runner.bin_counts[103], runner.bin_volume[103] = 60, 1e6
+    runner.vision.delay_s = 0.05  # time to press OK while it sorts
+    runner.command("start", "sort")
+    end = time.time() + 10
+    while runner.state.picks < 1 and time.time() < end:
+        time.sleep(0.01)
+    assert runner.command("ok").startswith("OK: parking")
+    _wait_for(runner, "parked")
+    assert world.parts and world.held is None  # parked between moves, parts still on the plate
+    assert runner.command("ok").startswith("OK: checking")
+    _wait_for(runner, "done")
+    assert len(world.dropped) == n  # all sorted: the nuts went on in another wild bin
+    assert runner.requests == []  # the same code came back: bin D1 counts as emptied
+    assert any("bin D1 emptied" in e for e in runner.events)

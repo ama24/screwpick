@@ -6,8 +6,9 @@ For a new kind the bin to give up is chosen by a score (the highest goes):
   +fill  how full it is (0..1): emptying a full bin is worth the trip
   -share the share of the parts on the plate that still go to it (likely needed again soon)
 
-After the user presses OK (web page or printer menu), a photo of the bins tells what happened
-at the asked-for bin's place:
+The machine never stops for it: it sorts everything else meanwhile. The user presses OK twice
+(web page or printer menu): the first parks the machine (bed out), the second says the bins are
+changed. A photo of the bins then tells what happened at the asked-for bin's place:
   the same code       -> the bin was emptied: its count starts again, a wild bin is free
   another code        -> a different bin stands there now; the old one is kept aside with its
                           contents (it may come back later, still full)
@@ -44,7 +45,7 @@ class BinRequest:
 
     def short(self) -> str:
         """For the printer's display (about 20 characters)."""
-        return f"Empty bin {self.cell}, OK"
+        return f"Bin {self.cell}: OK=park"
 
     def to_dict(self) -> dict[str, Any]:
         return {**asdict(self), "text": self.text()}

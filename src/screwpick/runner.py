@@ -84,7 +84,11 @@ class Runner:
         self.claims, self.bin_counts, self.bin_volume = self._load_claims()
         self.ready: dict[int, dict[str, Any]] = {}  # bins that can be taken out
         self.requests: list[BinRequest] = []  # bin changes asked for, until the OK
-        self._ok = threading.Event()  # the OK after a bin change (web page or printer menu)
+        # a bin change takes two OKs (web page or printer menu): the first parks the machine
+        # (bed out, hands safe), the second says the bins are changed: a photo checks them
+        self._park = threading.Event()  # first OK, while sorting: park after this move
+        self._ok = threading.Event()  # second OK: the bins are changed
+        self.swap_phase = ""  # "" sorting | parked (waiting for the second OK)
         self._no_swap_said = ""
         self._load_tool()
         self._load_machine()
@@ -183,6 +187,7 @@ class Runner:
             "driver": self.m.printer.driver,
             **self.bins_state(),
             "requests": [r.to_dict() for r in self.requests],
+            "swap_phase": self.swap_phase,
             "auto": self.saved_mode()[0],
             "tip_offset_z": self.m.tool.offset[2],
             "timing": self.state.timing,
@@ -253,10 +258,18 @@ class Runner:
             )
             self._thread.start()
             return f"automatic: {strat}"
-        if cmd == "ok":  # a bin was changed: look what stands there now
+        if cmd == "ok":  # first OK: park; second OK: the bins are changed, check them
+            if self.swap_phase != "parked":
+                self.swap_phase = "parked"
+                if running:
+                    self._park.set()
+                    return "OK: parking after this move; change the bins, then OK again"
+                self.note("parked for a bin change")
+                return "OK: change the bins, then OK again"
             if running:
                 self._ok.set()
-                return "OK: the bins are checked on the next photo"
+                return "OK: checking the bins, then sorting on"
+            self.swap_phase = ""
             res = self.bins_ok()
             return "OK: " + ("; ".join(res["resolved"]) or "nothing was asked for")
         if cmd == "pause":
@@ -456,6 +469,9 @@ class Runner:
         if problems:
             raise PrinterError("layout: " + "; ".join(problems))
         planner = Planner(layout, self.m, strategy)
+        self._park.clear()  # an OK left from before this run
+        self._ok.clear()
+        self.swap_phase = ""
         wild = {b.marker for b in layout.bins if b.role == "wild"}
         with self._claims_lock:
             for mk in [k for k in self.claims if k not in wild and layout.bin_by_marker(k)]:
@@ -479,6 +495,11 @@ class Runner:
                 self._set(status="running")
                 planner.shakes_in_row = 0
                 prev = None  # someone may have moved parts
+            if self._park.is_set():  # first OK: park and wait for the second
+                self._park.clear()
+                if self._parked_for_bins():
+                    break
+                prev = None
             area = "bins" if self._ok.is_set() else "work"  # after a bin change: the bins too
             shot, first = (
                 (first, None) if first is not None else (self.take_shot(layout, T, area=area), None)
@@ -527,17 +548,13 @@ class Runner:
                 self.note(plan.note)
                 self.say(plan.note)
             self._ask_bins(planner, layout, shot.parts)
-            if plan.kind == "wait_bin":
+            if plan.kind == "wait_bin":  # everything else is sorted: only a bin change helps
                 asked = "; ".join(r.text() for r in self.requests) or plan.reason
                 self.note(f"waiting for a bin change: {plan.reason}")
                 self.say("waiting: " + asked)
-                with self._lock:
-                    self.motion.photo_position()  # parked, the bed out: hands are safe
-                    self.motion.message(
-                        self.requests[0].short() if self.requests else "screwpick: bin, OK"
-                    )
-                self._set(status="waiting", message=asked + "; then press OK")
-                while not self._ok.is_set() and not self._stop.is_set():
+                self.motion.message("Bin change: OK=park")
+                self._set(status="waiting", message=asked + "; press OK to park")
+                while not (self._park.is_set() or self._ok.is_set()) and not self._stop.is_set():
                     time.sleep(0.2)
                 self._set(status="running")
                 prev = None
@@ -1162,6 +1179,25 @@ class Runner:
                 self.say(f"bin {mk} complete ({ready[mk]['what']}): take it out")
                 self.motion.message(f"bin {mk} ready")
             self.ready = ready
+
+    def _parked_for_bins(self) -> bool:
+        """After the first OK: park (bed out, hands safe) until the second OK; True = stopped."""
+        with self._lock:
+            self.motion.photo_position()
+            self.printer.gcode("M400")
+            self.motion.message("Change bins, OK")
+        asked = "; ".join(r.text() for r in self.requests)
+        self.note("parked for a bin change")
+        self.say("parked: change the bins, then OK")
+        self._set(
+            status="parked",
+            message=(asked + "; " if asked else "") + "change the bins, then press OK again",
+        )
+        while not self._ok.is_set() and not self._stop.is_set():
+            time.sleep(0.2)
+        self.swap_phase = ""
+        self._set(status="running")
+        return self._stop.is_set()
 
     def _ask_bins(self, planner: Planner, layout: Layout, parts: list[Any]) -> None:
         """Ask for bin changes: every full bin, and a bin for each new kind without one."""
