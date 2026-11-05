@@ -137,6 +137,7 @@ class Run:
     fill: Fill = field(default_factory=Fill)  # how full the bins are (estimated, see fill.py)
     # a new kind and no free wild bin: ask (a bin change, chosen by binswap.py) | overflow
     when_no_bin: str = "ask"
+    check_emptied: bool = True  # after a bin change: parts still seen in a bin are counted
 
 
 @dataclass

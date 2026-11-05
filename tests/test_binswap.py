@@ -155,3 +155,42 @@ def test_a_full_bin_does_not_stop_the_rest_and_ok_parks_mid_run(machine):
     assert len(world.dropped) == n  # all sorted: the nuts went on in another wild bin
     assert runner.requests == []  # the same code came back: bin D1 counts as emptied
     assert any("bin D1 emptied" in e for e in runner.events)
+
+
+def test_full_button_learns_the_packing_and_asks_to_empty(machine):
+    lay = _lay()
+    lay.save(machine.path(machine.paths.layout))
+    world = SimWorld(seed=1)
+    runner = Runner(
+        machine, SimPrinter(machine, world), SimVision(world, lambda: lay, Transform2D.identity)
+    )
+    runner.bin_counts[104], runner.bin_volume[104], runner.bin_family[104] = 20, 4000.0, "DIN934"
+    before = runner.bin_fill(lay)[104]
+    assert not before["full"] and before["packing"] == machine.run.fill.packing
+    state = runner.bin_full(104)
+    after = runner.bin_fill(lay)[104]
+    assert after["full"] and after["share"] == pytest.approx(1.0) and after["packing"] < 0.3
+    assert [r["marker"] for r in runner.snapshot()["requests"]] == [104]
+    assert state["fill"]["104"]["full"]
+    again = Runner(machine, SimPrinter(machine, world), runner.vision)  # kept across restarts
+    assert again.packing.samples == runner.packing.samples
+
+
+def test_ok_counts_parts_still_in_an_emptied_bin(machine):
+    lay = _lay()
+    lay.save(machine.path(machine.paths.layout))
+    world = SimWorld(seed=1)
+    runner = Runner(
+        machine, SimPrinter(machine, world), SimVision(world, lambda: lay, Transform2D.identity)
+    )
+    runner.printer.gcode("G28")
+    cx, cy = lay.bin_centre(lay.bin_by_marker(104))
+    world.parts = [
+        SimPart("DIN934_M4", cx - 8, cy - 8, 0.0, None, (7.0, 7.0), 3.2),
+        SimPart("DIN934_M4", cx + 6, cy - 10, 0.0, None, (7.0, 7.0), 3.2),
+    ]  # two nuts left in the bin
+    runner.requests.append(BinRequest(104, "E1", "full", "DIN934_M4", 30))
+    runner.bin_counts[104], runner.bin_volume[104] = 30, 3000.0
+    runner.command("ok")
+    assert runner.command("ok") == "OK: bin E1 still has 2 part(s) in it: counted 2"
+    assert runner.bin_counts[104] == 2 and runner.bin_volume[104] == pytest.approx(200.0)

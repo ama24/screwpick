@@ -20,10 +20,11 @@ from typing import Any
 
 import numpy as np
 
+from . import binspec
 from .analysis import ModelChoice
 from .binswap import BinRequest, after_ok, choose_swap
 from .config import Machine
-from .fill import BinFill, bin_room_mm3, item_volume_mm3
+from .fill import BinFill, CatalogueVolumes, Packing, bin_room_mm3, part_volume_mm3
 from .grip import jaw_angle
 from .headcam import merge_markers, merge_parts, shift_part, tiles
 from .io import read_json, write_json
@@ -31,7 +32,7 @@ from .layout import Layout, yaw_from_up
 from .models import ModelError, ModelStore
 from .parts import compute_gaps, to_bed
 from .printer import Motion, Printer, PrinterError
-from .rules import wild_key
+from .rules import family, wild_key
 from .setup import KEYS as SETUP_KEYS
 from .setup import Setup
 from .strategies import STRATEGIES, Plan, Planner
@@ -82,6 +83,7 @@ class Runner:
         self._claims_lock = threading.RLock()
         # wild bin marker -> what it collects; bin marker -> parts in it since it was emptied
         self.claims, self.bin_counts, self.bin_volume = self._load_claims()
+        self.volumes = self._load_volumes()
         self.ready: dict[int, dict[str, Any]] = {}  # bins that can be taken out
         self.requests: list[BinRequest] = []  # bin changes asked for, until the OK
         # a bin change takes two OKs (web page or printer menu): the first parks the machine
@@ -528,8 +530,9 @@ class Runner:
                     mk = prev.bin.marker
                     self.bin_counts[mk] = self.bin_counts.get(mk, 0) + 1
                     if prev.part is not None:
-                        vol = item_volume_mm3(prev.part, self.m.run.fill)
+                        vol = part_volume_mm3(prev.part, self.m.run.fill, self.volumes)
                         self.bin_volume[mk] = self.bin_volume.get(mk, 0.0) + vol
+                        self.bin_family[mk] = family(prev.part.cls)
                     self._save_claims()
             self._set(
                 counts=dict(planner.sorted_count),
@@ -1140,11 +1143,34 @@ class Runner:
         assert p is not None
         return p
 
+    def _load_volumes(self) -> CatalogueVolumes | None:
+        """Exact volumes of the catalogued items (screwsynth's data/assets); None without."""
+        if not self.m.run.fill.catalogue:
+            return None
+        try:
+            from screwsynth.common.config import load_config
+            from screwsynth.common.paths import resolve
+
+            cfg = load_config(self.m.path(self.m.paths.screwsynth_config))
+            cat = CatalogueVolumes.load(resolve(cfg.get("paths.assets_dir", "data/assets")))
+        except Exception as exc:  # noqa: BLE001 - the outline estimate still works
+            log.warning("no catalogue volumes (%s): estimating from the outlines", exc)
+            return None
+        log.info("catalogue volumes: %d items", len(cat))
+        return cat or None
+
     def _load_claims(self) -> tuple[dict[int, str], dict[int, int], dict[int, float]]:
-        """(what each wild bin collects, how many items each bin received, their volume)."""
+        """(what each wild bin collects, how many items each bin received, their volume);
+        also the learnt packing and each bin's family."""
+        self.packing = Packing()
+        self.bin_family: dict[int, str] = {}
         if not self.claims_path.is_file():
             return {}, {}, {}
         d = read_json(self.claims_path) or {}
+        self.packing = Packing(
+            {str(k): [float(x) for x in v] for k, v in d.get("packing", {}).items()}
+        )
+        self.bin_family = {int(k): str(v) for k, v in d.get("families", {}).items()}
         claims = d.get("claims", {}) if "claims" in d else d  # older files: claims only
         return (
             {int(k): str(v) for k, v in claims.items()},
@@ -1159,6 +1185,8 @@ class Runner:
                 "claims": {str(k): v for k, v in sorted(self.claims.items())},
                 "counts": {str(k): v for k, v in sorted(self.bin_counts.items())},
                 "volumes": {str(k): round(v, 1) for k, v in sorted(self.bin_volume.items())},
+                "families": {str(k): v for k, v in sorted(self.bin_family.items())},
+                "packing": self.packing.samples,
             },
         )
 
@@ -1247,7 +1275,16 @@ class Runner:
         for r in list(self.requests):
             self.requests = [q for q in self.requests if q is not r]
             outcome = after_ok(layout, r, seen)
-            if outcome == "emptied":
+            left = self._parts_in_bin(layout, r.marker, shot)
+            if outcome == "emptied" and left:  # the camera still sees parts in it
+                with self._claims_lock:
+                    n = self.bin_counts.get(r.marker, 0)
+                    each = self.bin_volume.get(r.marker, 0.0) / n if n else 0.0
+                    self.bin_counts[r.marker] = left
+                    self.bin_volume[r.marker] = each * left
+                    self._save_claims()
+                text = f"bin {r.cell} still has {left} part(s) in it: counted {left}"
+            elif outcome == "emptied":
                 self.bin_emptied(r.marker)
                 text = f"bin {r.cell} emptied: it starts again"
             elif outcome == "replaced":
@@ -1264,6 +1301,25 @@ class Runner:
             self.note(f"new bins seen, used as wild bins: {', '.join(map(str, added))}")
         layout.save(self.layout_path)
         return out
+
+    def _parts_in_bin(self, layout: Layout, marker: int, shot: Shot) -> int:
+        """Parts the camera sees inside a bin (its floor, without the code's shelf or post):
+        a bin said to be emptied may not be. The model can miss some through the walls."""
+        b = layout.bin_by_marker(marker)
+        if b is None or not self.m.run.check_emptied:
+            return 0
+        x0, y0, x1, y1 = layout.cells_rect(b.x, b.y, b.w, b.d)
+        inset = binspec.GAP_MM / 2 + binspec.WALL_MM + 1.0
+        x0, y0, x1, y1 = x0 + inset, y0 + inset, x1 - inset, y1 - inset
+        mx, my = layout.marker_centre(b)
+        h = binspec.SHELF_DEPTH_MM / 2 + 1.0
+        return sum(
+            1
+            for p in shot.parts
+            if x0 <= p.bed_xy[0] <= x1
+            and y0 <= p.bed_xy[1] <= y1
+            and not (abs(p.bed_xy[0] - mx) <= h and abs(p.bed_xy[1] - my) <= h)
+        )
 
     def bins_ok(self) -> dict[str, Any]:
         """The OK while not sorting: photo of the bins, then as after a bin change."""
@@ -1284,6 +1340,7 @@ class Runner:
                 self.claims.pop(mk, None)
                 self.bin_counts.pop(mk, None)
                 self.bin_volume.pop(mk, None)
+                self.bin_family.pop(mk, None)
                 self.ready.pop(mk, None)
             self._save_claims()
             if markers:
@@ -1298,14 +1355,48 @@ class Runner:
         for b in layout.bins:
             room = bin_room_mm3(*b.own_size(), b.height_u, b.marker)
             bf = BinFill(self.bin_counts.get(b.marker, 0), self.bin_volume.get(b.marker, 0.0))
+            pack = self._packing(b.marker)
             out[b.marker] = {
                 "cell": layout.bin_name(b),
                 "count": bf.count,
-                "share": round(bf.share(room, f), 3),
-                "more": bf.more(room, f) if bf.count else None,
-                "full": bf.share(room, f) >= f.full_at,
+                "share": round(bf.share(room, pack), 3),
+                "more": bf.more(room, pack, f.default_mm3) if bf.count else None,
+                "full": bf.share(room, pack) >= f.full_at,
+                "packing": round(pack, 3),
             }
         return out
+
+    def _packing(self, marker: int) -> float:
+        f = self.m.run.fill
+        return (
+            self.packing.for_family(self.bin_family.get(marker), f.packing)
+            if f.learn
+            else f.packing
+        )
+
+    def bin_full(self, marker: int) -> dict[str, Any]:
+        """The user says this bin is full now: learn how densely its kind packs (its items'
+        volume / its room), and ask for it to be emptied."""
+        layout = self.layout()
+        b = layout.bin_by_marker(int(marker))
+        if b is None:
+            raise ValueError(f"bin {marker} is not on the bed")
+        with self._claims_lock:
+            vol = self.bin_volume.get(b.marker, 0.0)
+            if self.m.run.fill.learn and vol > 0:
+                room = bin_room_mm3(*b.own_size(), b.height_u, b.marker)
+                fam = self.bin_family.get(b.marker, "")
+                self.packing.add(fam, vol / room)
+                self.note(
+                    f"bin {layout.bin_name(b)} is full: {fam or 'its items'} pack to "
+                    f"{round(100 * vol / room)} % of the room (learnt)"
+                )
+            self._save_claims()
+        if not any(r.marker == b.marker for r in self.requests):
+            fill = self.bin_fill(layout)[b.marker]
+            what = self.claims.get(b.marker) or b.label or ", ".join(b.holds) or b.role
+            self.requests.append(BinRequest(b.marker, fill["cell"], "full", what, fill["count"]))
+        return self.bins_state()
 
     def bins_state(self) -> dict[str, Any]:
         try:

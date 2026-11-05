@@ -264,6 +264,7 @@ async function changePw(){try{await api("api/users/password",{old:$("oldpw").val
 
 // ---------------------------------------------------------------- run
 async function cmd(c){try{const j=await api("api/command",{command:c,strategy:$("strategy").value});flash("msg",j.result);}catch(e){flash("msg",e.message,1);}poll();}
+async function binFull(m){try{const j=await api("api/bins/full",{marker:m});Object.assign(S,j);poll();if(lay)render();if(sel!==null&&lay)panel();flash("laymsg","noted: it will be asked to be emptied; the next estimates learn from it");}catch(e){flash("laymsg",e.message,1);}}
 async function emptied(m){try{const j=await api("api/bins/emptied",{marker:m});Object.assign(S,j);renderBins();if(lay)render();if(sel!==null&&lay)panel();}catch(e){flash("msg",e.message,1);}}
 function readyMap(){const r={};for(const x of S.ready||[])r[x.marker]=x;return r;}
 function swapMap(){const r={};for(const x of S.requests||[])r[x.marker]=x;return r;}
@@ -355,7 +356,7 @@ function panel(){const b=lay.bins.find(b=>b.marker===sel),p=$("binpanel");
  ${r?`<div class="notice" style="margin-bottom:14px;padding:10px 12px"><span class="check">✓</span><div><b>Ready to take out</b><br><span class="note">${esc(r.what)} · ${r.count} part${r.count===1?"":"s"}</span></div></div>`:""}
  ${b.role==="wild"?`<p>${claim?`Collects <b>${esc(claim)}</b>`:'<span class="mut">Free: the next new kind goes here.</span>'}</p>`:""}
  ${n?`<p class="note">${n} part${n===1?"":"s"} in it since it was last emptied${f&&b.role!=="work"?`: about ${Math.round(Math.min(1,f.share)*100)} % full${f.full?" (full)":`, room for about ${f.more} more like them`}`:""}. Estimated from the size of each part the camera saw.</p>`:""}
- ${n||claim?`<p><button class="b s" onclick="emptied(${b.marker})">Emptied</button></p>`:""}
+ ${n||claim?`<p class="row"><button class="b s" onclick="emptied(${b.marker})">Emptied</button>${n&&b.role!=="work"?`<button class="b s" onclick="binFull(${b.marker})" title="it is really full now: the estimates learn how densely these parts pack">Full</button>`:""}</p>`:""}
  <div style="display:grid;gap:10px;margin-top:6px">
  <label>role<select id="br">${roles.map(x=>`<option${x===b.role?" selected":""}>${x}</option>`).join("")}</select></label>
  <label>rules<input id="bh" style="flex:1" value="${esc(b.holds.join(", "))}" placeholder="none: wild"></label>

@@ -236,16 +236,26 @@ front (A1 is front-left), so the machine can say "bin E1". Every bin in the Layo
 how many parts went in since it was last emptied (the small number at its top right), and a
 bar for how full it is, turning amber when it is full (`run.fill.full_at`, 90 %).
 
-How full is an estimate, the same for screws or anything else the model learns:
-- **each part's volume** from what the camera measured: the area of its outline on the plate
-  times its height, times `run.fill.shape` (0.5: a lying screw fills about half of that box);
+How full is an estimate:
+- **each part's volume**, the best known:
+  - a catalogued part (everything screwsynth generates) has its **exact volume** from its 3D
+    model: by part number, else by class at the measured length, else the class average;
+  - anything else (unknown parts, new kinds of items) from what the camera measured: the area
+    of its outline on the plate times its height, times `run.fill.shape` (0.5: a lying screw
+    fills about half of that box). Nothing in it is specific to screws;
 - **each bin's room** from its Gridfinity size: the inside from the floor to the rim, without
   the code's shelf or post. A 1x2 holds about twice a 1x1, a 6-unit bin about three times a
   3-unit one (the foot and floor are the same);
-- loose parts never fill a bin solid: `run.fill.packing` (0.3) is the share they occupy.
+- **how densely loose parts pack:** `run.fill.packing` (0.3) to start with. Press **Full** in a
+  bin's panel when a bin really is full: the machine learns how densely that family packs
+  (its parts' volume / the bin's room; washers differ from long screws) and asks for the bin
+  to be emptied. Each family uses its own learnt value; one never seen uses all of them.
 
-The bin's panel says "about 60 % full, room for about 8 more like them". Tune `packing` once
-you have filled a bin by hand: if it overflowed at 70 %, lower it.
+The bin's panel says "about 60 % full, room for about 8 more like them".
+
+After a bin change, the photo also looks **into** a bin that was said to be emptied: parts it
+still sees there are counted (`run.check_emptied`), so a half-emptied bin is not taken for an
+empty one. The camera may miss parts hidden by the walls.
 
 ## Bin changes: full bins and new kinds
 

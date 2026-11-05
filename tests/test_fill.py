@@ -2,10 +2,22 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import numpy as np
 import pytest
 
-from screwpick.fill import BinFill, Fill, bin_room_mm3, item_volume_mm3, polygon_area
+from screwpick.fill import (
+    BinFill,
+    CatalogueVolumes,
+    Fill,
+    Packing,
+    bin_room_mm3,
+    item_volume_mm3,
+    part_volume_mm3,
+    polygon_area,
+)
 from screwpick.layout import Layout
 from screwpick.parts import Part
 from screwpick.printer.sim import SimPrinter, SimVision, SimWorld
@@ -35,11 +47,57 @@ def test_bin_room_scales_with_the_gridfinity_size():
 
 
 def test_bin_fill_share_and_more():
-    f = Fill(packing=0.5)
     room = 10_000.0
     bf = BinFill(count=10, volume_mm3=2_000.0)
-    assert bf.share(room, f) == pytest.approx(0.4)
-    assert bf.more(room, f) == 15  # 3000 mm3 left, 200 each
+    assert bf.share(room, 0.5) == pytest.approx(0.4)
+    assert bf.more(room, 0.5) == 15  # 3000 mm3 left, 200 each
+
+
+def _asset(root, pid, cls, length, vol):
+    d = root / pid
+    d.mkdir()
+    (d / "part.json").write_text(
+        json.dumps({"id": pid, "class_name": cls, "length": length, "mesh": {"volume_mm3": vol}})
+    )
+
+
+def test_catalogue_volumes(tmp_path):
+    _asset(tmp_path, "DIN912_M4x10", "DIN912_M4", 10.0, 200.0)
+    _asset(tmp_path, "DIN912_M4x20", "DIN912_M4", 20.0, 300.0)
+    _asset(tmp_path, "DIN934_M4", "DIN934_M4", None, 99.0)
+    _asset(tmp_path, "UNKNOWN_WOODSCREW_01", "UNKNOWN", None, 500.0)
+    cat = CatalogueVolumes.load(tmp_path)
+    assert len(cat) == 3  # unknown items are all different: not averaged
+    assert cat.volume("DIN912_M4", 10) == 200.0  # the part number
+    assert cat.volume("DIN912_M4", 16) == pytest.approx(260.0)  # between two lengths
+    assert cat.volume("DIN912_M4", 40) == pytest.approx(600.0)  # beyond: scaled
+    assert cat.volume("DIN912_M4", None) == 250.0  # length not measured: the class average
+    assert cat.volume("DIN934_M4", None) == 99.0 and cat.volume("NOPE", 3) is None
+    f = Fill()
+    known = _part(4.0, 20.0, 7.0)
+    known.cls, known.length_mm = "DIN912_M4", 20.0
+    assert part_volume_mm3(known, f, cat) == 300.0
+    known.cls = "SOMETHING_NEW"  # not catalogued: from its outline
+    assert part_volume_mm3(known, f, cat) == item_volume_mm3(known, f)
+
+
+def test_real_catalogue_when_present():
+    assets = Path(__file__).resolve().parents[2] / "supreme-screw-sortering" / "data" / "assets"
+    if not assets.is_dir():
+        pytest.skip("screwsynth's data/assets is not next to this repository")
+    cat = CatalogueVolumes.load(assets)
+    assert cat.volume("DIN912_M4", 16) == pytest.approx(295, rel=0.05)
+
+
+def test_packing_is_learnt_per_family():
+    pk = Packing()
+    assert pk.for_family("DIN912", 0.3) == 0.3  # nothing learnt: the setting
+    pk.add("DIN125A", 0.55)
+    assert pk.for_family("DIN125A", 0.3) == 0.55
+    assert pk.for_family("DIN912", 0.3) == 0.55  # no own samples: everything learnt so far
+    pk.add("DIN912", 0.2)
+    pk.add("DIN912", 0.3)
+    assert pk.for_family("DIN912", 0.3) == pytest.approx(0.25)
 
 
 def test_cell_names():

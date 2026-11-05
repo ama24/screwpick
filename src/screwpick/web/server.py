@@ -17,6 +17,7 @@ POST /api/models/activate   {"role": stage1|stage2|classifier, "id": … or null
 POST /api/models/weights    {"id", "path"};  /rename {"id", "name"};  /delete {"id"}
 POST /api/models/test       {"id"}: run it on the last photo, nothing is switched
 POST /api/bins/emptied      {"marker": id or null}: a bin was emptied (null: all ready ones)
+POST /api/bins/full         {"marker": id}: this bin is full (learns the packing, asks to empty it)
 GET  /api/session           who is logged in; POST /api/login, /api/setup (first account),
 POST /api/logout;  GET /api/users, POST /api/users/add, /api/users/remove, /api/users/password
 GET  /api/setup; POST /api/setup/printer|home|goto|machine|picker|confirm|reset   the Setup tab
@@ -260,6 +261,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json(r.models_state())
         elif method == "POST" and path == "/api/models/test":
             self._json(r.test_model(str(self._body()["id"])))
+        elif method == "POST" and path == "/api/bins/full":
+            self._json(r.bin_full(int(self._body()["marker"])))
         elif method == "POST" and path == "/api/bins/emptied":
             m = self._body().get("marker")
             self._json(r.bin_emptied(None if m in (None, "") else int(m)))
