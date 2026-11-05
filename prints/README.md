@@ -88,9 +88,12 @@ board lying in the tray, at the height the parts will lie.
   stock: the sizes are in `src/screwpick/printables/beds.py`.
 - **Holders for the printer's top bar** ([mounts/](mounts/)), both fixed with M5 screws and
   T-nuts in the 2020 top bar of an Ender 3:
-  - [screen_holder.stl](mounts/screen_holder.stl): a thin L for the 7" Waveshare HDMI LCD (H)
-    (M2 holes 175 × 99 mm), leaning back 20° towards you; the Raspberry Pi 4 screws to its
-    back (M2.5, 49 × 58 mm). Put it on one side of the bar.
+  - [screen_holder.stl](mounts/screen_holder.stl): an open frame for the 7" Waveshare HDMI
+    LCD (H) (M2 holes 175 × 99 mm), leaning back 20° towards you. It holds the display by a
+    12 mm band along its edge only, so the Raspberry Pi stays screwed to the display's back
+    where it is (it isn't centred) and sits free inside the frame, with 45 mm of room for it
+    and its cables. A leg at each end stands on the bar, with one M5 in each foot (203 mm
+    apart). Put it on one side of the bar.
   - [camera_arm.stl](mounts/camera_arm.stl): at the bar's centre, reaching 135 mm forward and
     60 mm down, so the Camera Module 3 looks straight down at the bed's centre with the bed
     all the way out (where a print ends).
