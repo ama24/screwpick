@@ -58,9 +58,8 @@ TODOS: tuple[Todo, ...] = (
     Todo(
         "calibration",
         "Camera calibration with the board in the tray",
-        "Lay the ChArUco board in the tray, at the height the parts lie, and run the "
-        "screw-sorting calibration (screwsynth-calibrate) with photos from this Pi; drop the "
-        "calibration.json in the Files tab.",
+        "Calibrate tab, Camera calibration: print the tray board, lock the camera, take the "
+        "lens photos, then the board flat in the tray (it lands in the Files tab by itself).",
         _calibrated,
     ),
     Todo(

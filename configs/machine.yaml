@@ -19,6 +19,8 @@ paths:
   machine: ../data/machine.json  # limits/positions saved in the Setup tab (they override printer: below)
   files: ../data/files         # files dropped in the Files tab (calibration, items.json, ...)
   todo: ../data/todo.json      # the Setup tab's "On the machine" ticks
+  captures: ../data/captures   # calibration photos and the locked camera settings
+  sessions: ../data/real       # real-photo sessions (Photos tab)
 
 camera:
   settings: null               # screwrig lock settings json (locked focus/exposure); null: rpicam-still
@@ -113,3 +115,15 @@ web:
   port: 8080
   require_login: true          # user name + password for the page (false: open to the whole network)
   session_days: 30             # stay logged in this long per browser
+
+calibration:                   # Calibrate tab: the camera calibration on the Pi
+  board:                       # the tray board: 105 x 90 mm, lies flat in a 3x3 tray
+    squares_x: 7
+    squares_y: 6
+    square_mm: 15.0            # as printed; the measured size is entered in the page
+    marker_mm: 11.0
+    dictionary: DICT_5X5_100
+  board_thickness_mm: 0.0      # the board lies on the TPU sheet: its thickness lifts it
+  lens_distance_mm: 300        # roughly camera to plate: where the focus sweep starts
+  area_mm: [220, 220]          # the model's view around the board (as in its training)
+  margin_mm: 5

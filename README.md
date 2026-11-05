@@ -102,9 +102,10 @@ cd ~/screwpick && screwpick check
 Start it with `screwpick serve`, and open `http://<pi>:8080` on the PC or phone. The first
 visit asks you to create an account (see [Login](#login)).
 
-> **Note:** `screwrig` (the camera calibration and real-photo captures) moves the bed through
-> Klipper too (Moonraker), never through the printer's USB port, which Klipper owns. It refuses
-> to move the printer while it is busy (printing, or screwpick sorting): stop sorting first.
+> **screwpick is the only program that moves the printer.** The camera calibration and the
+> real photos are taken from its web page (Calibrate and Photos tabs): screwpick parks the bed,
+> screwrig only works the camera. (`screwrig` on its own also goes through Klipper, never the
+> printer's USB port, for use without screwpick.)
 
 ## First-time setup
 
@@ -307,6 +308,29 @@ The OK takes two presses, in the page or with **OK (bin change)** in the printer
 
 OK also works when the machine is not sorting: the first press only confirms, the second
 takes a photo and does the same check.
+
+## Camera calibration (Calibrate tab)
+
+Everything on the Pi, from the page; the result lands in the Files tab by itself:
+1. **The board:** download the tray board (7 x 6 squares of 15 mm, 105 x 90 mm: it lies flat in a
+   3 x 3 tray, away from the corner post). Print at 100 %, glue it on stiff card, measure one
+   square with a caliper and enter it (and the board's thickness).
+2. **Lock the camera** with the tray empty and the lights as when sorting: exposure, colours and
+   focus are frozen for every photo after this (screwrig's lock, about a minute).
+3. **Lens:** hold the board under the camera in a different place and a little tilted each time,
+   until the whole picture is covered: 25 to 40 photos, then *Solve the lens*.
+4. **Position:** the board flat in the tray, on the TPU sheet. This also sets where the model's
+   view lies (220 x 220 mm around the board).
+
+The plate's millimetres now start at the board, so the old **Camera to printer** fit is put aside
+and that Setup step asks to be redone.
+
+## Real photos (Photos tab)
+
+Photos of real parts, for checking the model on the PC (the screw-sorting project's real data):
+make a session, note on the PC what lies in the tray (inventory.csv), take a photo after each
+change (the bed is parked first, the camera uses the locked settings), then **Download** the
+session and put the folder in the screw-sorting project's `data/real/`.
 
 ## Only the tray goes to the model
 

@@ -17,6 +17,8 @@ POST /api/models/activate   {"role": stage1|stage2|classifier, "id": … or null
 POST /api/models/weights    {"id", "path"};  /rename {"id", "name"};  /delete {"id"}
 POST /api/models/test       {"id"}: run it on the last photo, nothing is switched
 POST /api/bins/emptied      {"marker": id or null}: a bin was emptied (null: all ready ones)
+GET  /api/calibration        camera calibration (Calibrate tab); board.pdf; POST settings|lock|view|lens|flat|reset
+GET  /api/photos             real-photo sessions; POST /api/photos/new|take; GET /api/photos/zip?name=
 GET  /api/todo               the Setup tab's "On the machine" list; POST /api/todo {"key", "done"}
 POST /api/mask/preview      {"margin"}: a photo painted as the model will see it; /api/mask/save {"margin"}
 GET  /api/files              the Files tab: each file, where it lives, which copy is in use
@@ -37,6 +39,7 @@ import http.server
 import io
 import json
 import logging
+import shutil
 import threading
 import urllib.parse
 import uuid
@@ -95,6 +98,17 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
         self.end_headers()
         self.wfile.write(body)
+
+    def _send_file(self, path: Path, ctype: str, filename: str) -> None:
+        """A big file, streamed (real-photo sessions)."""
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(path.stat().st_size))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.end_headers()
+        with path.open("rb") as f:
+            shutil.copyfileobj(f, self.wfile, 1 << 20)
 
     def _json(self, data: Any, code: int = 200, cookie: str | None = None) -> None:
         self._send(code, json.dumps(data).encode(), "application/json", cookie=cookie)
@@ -265,6 +279,38 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json(r.models_state())
         elif method == "POST" and path == "/api/models/test":
             self._json(r.test_model(str(self._body()["id"])))
+        elif method == "GET" and path == "/api/calibration":
+            self._json(r.photos.state())
+        elif method == "GET" and path == "/api/calibration/board.pdf":
+            self._send(200, r.photos.board_pdf(), "application/pdf", "tray_board.pdf")
+        elif method == "POST" and path == "/api/calibration/settings":
+            b = self._body()
+            self._json(
+                r.calibration_settings(b.get("square_mm"), float(b.get("thickness_mm", 0.0)))
+            )
+        elif method == "POST" and path == "/api/calibration/lock":
+            self._json(r.photos.lock_camera())
+        elif method == "POST" and path == "/api/calibration/view":
+            self._json(r.photos.take_view())
+        elif method == "POST" and path == "/api/calibration/lens":
+            self._json(r.photos.solve_lens())
+        elif method == "POST" and path == "/api/calibration/flat":
+            self._json(r.photos.flat_board())
+        elif method == "POST" and path == "/api/calibration/reset":
+            self._json(r.photos.reset())
+        elif method == "GET" and path == "/api/photos":
+            self._json({"sessions": r.photos.sessions()})
+        elif method == "POST" and path == "/api/photos/new":
+            b = self._body()
+            self._json(
+                r.photos.new_session(b.get("name", ""), b.get("operator", ""), b.get("notes", ""))
+            )
+        elif method == "POST" and path == "/api/photos/take":
+            b = self._body()
+            self._json(r.photos.session_photo(b["name"], b.get("note", "")))
+        elif method == "GET" and path == "/api/photos/zip":
+            z = r.photos.session_zip(q["name"])
+            self._send_file(z, "application/zip", z.name)
         elif method == "GET" and path == "/api/todo":
             self._json(r.todo_state())
         elif method == "POST" and path == "/api/todo":

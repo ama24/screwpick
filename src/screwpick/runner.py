@@ -32,6 +32,7 @@ from .io import read_json, write_json
 from .layout import Layout, yaw_from_up
 from .models import ModelError, ModelStore
 from .parts import compute_gaps, to_bed
+from .photos import Photos
 from .printer import Motion, Printer, PrinterError
 from .rules import family, wild_key
 from .setup import KEYS as SETUP_KEYS
@@ -106,6 +107,7 @@ class Runner:
         todo_path = self.m.path(self.m.paths.todo)
         assert todo_path is not None
         self.todo = TodoList(todo_path)
+        self.photos = Photos(self)  # calibration and real photos (Calibrate and Photos tabs)
         # the simulator needs no setup; a real printer does
         self.require_setup = self.m.printer.driver != "sim"
         self._setup_homed = False  # homed from the Setup tab since the program started
@@ -381,11 +383,43 @@ class Runner:
             "margin_mm": float(margin_mm),
         }
 
-    def mask_save(self, margin_mm: float) -> dict[str, Any]:
+    def remember_machine(self, values: dict[str, Any]) -> None:
+        """Keep values set in the page in machine.json (over machine.yaml)."""
         p = self.m.path(self.m.paths.machine)
         assert p is not None
         kept = read_json(p) if p.is_file() else {}
-        write_json(p, {**kept, "mask_margin_mm": float(margin_mm)})
+        write_json(p, {**kept, **values})
+
+    def calibration_settings(
+        self, measured_square_mm: float | None, board_thickness_mm: float
+    ) -> dict[str, Any]:
+        c = self.m.calibration
+        c.measured_square_mm = float(measured_square_mm) if measured_square_mm else None
+        c.board_thickness_mm = float(board_thickness_mm)
+        self.remember_machine(
+            {
+                "calibration": {
+                    "measured_square_mm": c.measured_square_mm,
+                    "board_thickness_mm": c.board_thickness_mm,
+                }
+            }
+        )
+        return self.photos.state()
+
+    def calibration_replaced(self) -> None:
+        """A new camera calibration: its plate frame starts at the board, so the old camera-to-
+        printer fit is wrong now. It is kept aside, and the Setup step asks for it again."""
+        if self.transform_path.is_file():
+            aside = self.transform_path.with_name(
+                self.transform_path.stem + time.strftime("_before_%Y%m%d-%H%M%S.json")
+            )
+            self.transform_path.replace(aside)
+        self.calib_pairs = []
+        self.setup.reset("camera")
+        self.note("new camera calibration: redo Camera to printer (Calibrate tab)")
+
+    def mask_save(self, margin_mm: float) -> dict[str, Any]:
+        self.remember_machine({"mask_margin_mm": float(margin_mm)})
         self.m.camera.mask_margin_mm = float(margin_mm)
         self.mask_checked = True
         self.note(f"tray view saved: margin {float(margin_mm):g} mm")
@@ -1014,6 +1048,12 @@ class Runner:
             elif k == "mask_margin_mm":
                 self.m.camera.mask_margin_mm = float(v)
                 self.mask_checked = True
+            elif k == "camera_settings":  # locked in the Calibrate tab
+                self.m.camera.settings = str(v)
+            elif k == "calibration":
+                c = self.m.calibration
+                c.measured_square_mm = v.get("measured_square_mm", c.measured_square_mm)
+                c.board_thickness_mm = float(v.get("board_thickness_mm", c.board_thickness_mm))
 
     def machine_values(self) -> dict[str, Any]:
         return {k: getattr(self.m.printer, k) for k in self.MACHINE_KEYS}
