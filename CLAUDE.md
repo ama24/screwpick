@@ -1,10 +1,18 @@
 # CLAUDE.md — screwpick
 
 screwpick runs on the Raspberry Pi next to Klipper and turns the printer into a pick-and-place
-screw sorter. The camera and model come from
+screw sorter. The camera and model code come from
 [supreme-screw-sortering](https://github.com/ama24/supreme-screw-sortering) (packages `screwsynth`
-and `screwrig`), installed in the same environment. screwpick imports them; they never import
-screwpick.
+and `screwrig`), installed in the same environment. screwpick imports their code; they never
+import screwpick.
+
+**screwpick runs on its own.** It never reads the other repositories' folders for data: files
+from them (camera calibrations, screwsynth config.yaml, classes.yaml, items.json) are dropped in
+the web page's Files tab (`files.py`, kept in `paths.files`; order: dropped > machine.yaml path >
+installed screwsynth defaults > none, and every slot says what happens without it). Models come
+through the Models tab, and models from anywhere else must keep working. A new file it needs
+gets a slot in `files.SLOTS` (where to find it, used for, without it), never a path into
+another repository.
 
 ## Workflow
 - All code lives on `main`. Each piece of work gets a short-lived branch (`feature/<name>`,
@@ -64,6 +72,21 @@ screwpick.
   on the shank. Other parts: area moments of the outline. `Part.grip_bed` is where the tool goes;
   the tweezers' angle = `jaw_angle(axis)` (jaws close across the part; 0 deg = along X).
 - **Console:** `Runner.say()`: one short line per decision (seen, pick, drop, missed, complete).
+- **Picking order:** `run.order: census` (default): the most numerous kind first, finished before
+  the next; kinds already started keep their order (`Planner.started`), so one that turns up
+  again is picked first. `Plan.note` tells each change.
+- **Bin fill:** `fill.py`. An item's volume: `items.json` (exact, `CatalogueVolumes`) else outline
+  area x height x `run.fill.shape`; a bin's room from its Gridfinity size; packing from
+  `run.fill.packing`, learnt per family from the Full button (`Packing`). Counts, volumes,
+  families and learnt packing are kept with the claims (`paths.claims`). Cells are named A1
+  (front-left) by `Layout.cell_name`.
+- **Bin changes:** `binswap.py`. Full bins and new kinds without a free wild bin
+  (`run.when_no_bin: ask`) become `BinRequest`s; the run never stops for them. OK #1 parks
+  (`_parked_for_bins`), OK #2 takes a bins photo and `after_ok` decides emptied / replaced /
+  removed; parts still seen in an "emptied" bin are counted (`run.check_emptied`).
+- **Head camera** (optional, `camera.source: head`): `headcam.py` tiles the tray (or the grid
+  and `margin_cells` around it for bins), shifts each photo by A^-1(tip - photo_position) into
+  the calibration photo's frame and merges duplicates. Own model role "head", own calibration.
 - **Strategies** are in `strategies.py` (sort, clear, kit). Add one by extending
   `Planner._decide` and `STRATEGIES`.
 - **Models** are uploaded through the web page into a store (`models.py`, folder `paths.models`).
