@@ -119,7 +119,9 @@ class Run:
     keep_photos: int = 300  # keep this many photos in the runs folder (0 = keep all)
     scan_bins_on_start: bool = True  # find the bins with the camera when a run starts
     only_seen_bins: bool = True  # use only the bins the camera sees (covered ones are skipped)
-    order: str = "largest_group"  # largest_group (the most numerous kind first) | nearest
+    # census: the most numerous kind first, finished before the next, and back to a kind
+    # done earlier when more of it turns up | largest_group: the biggest on each photo | nearest
+    order: str = "census"
     # photo right after the pick (the part in the picker), analysed while it is carried to
     # its bin: the Pi's thinking time hides behind the move
     pipeline: bool = True
@@ -186,8 +188,8 @@ class Machine:
                 raise ConfigError(f"printer.{name}: wrong number of values {v}")
         if len(self.tool.offset) != 3:
             raise ConfigError("tool.offset needs X Y Z")
-        if self.run.order not in ("largest_group", "nearest"):
-            raise ConfigError("run.order must be largest_group or nearest")
+        if self.run.order not in ("census", "largest_group", "nearest"):
+            raise ConfigError("run.order must be census, largest_group or nearest")
         if self.run.shake.axis.upper() not in ("X", "Y"):
             raise ConfigError("run.shake.axis must be X or Y")
 

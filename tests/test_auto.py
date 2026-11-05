@@ -92,7 +92,28 @@ def P(cls, length, xy, pid):  # noqa: N802
     return p
 
 
+def test_census_order_finishes_a_kind_and_goes_back_to_one_that_turns_up(machine):
+    pl = Planner(Layout.default(), machine, "sort")
+    a = [P("DIN934_M4", None, (150.0 + 3 * i, 150.0), 10 + i) for i in range(3)]
+    b = [P("DIN912_M3", 8.0, (60.0 + 3 * i, 60.0), 20 + i) for i in range(2)]
+    c = [P("DIN125A_M4", None, (90.0, 90.0), 30)]
+    plan = pl.next(a + b + c, here=(60.0, 60.0))
+    assert plan.part.cls == "DIN934_M4" and plan.note.startswith("next: DIN934_M4")
+    # one A left, but more B: still A (it is being finished)
+    plan = pl.next(a[:1] + b + b + c, here=(60.0, 60.0))
+    assert plan.part.cls == "DIN934_M4" and plan.note == ""
+    plan = pl.next(b + c, here=(150.0, 150.0))  # A done: the biggest of the rest
+    assert plan.part.cls == "DIN912_M3" and plan.note.startswith("next: DIN912_M3x8")
+    plan = pl.next(b[:1] + c + a[:1], here=(60.0, 60.0))  # an A was dug out: back to A
+    assert plan.part.cls == "DIN934_M4" and plan.note.startswith("back to DIN934_M4")
+    plan = pl.next(b[:1] + c, here=(60.0, 60.0))  # then on with B, before the new kind C
+    assert plan.part.cls == "DIN912_M3" and plan.note.startswith("on with DIN912_M3x8")
+    assert pl.next(c, here=(60.0, 60.0)).part.cls == "DIN125A_M4"
+    assert pl.started == ["DIN934_M4", "DIN912_M3x8", "DIN125A_M4"]
+
+
 def test_largest_group_first(machine):
+    machine.run.order = "largest_group"
     pl = Planner(Layout.default(), machine, "sort")
     parts = [P("DIN912_M3", 8.0, (60.0, 60.0), 1)]  # nearest, but alone
     parts += [P("DIN934_M4", None, (150.0 + i, 150.0), 10 + i) for i in range(3)]

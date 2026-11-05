@@ -5,10 +5,16 @@ Strategies:
   clear  everything into the "all" bin (or "overflow"), no sorting
   kit    only the parts on the kit list (rule -> count) into the "kit" bin, then stop
 
-Shared rules: only parts inside the working area; with run.order "largest_group" the most
-numerous kind (part number, else class) first; then parts with free space around them, the most
-confident, the nearest; a spot that failed too often is left alone; when nothing can be picked
-the bed is shaken (a few times at most) to spread clumps.
+Shared rules: only parts inside the working area; which kind (part number, else class) first
+depends on run.order:
+  census         the most numerous kind first, and finish it before starting the next. Every
+                 kind started stays in that order: when one turns up again (dug out from under
+                 others), the sorter goes back to it before carrying on.
+  largest_group  the most numerous kind on each photo (it can switch back and forth)
+  nearest        no order by kind
+then parts with free space around them, the most confident, the nearest; a spot that failed too
+often is left alone; when nothing can be picked the bed is shaken (a few times at most) to
+spread clumps.
 """
 
 from __future__ import annotations
@@ -37,6 +43,7 @@ class Plan:
     reason: str = ""
     kit_rule: str | None = None
     claim: str | None = None  # wild bin: claimed for this key once the drop succeeds
+    note: str = ""  # a change of kind worth telling (census order)
 
 
 @dataclass
@@ -57,6 +64,8 @@ class Planner:
     sorted_count: dict[int, int] = field(default_factory=dict)  # bin marker -> parts dropped in
     failed_picks: int = 0
     claims: dict[int, str] = field(default_factory=dict)  # wild bin marker -> what it collects
+    started: list[str] = field(default_factory=list)  # census order: kinds begun, in order
+    current: str | None = None  # the kind being picked now
 
     def __post_init__(self) -> None:
         if self.strategy not in STRATEGIES:
@@ -123,7 +132,12 @@ class Planner:
         clearance = self.machine.picker.clearance_mm
         if options:
             population = Counter(_kind(p) for p in cands)
-            by_group = self.machine.run.order == "largest_group"
+            order = self.machine.run.order
+            note = ""
+            if order == "census":
+                kind, note = self._census_kind({_kind(o[0]) for o in options}, population)
+                options = [o for o in options if _kind(o[0]) == kind]
+            by_group = order == "largest_group"
             p, dec, rule = min(
                 options,
                 key=lambda o: (
@@ -133,7 +147,7 @@ class Planner:
                     _dist(o[0].bed_xy, here),
                 ),
             )
-            return Plan("pick", p, dec.bin, dec.reason, rule, dec.claim)
+            return Plan("pick", p, dec.bin, dec.reason, rule, dec.claim, note)
         stuck_parts = len(waiting) + blocked
         if stuck_parts:
             if run.shake.enabled and self.shakes_in_row < run.shake.max_in_a_row:
@@ -149,6 +163,23 @@ class Planner:
         if no_bin:
             return Plan("done", reason=f"{len(no_bin)} part(s) left: no bin holds them")
         return Plan("done", reason="nothing left for this strategy")
+
+    def _census_kind(self, pickable: set[str], population: Counter) -> tuple[str, str]:
+        """The kind to pick now (census order) and a note when it changes: the first kind
+        already started that can be picked again, else the most numerous new kind."""
+        kind = next((k for k in self.started if k in pickable), None)
+        note = ""
+        if kind is None:
+            kind = max(pickable, key=lambda k: (population[k], k))
+            self.started.append(kind)
+            note = f"next: {kind} ({population[kind]} on the plate)"
+        elif kind != self.current and self.current is not None:
+            if self.started.index(kind) < self.started.index(self.current):
+                note = f"back to {kind}: {population[kind]} turned up again"
+            else:
+                note = f"on with {kind} ({population[kind]} left)"
+        self.current = kind
+        return kind, note
 
     def needed_bins(self, parts: list[Part]) -> set[int]:
         """Bins that parts in the working area still go to (or may go to, once a missing length

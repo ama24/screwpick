@@ -64,7 +64,7 @@ run:
   failed_radius_mm: 4.0
   work_margin_mm: 3.0
   keep_photos: 300
-  order: largest_group         # largest_group (most numerous kind first) | nearest
+  order: census                # census: biggest kind first, finish it, back to a kind that turns up again | largest_group | nearest
   pipeline: true               # photo right after the pick, analysed while the part goes to its bin
   scan_bins_on_start: true     # find the bins with the camera when a run starts (new markers = wild bins)
   only_seen_bins: true         # use only the bins the camera sees in that first photo

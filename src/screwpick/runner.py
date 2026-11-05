@@ -439,6 +439,9 @@ class Runner:
             here = tuple(self.motion.current_tip()[:2])
             plan = planner.next(shot.parts, here)  # type: ignore[arg-type]
             self._set(plan=_describe(plan))
+            if plan.note:
+                self.note(plan.note)
+                self.say(plan.note)
             if plan.kind == "done":
                 self._set(status="done", message=plan.reason)
                 self.note(f"done: {plan.reason}")

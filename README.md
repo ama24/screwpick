@@ -387,10 +387,14 @@ standby photos, and the machine homes again before the next sort.
 | **kit** | only the parts on `run.kit` (e.g. `{DIN912_M3x10: 4, DIN934_M3: 4}`) into the *kit* bin, then stop |
 
 These rules apply to every strategy:
-- **The largest group first** (`run.order: largest_group`): the part number with the most
-  pieces on the plate is picked first, then the next. Within a group, parts with free space
-  around them come first, then the most confident, then the nearest. `nearest` skips the
-  grouping.
+- **The largest group first, one group at a time** (`run.order: census`): the first photo
+  counts every kind (part number, else class) on the plate. The most numerous is picked
+  until none is left, then the next most numerous. Parts dug out from under others can bring
+  back a kind that was already done: the sorter goes back to it at once, then carries on where
+  it was. The console says each change ("next: …", "back to …"). `largest_group` re-counts on
+  every photo instead (it may switch back and forth); `nearest` skips the grouping. Within a
+  group, parts with free space around them come first, then the most confident, then the
+  nearest.
 - Detections below `run.min_score` go to the *unsure* bin.
 - UNKNOWN parts go to the *unknown* bin.
 - A part whose length decides its bin, but which can't be measured yet (tilted, covered), waits.
