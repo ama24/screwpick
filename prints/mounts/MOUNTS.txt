@@ -6,7 +6,7 @@ T-nuts go in without taking the printer apart). Print in PETG or PLA, 0.2 mm lay
 30 % infill, lying as the files are; no supports.
 
 screen_holder.stl: an open frame for the Waveshare 7inch HDMI LCD (H) (case 191 x 115 mm,
-  four M2 holes 175 x 99 mm, 8 mm from the edges): M2 x 10 screws through the frame into the
+  four M2 holes 155 x 92 mm): M2 x 6-8 screws (heads up to 5.6 mm) through the frame into the
   case. It touches only a 12 mm band along the display's edge: the Raspberry Pi stays
   screwed to the display's back where it is (off centre) and sits free inside the frame, with
   45 mm of room behind the display for it and its cables. A leg at each end stands on

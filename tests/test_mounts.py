@@ -51,7 +51,7 @@ def _hole_centres(v: np.ndarray, r: float, near: list[tuple[float, float]], axes
 def test_screen_holes_and_feet():
     p = ScreenHolder(tilt_deg=0.0, lift=0.0)  # upright: x across, z up
     v, _ = _to_mesh(_screen_holder_installed(p))
-    display = [(sx * 87.5, z) for sx in (-1, 1) for z in (8.0, 107.0)]
+    display = [(sx * 77.5, z) for sx in (-1, 1) for z in (11.5, 103.5)]  # 155 x 92 mm
     assert all(_hole_centres(v, 1.2, display, (0, 2)))
     feet = [(sx * p.foot_hole_dx / 2, p.foot_depth / 2) for sx in (-1, 1)]
     assert all(_hole_centres(v, 2.7, feet, (0, 1)))
@@ -95,4 +95,30 @@ def test_drop_for_the_trained_camera_height():
 def test_mount_files():
     files = dict(mount_files())
     assert set(files) == {"screen_holder.stl", "camera_arm.stl", "MOUNTS.txt"}
-    assert b"175 x 99" in files["MOUNTS.txt"]
+    assert b"155 x 92" in files["MOUNTS.txt"]
+
+
+def test_screen_screws_have_a_full_seat_for_their_heads():
+    """155 x 92 mm holes, M2 screws with 4.8 mm heads: a ring of material all round each hole
+    (from the hole out past the head) for the head to sit on."""
+    import math as _m
+
+    from manifold3d import Manifold
+
+    p = ScreenHolder(tilt_deg=0.0, lift=0.0)
+    body = _screen_holder_installed(p)
+    t = p.thickness
+    for sx in (-1, 1):
+        for z in (11.5, 103.5):  # bottom and top holes (upright: z is up the screen)
+            x = sx * 77.5
+            ring = (
+                (
+                    Manifold.cylinder(t - 0.2, 2.6, 2.6, 48)
+                    - Manifold.cylinder(t - 0.2, 1.4, 1.4, 48)
+                )
+                .rotate([90, 0, 0])
+                .translate([x, t - 0.1, z])
+            )
+            want = _m.pi * (2.6**2 - 1.4**2) * (t - 0.2)
+            assert (body ^ ring).volume() == pytest.approx(want, rel=0.03), (x, z)
+    assert p.head_d >= 4.8 + 0.5

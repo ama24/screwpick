@@ -2,7 +2,7 @@
 and T-nuts:
 
 - screen holder: an open frame that holds the 7" display (Waveshare 7inch HDMI LCD (H): case
-  191 x 115 mm, M2 holes 175 x 99 mm, 8 mm from the edges) by its edge only, leaning back so
+  191 x 115 mm, M2 holes 155 x 92 mm, measured on the screen) by its edge, leaning back so
   it faces the user. The Raspberry Pi 4 is screwed to the display's back, off centre; it sits
   free inside the frame. A leg at each end stands on the bar (1 screw each in the top slot).
 - camera arm: a plate on the bar's front face (2 screws in the front slot, at the bar's centre),
@@ -53,10 +53,11 @@ class ScreenHolder:
     screen_w: float = 191.0  # display case outline
     screen_h: float = 115.0
     screen_r: float = 5.0  # case corner radius
-    hole_dx: float = 175.0  # M2 holes, centre to centre (8 mm from the edges)
-    hole_dy: float = 99.0
+    hole_dx: float = 155.0  # the screen's M2 holes, centre to centre (measured)
+    hole_dy: float = 92.0
     hole_d: float = 2.4  # M2 clearance
-    head_d: float = 4.6  # counterbore for the M2 screw head (and the screwdriver)
+    head_d: float = 5.6  # room for the M2 screw head (4.8 mm) and the screwdriver
+    pad_wall: float = 2.5  # the round pad around each screw: head room + this all round
     tilt_deg: float = 20.0  # the screen leans back this much: it faces the user, a little up
     thickness: float = 3.0
     border: float = 12.0  # the frame: only this band along the display's edge is touched
@@ -104,7 +105,24 @@ def screen_open_space(p: ScreenHolder | None = None) -> Manifold:
     p = p or ScreenHolder()
     b = p.border + 0.5
     room = _box(-p.screen_w / 2 + b, p.screen_w / 2 - b, b, p.screen_h - b, -p.open_depth, -0.01)
-    return _to_installed(room, p)
+    pads = [  # the screw pads reach in from the frame: a little room around each stays taken
+        _cyl_z(_pad_r(p) + 0.5, -p.open_depth - 1, 1.0, x, y) for x, y in _screw_spots(p)
+    ]
+    return _to_installed(room - _union(pads), p)
+
+
+def _pad_r(p: ScreenHolder) -> float:
+    return p.head_d / 2 + p.pad_wall
+
+
+def _screw_spots(p: ScreenHolder) -> list[tuple[float, float]]:
+    """The screen's M2 holes, display frame (x across from the middle, y up from the bottom)."""
+    h = p.screen_h
+    return [
+        (sx * p.hole_dx / 2, y)
+        for sx in (-1, 1)
+        for y in ((h - p.hole_dy) / 2, (h + p.hole_dy) / 2)
+    ]
 
 
 def _screen_holder_installed(p: ScreenHolder) -> Manifold:
@@ -129,7 +147,9 @@ def _screen_holder_installed(p: ScreenHolder) -> Manifold:
         0.0,
         h / 2,
     )
-    frame = (outline - inner) + (rim_outline - rim_inner)
+    # a round pad at each screw, joined to the frame's band: the holes lie a little inside it
+    pads = [_cyl_z(_pad_r(p), -t, 0.0, x, y) for x, y in _screw_spots(p)]
+    frame = (outline - inner) + (rim_outline - rim_inner) + _union(pads)
     installed = _to_installed(frame, p)
     # a leg at each end: from the frame's bottom corner down to a foot on the bar's top
     legs = []
@@ -147,11 +167,9 @@ def _screen_holder_installed(p: ScreenHolder) -> Manifold:
     # M2 holes into the display, through the frame (and the legs at the bottom corners); from
     # the back a counterbore leaves `thickness` of material, so M2 x 6-8 screws reach
     m2 = []
-    for sx in (-1, 1):
-        for y in ((h - p.hole_dy) / 2, (h + p.hole_dy) / 2):
-            x = sx * p.hole_dx / 2
-            m2.append(_cyl_z(p.hole_d / 2, -80.0, 1.0, x, y))
-            m2.append(_cyl_z(p.head_d / 2, -80.0, -t, x, y))
+    for x, y in _screw_spots(p):
+        m2.append(_cyl_z(p.hole_d / 2, -80.0, 1.0, x, y))
+        m2.append(_cyl_z(p.head_d / 2, -80.0, -t, x, y))
     return (installed + _union(legs)) - _union(holes_m5) - _to_installed(_union(m2), p)
 
 
@@ -260,7 +278,7 @@ T-nuts go in without taking the printer apart). Print in PETG or PLA, 0.2 mm lay
 30 % infill, lying as the files are; no supports.
 
 screen_holder.stl: an open frame for the Waveshare 7inch HDMI LCD (H) (case 191 x 115 mm,
-  four M2 holes 175 x 99 mm, 8 mm from the edges): M2 x 10 screws through the frame into the
+  four M2 holes 155 x 92 mm): M2 x 6-8 screws (heads up to 5.6 mm) through the frame into the
   case. It touches only a {border:g} mm band along the display's edge: the Raspberry Pi stays
   screwed to the display's back where it is (off centre) and sits free inside the frame, with
   {depth:g} mm of room behind the display for it and its cables. A leg at each end stands on
