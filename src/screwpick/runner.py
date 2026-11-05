@@ -38,6 +38,8 @@ from .setup import KEYS as SETUP_KEYS
 from .setup import Setup
 from .strategies import STRATEGIES, Plan, Planner
 from .transform import BedCalibration, Transform2D
+from .trayview import WorkArea
+from .trayview import rect as tray_rect
 from .vision import Shot, Vision
 
 log = logging.getLogger("screwpick.runner")
@@ -316,22 +318,42 @@ class Runner:
         return time.strftime("%Y%m%d-%H%M%S") + f"_{self._shot_no:04d}"
 
     def take_shot(
-        self, layout: Layout, T: Transform2D | None, move: bool = True, area: str = "work"
+        self,
+        layout: Layout,
+        T: Transform2D | None,
+        move: bool = True,
+        area: str = "work",
+        paint: bool = True,
     ) -> Shot:
         """Photo position, photo, parts (with printer X/Y when T is known), markers. `move`
         False: photograph where the bed is (standby with the motors off: still parked).
         A head camera photographs `area`: work (the tray), bins (the grid and around it) or
-        here (one photo at the photo position: calibration)."""
+        here (one photo at the photo position: calibration). `paint`: the model sees only the
+        tray's inside (trayview.py); False to look into the bins too."""
+        work = self._work_area(layout, T) if paint else None
         if self.m.camera.source == "head":
-            return self._head_shot(layout, T, area)
+            return self._head_shot(layout, T, area, work)
         with self._lock:
             if move:
                 self.motion.photo_position()
             name = self._photo_name()
-            shot = self.vision.capture(name, lambda mid: _marker_plate_height(layout, mid))
+            shot = self.vision.capture(name, lambda mid: _marker_plate_height(layout, mid), work)
         return self._finish_shot(shot, layout, T)
 
-    def _head_shot(self, layout: Layout, T: Transform2D | None, area: str) -> Shot:
+    def _work_area(self, layout: Layout, T: Transform2D | None) -> WorkArea | None:
+        """The tray's inside (and its corner post) in the plate frame, for painting the rest."""
+        if T is None or not self.m.camera.mask:
+            return None
+        Ti = T.inverse()
+        post = layout.work_keepout()
+        return WorkArea(
+            Ti.apply(tray_rect(*layout.work_rect())),
+            [Ti.apply(tray_rect(*post))] if post is not None else [],
+        )
+
+    def _head_shot(
+        self, layout: Layout, T: Transform2D | None, area: str, work: WorkArea | None = None
+    ) -> Shot:
         """The head camera over `area`: overlapping photos, joined in the frame of the
         calibration photo (headcam.py)."""
         hc = self.m.camera.head
@@ -363,10 +385,13 @@ class Runner:
                 self.motion.travel(x, y)
                 self.motion.move(z=pc.photo_position[2])
                 self.printer.gcode("M400")
-                last = self.vision.capture(
-                    f"{name}_{k:02d}", lambda mid: _marker_plate_height(layout, mid)
-                )
             d = Ai @ (np.array([x, y]) - ref)  # the view moved with the head
+            with self._lock:
+                last = self.vision.capture(
+                    f"{name}_{k:02d}",
+                    lambda mid: _marker_plate_height(layout, mid),
+                    work.shifted(-d) if work is not None else None,
+                )
             for p in last.parts:
                 shift_part(p, d)
             for mk in last.markers:
@@ -508,9 +533,12 @@ class Runner:
                 first = None
             if self._ok.is_set():  # after a bin change: a new photo, with the bins
                 first = None
-            area = "bins" if self._ok.is_set() else "work"
+            check = self._ok.is_set()  # it must look into the bins: nothing painted over
+            area = "bins" if check else "work"
             shot, first = (
-                (first, None) if first is not None else (self.take_shot(layout, T, area=area), None)
+                (first, None)
+                if first is not None
+                else (self.take_shot(layout, T, area=area, paint=not check), None)
             )
             if self._ok.is_set():  # a bin was changed: this photo shows what stands there now
                 self._ok.clear()
@@ -765,7 +793,9 @@ class Runner:
             photo = self.vision.snap(name)
         t_photo = time.perf_counter()
         heights = lambda mid: _marker_plate_height(layout, mid)  # noqa: E731
-        job = self._pool.submit(self.vision.analyse, photo, name, heights)
+        job = self._pool.submit(
+            self.vision.analyse, photo, name, heights, self._work_area(layout, T)
+        )
         with self._lock:
             self._drop(plan, layout)
         t_drop = time.perf_counter()
@@ -1307,9 +1337,14 @@ class Runner:
             taken = asked | {r.marker for r in new}
             share = {mk: f["share"] for mk, f in fill.items()}
             pick = choose_swap(layout, self.claims, share, on_plate, taken)
-            if pick is None:
+            if pick is None:  # no wild bin to give up: overflow, else wait for a bin
+                planner.to_overflow.add((need, value))
                 if self._no_swap_said != value:
-                    self.note(f"{value} needs a bin and there is none to ask for: add a bin")
+                    has = any(b.role in ("all", "overflow") for b in layout.bins)
+                    self.note(
+                        f"{value} needs a bin and there is none to ask for: "
+                        + ("into the overflow bin" if has else "add a bin")
+                    )
                     self._no_swap_said = str(value)
                 continue
             b, why = pick
@@ -1391,7 +1426,7 @@ class Runner:
         layout, T = self.layout(), self.transform()
         with self._lock:
             self.motion.preflight(home=False)
-        shot = self.take_shot(layout, T, area="bins")
+        shot = self.take_shot(layout, T, area="bins", paint=False)
         return {"resolved": self._resolve_requests(layout, shot, T), **self.bins_state()}
 
     def bin_emptied(self, marker: int | None) -> dict[str, Any]:

@@ -7,9 +7,10 @@ Strategies:
 
 Shared rules: only parts inside the working area; which kind (part number, else class) first
 depends on run.order:
-  census         the most numerous kind first, and finish it before starting the next. Every
-                 kind started stays in that order: when one turns up again (dug out from under
-                 others), the sorter goes back to it before carrying on.
+  census         the most numerous class first, and finish it before starting the next. Every
+                 class started stays in that order: when one turns up again (dug out from under
+                 others), the sorter goes back to it before carrying on. By class, not part
+                 number: a length measured later does not make a part a new kind.
   largest_group  the most numerous kind on each photo (it can switch back and forth)
   nearest        no order by kind
 then parts with free space around them, the most confident, the nearest; a spot that failed too
@@ -67,6 +68,7 @@ class Planner:
     started: list[str] = field(default_factory=list)  # census order: kinds begun, in order
     full: set[int] = field(default_factory=set)  # bins too full to take more
     needs: set[tuple[str, object]] = field(default_factory=set)  # bin changes the plate needs
+    to_overflow: set[tuple[str, object]] = field(default_factory=set)  # no bin to ask for
     current: str | None = None  # the kind being picked now
 
     def __post_init__(self) -> None:
@@ -129,6 +131,12 @@ class Planner:
             dec, kit_rule = self._decide(p)
             if dec is None:
                 continue
+            if dec.needs is not None and dec.needs in self.to_overflow:
+                # a new kind no bin change can make room for: the overflow bin (if any)
+                b = next((b for b in self.layout.bins if b.role in ("all", "overflow")), None)
+                if b is not None:
+                    options.append((p, Decision(b, "no bin can be asked for: overflow"), None))
+                    continue
             if dec.needs is not None:
                 self.needs.add(dec.needs)
                 for_bin.append(p)
@@ -143,9 +151,10 @@ class Planner:
             population = Counter(_kind(p) for p in cands)
             order = self.machine.run.order
             note = ""
-            if order == "census":
-                kind, note = self._census_kind({_kind(o[0]) for o in options}, population)
-                options = [o for o in options if _kind(o[0]) == kind]
+            if order == "census":  # by class: a length measured later does not split a group
+                by_class = Counter(p.cls for p in cands)
+                kind, note = self._census_kind({o[0].cls for o in options}, by_class)
+                options = [o for o in options if o[0].cls == kind]
             by_group = order == "largest_group"
             p, dec, rule = min(
                 options,

@@ -72,9 +72,9 @@ another repository.
   on the shank. Other parts: area moments of the outline. `Part.grip_bed` is where the tool goes;
   the tweezers' angle = `jaw_angle(axis)` (jaws close across the part; 0 deg = along X).
 - **Console:** `Runner.say()`: one short line per decision (seen, pick, drop, missed, complete).
-- **Picking order:** `run.order: census` (default): the most numerous kind first, finished before
-  the next; kinds already started keep their order (`Planner.started`), so one that turns up
-  again is picked first. `Plan.note` tells each change.
+- **Picking order:** `run.order: census` (default): the most numerous class first, finished
+  before the next; classes already started keep their order (`Planner.started`), so one that
+  turns up again is picked first. `Plan.note` tells each change.
 - **Bin fill:** `fill.py`. An item's volume: `items.json` (exact, `CatalogueVolumes`) else outline
   area x height x `run.fill.shape`; a bin's room from its Gridfinity size; packing from
   `run.fill.packing`, learnt per family from the Full button (`Packing`). Counts, volumes,
@@ -95,9 +95,11 @@ another repository.
   classifier (classify). `analysis.py` runs them, reusing screwsynth's measurement. Switching
   happens while idle and rolls back if loading fails. A `.pt` is a zip archive inside: only
   `.zip` uploads are unpacked.
-- **The model** runs on the full calibrated ROI at its trained scale; parts outside the working
-  area are filtered out afterwards. Never crop the ROI to the working area: that changes the
-  scale the model sees.
+- **The model** runs on the full calibrated ROI at its trained scale. Everything outside the
+  tray's inside (and the corner post) is painted over first (`trayview.py`, `camera.mask`), the
+  image size unchanged; never crop and resize to the working area: that changes the scale the
+  model sees. Markers are read from the unpainted photo; the check after a bin change
+  (`take_shot(paint=False)`) looks at it unpainted.
 
 ## Conventions
 - Lengths in mm, speeds in mm/min, angles in degrees.

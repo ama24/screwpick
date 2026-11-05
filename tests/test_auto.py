@@ -70,10 +70,10 @@ def test_automatic_mode_waits_for_parts_to_lie_still(machine):
     moving = {"n": 0}
     original = runner.vision.capture
 
-    def jittery(name, height):  # a hand is still moving the part around
+    def jittery(name, height, work=None):  # a hand is still moving the part around
         moving["n"] += 1
         world.parts[0].x += 5.0 if moving["n"] % 2 else -5.0
-        return original(name, height)
+        return original(name, height, work)
 
     runner.vision.capture = jittery  # type: ignore[method-assign]
     runner.command("auto")
@@ -103,13 +103,22 @@ def test_census_order_finishes_a_kind_and_goes_back_to_one_that_turns_up(machine
     plan = pl.next(a[:1] + b + b + c, here=(60.0, 60.0))
     assert plan.part.cls == "DIN934_M4" and plan.note == ""
     plan = pl.next(b + c, here=(150.0, 150.0))  # A done: the biggest of the rest
-    assert plan.part.cls == "DIN912_M3" and plan.note.startswith("next: DIN912_M3x8")
+    assert plan.part.cls == "DIN912_M3" and plan.note.startswith("next: DIN912_M3 ")
     plan = pl.next(b[:1] + c + a[:1], here=(60.0, 60.0))  # an A was dug out: back to A
     assert plan.part.cls == "DIN934_M4" and plan.note.startswith("back to DIN934_M4")
     plan = pl.next(b[:1] + c, here=(60.0, 60.0))  # then on with B, before the new kind C
-    assert plan.part.cls == "DIN912_M3" and plan.note.startswith("on with DIN912_M3x8")
+    assert plan.part.cls == "DIN912_M3" and plan.note.startswith("on with DIN912_M3 ")
     assert pl.next(c, here=(60.0, 60.0)).part.cls == "DIN125A_M4"
-    assert pl.started == ["DIN934_M4", "DIN912_M3x8", "DIN125A_M4"]
+    assert pl.started == ["DIN934_M4", "DIN912_M3", "DIN125A_M4"]
+
+
+def test_census_groups_by_class_until_the_length_is_known(machine):
+    pl = Planner(Layout.default(), machine, "sort")
+    m4 = [P("DIN912_M4", 16.0, (150.0 + 3 * i, 150.0), 10 + i) for i in range(2)]
+    m4.append(P("DIN912_M4", None, (160.0, 150.0), 12))  # not measured yet
+    nuts = [P("DIN934_M4", None, (60.0 + 3 * i, 60.0), 20 + i) for i in range(2)]
+    plan = pl.next(m4 + nuts, here=(60.0, 60.0))
+    assert plan.part.cls == "DIN912_M4" and pl.started == ["DIN912_M4"]  # 3 of them, not 2 + 1
 
 
 def test_largest_group_first(machine):

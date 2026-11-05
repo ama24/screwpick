@@ -291,3 +291,28 @@ def test_requests_survive_a_restart(machine):
     runner.bin_full(104)
     again = Runner(machine, SimPrinter(machine, world), runner.vision)
     assert [(r.marker, r.why) for r in again.requests] == [(104, "full")]
+
+
+def test_a_new_kind_with_no_bin_to_ask_for_goes_to_overflow(machine):
+    lay = Layout.default()
+    lay.bins = [b for b in lay.bins if b.marker in (102, 103)] + [lay.work_bin()]
+    lay.bin_by_marker(103).role = "wild"  # one wild bin, and the overflow bin 102
+    lay.save(machine.path(machine.paths.layout))
+    world = _world(lay)
+    world.parts = [p for p in world.parts if p.cls != "ISO7380_M4"]  # nuts and washers
+    runner = Runner(
+        machine, SimPrinter(machine, world), SimVision(world, lambda: lay, Transform2D.identity)
+    )
+    runner.claims[103] = "DIN912_M3x8"  # taken by a kind no longer on the plate
+    runner.printer.gcode("G28")
+    shot = runner.take_shot(lay, Transform2D.identity())
+    from screwpick.strategies import Planner
+
+    planner = Planner(lay, machine, "sort")
+    planner.claims = runner.claims
+    assert planner.next(shot.parts).kind == "wait_bin"  # nuts and washers both need a bin
+    runner._ask_bins(planner, lay, shot.parts)
+    assert [r.marker for r in runner.requests] == [103]  # one bin for one of them
+    plan = planner.next(shot.parts)
+    assert plan.kind == "pick" and plan.bin.marker == 102  # the other: into overflow
+    assert any("into the overflow bin" in e for e in runner.events)

@@ -56,6 +56,10 @@ class Camera:
     # over the tray (sorting) or the whole grid (Resync, bin changes); see headcam.py
     source: str = "overview"
     head: HeadCamera = field(default_factory=HeadCamera)
+    # only the tray's inside goes to the model: the rest is painted over (trayview.py); the
+    # photo keeps its size, so the model sees the parts at its trained scale
+    mask: bool = True
+    mask_colour: str = "auto"  # auto: the tray floor's own colour | #RRGGBB, e.g. #FFFFFF
 
 
 @dataclass
@@ -201,6 +205,12 @@ class Machine:
                 raise ConfigError(f"printer.{name}: wrong number of values {v}")
         if len(self.tool.offset) != 3:
             raise ConfigError("tool.offset needs X Y Z")
+        from .trayview import parse_colour
+
+        try:
+            parse_colour(self.camera.mask_colour)
+        except ValueError as exc:
+            raise ConfigError(str(exc)) from exc
         if self.camera.source not in ("overview", "head"):
             raise ConfigError("camera.source must be overview or head")
         if self.run.when_no_bin not in ("ask", "overflow"):

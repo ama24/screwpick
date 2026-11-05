@@ -282,14 +282,17 @@ empty one. The camera may miss parts hidden by the walls.
 The machine asks for a bin change when
 - a bin is **full** (see above): its kind carries on in a free wild bin if there is one;
 - a **new kind** needs a bin and no wild bin is free (`run.when_no_bin: ask`; `overflow`
-  sends it to the overflow bin instead, as before). It chooses the bin to give up: a bin
+  sends it to the overflow bin instead, as before). When there is no bin it could ask for
+  (every wild bin already asked for), that kind goes to the overflow bin; without one it
+  waits. It chooses the bin to give up: a bin
   nothing on the plate goes to any more scores highest, a fuller bin higher, and a bin whose
   kind still lies on the plate lower (it would be needed again soon).
 
 The request shows at the top of the web page ("Bin change: E1 DIN934_M4 30 · full"), the bin
 is outlined in amber in the Layout tab, the console and the printer's display say it. The
-machine never stops for it: it keeps sorting everything else (when only the waiting parts are
-left, it waits).
+machine never stops for it: it keeps sorting everything else. When only the waiting parts are
+left, it waits, and still looks at the tray every `standby.interval_s`: parts thrown in
+meanwhile are sorted. The requests are kept across a restart.
 
 The OK takes two presses, in the page or with **OK (bin change)** in the printer menu:
 1. **OK, park for the change:** the machine finishes its move and parks (bed out, safe for
@@ -304,6 +307,19 @@ The OK takes two presses, in the page or with **OK (bin change)** in the printer
 
 OK also works when the machine is not sorting: the first press only confirms, the second
 takes a photo and does the same check.
+
+## Only the tray goes to the model
+
+The camera sees the whole bed: the tray, the bins around it, their codes and the parts already
+sorted. The model was trained on a plain plate with parts, so before it looks, everything
+outside the tray's inside (and the corner post) is painted over with the colour of the tray's
+floor (`camera.mask`, `camera.mask_colour`: `auto` or e.g. `#FFFFFF`). The photo keeps its
+size, so the parts stay exactly as large as in the training pictures: cropping and enlarging
+would change their scale and spoil the classes and the lengths. The photo with the outlines on
+the Run tab shows what the model saw.
+
+The codes are always read from the photo itself, and the check after a bin change looks at it
+unpainted (it must see into the bins).
 
 ## A camera on the tool head (optional)
 
@@ -489,7 +505,8 @@ standby photos, and the machine homes again before the next sort.
 
 These rules apply to every strategy:
 - **The largest group first, one group at a time** (`run.order: census`): the first photo
-  counts every kind (part number, else class) on the plate. The most numerous is picked
+  counts every class on the plate (by class, so a part whose length is measured later stays
+  in its group). The most numerous is picked
   until none is left, then the next most numerous. Parts dug out from under others can bring
   back a kind that was already done: the sorter goes back to it at once, then carries on where
   it was. The console says each change ("next: …", "back to …"). `largest_group` re-counts on
