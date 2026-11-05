@@ -102,9 +102,9 @@ cd ~/screwpick && screwpick check
 Start it with `screwpick serve`, and open `http://<pi>:8080` on the PC or phone. The first
 visit asks you to create an account (see [Login](#login)).
 
-> **Note:** `screwrig capture` parks the bed by talking to the printer's USB port directly.
-> With Klipper running, Klipper owns that port, so use screwpick (which goes through Klipper)
-> while Klipper is running.
+> **Note:** `screwrig` (the camera calibration and real-photo captures) moves the bed through
+> Klipper too (Moonraker), never through the printer's USB port, which Klipper owns. It refuses
+> to move the printer while it is busy (printing, or screwpick sorting): stop sorting first.
 
 ## First-time setup
 
