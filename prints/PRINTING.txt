@@ -1,7 +1,7 @@
 screwpick printables
 ====================
 
-Bins: two parts, "bin" and "marker" (the code on the shelf).
+Bins: two parts, "bin" and "marker" (the code on the shelf, or on the corner post).
 - Multi-material printer: give "marker" black filament, "bin" white (or any light colour).
 - Single extruder: print in white and add a filament change (M600 / "colour change") at the
   rim height: 21 mm for 3u bins, 42 mm for 6u bins (height units x 7 mm). Only the raised
@@ -9,15 +9,27 @@ Bins: two parts, "bin" and "marker" (the code on the shelf).
 - STL files contain the bin with the marker merged in (one colour; glue a paper label from
   the labels sheet onto the shelf instead).
 
-The code number tells screwpick the bin's size:
-  100-139: 1x1x3u   sorting: one part number on the printer bed
-  140-159: 1x2x3u   sorting: long screws, threaded rod, brackets
-  160-179: 1x1x6u   storage: small parts
-  180-199: 1x2x6u   storage: long parts
-  200-219: 2x2x6u   storage: large quantities
-  220-229: 3x3x3u   plate: the tray parts are thrown into
-  230-239: 4x4x3u   plate: a large tray for big jobs
-  240-249: any other size (set it in the layout)
+The code number tells screwpick the bin's size, and where its code sits:
+  100-139: 1x1x3u          sorting: one part number on the printer bed
+  140-159: 1x2x3u          sorting: long screws, threaded rod, brackets
+  160-179: 1x1x6u          storage: small parts
+  180-199: 1x2x6u          storage: long parts
+  200-219: 2x2x6u          storage: large quantities
+  220-229: 3x3x3u          plate: the tray parts are thrown into
+  230-239: 4x4x3u          plate: a large tray for big jobs
+  50-65: 1x1x3u-corner   sorting, corner code
+  66-73: 1x2x3u-corner   sorting long parts, corner code
+  74-81: 1x1x6u-corner   storage, corner code
+  82-85: 1x2x6u-corner   storage long parts, corner code
+  86-89: 2x2x6u-corner   storage large quantities, corner code
+  90-94: 3x3x3u-corner   plate: nothing overhangs, no part gets trapped
+  95-99: 4x4x3u-corner   plate for big jobs, nothing overhangs
+  240-249: any other size (set it in the layout), shelf style
+
+Two styles of the same sizes: "shelf" bins carry the code on a 45-degree shelf along the back;
+"corner" bins (codes 50-99) on a square post in the back-right corner, straight down to the
+floor. Nothing overhangs in a corner bin, so no part gets trapped under it: use a corner tray
+as the plate, where the parts are thrown in and spread.
 
 Baseplate: a plain Gridfinity grid, any size and anywhere on the bed (Resync finds it). The
 slim one is 2.5 mm thin (the standard one 4.65 mm); bins stand on the bed in both. 5 x 5 is

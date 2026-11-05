@@ -24,7 +24,7 @@ def test_size_ranges():
     for s in binspec.SIZES:
         assert not seen & set(s.markers), f"{s.name} overlaps another size"
         seen |= set(s.markers)
-    assert seen == set(range(100, 240))
+    assert seen == set(range(50, 240))  # 50-99: the corner-post style
     assert (
         binspec.size_for_marker(225).name == "3x3x3u"
         and binspec.size_for_marker(235).name == "4x4x3u"

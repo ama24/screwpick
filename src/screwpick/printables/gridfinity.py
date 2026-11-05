@@ -1,7 +1,8 @@
 """Gridfinity bins with a marker shelf, and baseplates with the working area cut out.
 
 Bin (Gridfinity standard foot, no stacking lip): walls, floor, and a 45-degree shelf along the
-back wall whose top is flush with the rim and carries the ArUco marker as raised black cells.
+back wall whose top is flush with the rim and carries the ArUco marker as raised black cells,
+or (corner style) a square post in the back-right corner, straight down to the floor.
 Print it in a light colour and switch to black at the rim height (or give the "marker" part its
 own filament on a multi-material printer).
 
@@ -74,10 +75,14 @@ def _foot(cx: float, cy: float) -> Manifold:
     )
 
 
-def build_bin(marker: int, w: int = 1, d: int = 1, height_u: int = 3) -> tuple[Mesh, Mesh]:
-    """A bin w x d cells, height_u units tall, with `marker` on its shelf: (body, marker cells).
+def build_bin(
+    marker: int, w: int = 1, d: int = 1, height_u: int = 3, style: str | None = None
+) -> tuple[Mesh, Mesh]:
+    """A bin w x d cells, height_u units tall, with `marker` on its shelf or corner post:
+    (body, marker cells). `style` None: the one that goes with the marker id.
 
-    Origin: bin centre on the bed; +Y is the back (the shelf side)."""
+    Origin: bin centre on the bed; +Y is the back (the marker side)."""
+    style = style or binspec.style_for_marker(marker)
     if height_u < binspec.MIN_HEIGHT_U:
         raise ValueError(f"bins need at least {binspec.MIN_HEIGHT_U} height units for the shelf")
     W, D = binspec.outer_mm(w), binspec.outer_mm(d)
@@ -94,26 +99,35 @@ def build_bin(marker: int, w: int = 1, d: int = 1, height_u: int = 3) -> tuple[M
             (W - 2 * wall, D - 2 * wall, binspec.BIN_RADIUS_MM - wall, H + 1.0),
         ]
     )
-    # the shelf: flat top at the rim, underside at 45 degrees down to the back wall
-    y_back = D / 2 - wall + 0.01
-    y_front = y_back - binspec.SHELF_DEPTH_MM
-    top_t = 1.6
-    z_low = max(floor_z, H - top_t - binspec.SHELF_DEPTH_MM)
-    xs = (-W / 2 + wall - 0.01, W / 2 - wall + 0.01)
-    shelf = Manifold.hull_points(
-        np.array(
-            [
-                (x, y, z)
-                for x in xs
-                for (y, z) in ((y_front, H), (y_back, H), (y_back, z_low), (y_front, H - top_t))
-            ]
+    if style == "corner":  # a square post from the floor to the rim: nothing overhangs
+        post = binspec.POST_MM
+        x_in, y_in = W / 2 - wall - post, D / 2 - wall - post
+        holder = _box(x_in, W / 2 + 1.0, y_in, D / 2 + 1.0, base - 0.02, H)
+    else:  # the shelf: flat top at the rim, underside at 45 degrees down to the back wall
+        y_back = D / 2 - wall + 0.01
+        y_front = y_back - binspec.SHELF_DEPTH_MM
+        top_t = 1.6
+        z_low = max(floor_z, H - top_t - binspec.SHELF_DEPTH_MM)
+        xs = (-W / 2 + wall - 0.01, W / 2 - wall + 0.01)
+        holder = Manifold.hull_points(
+            np.array(
+                [
+                    (x, y, z)
+                    for x in xs
+                    for (y, z) in (
+                        (y_front, H),
+                        (y_back, H),
+                        (y_back, z_low),
+                        (y_front, H - top_t),
+                    )
+                ]
+            )
         )
-    )
-    body = _union([*feet, outer]) - cavity + (shelf ^ outer)
-    # the marker: raised black cells on the shelf, row 0 towards the back
+    body = _union([*feet, outer]) - cavity + (holder ^ outer)
+    # the marker: raised black cells on the shelf or post, row 0 towards the back
     bits = marker_bits(marker)
     n, c = bits.shape[0], binspec.MARKER_CELL_MM
-    mx, my = binspec.marker_offset_mm(d)
+    mx, my = binspec.marker_offset_mm(d, w, style)
     half = n * c / 2
     e = 0.01  # cells touching only at a corner overlap a little: a clean, manifold solid
     cells = [

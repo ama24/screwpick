@@ -21,7 +21,7 @@ PLATE_GAP_MM = 8.0
 PRINT_NOTES = """screwpick printables
 ====================
 
-Bins: two parts, "bin" and "marker" (the code on the shelf).
+Bins: two parts, "bin" and "marker" (the code on the shelf, or on the corner post).
 - Multi-material printer: give "marker" black filament, "bin" white (or any light colour).
 - Single extruder: print in white and add a filament change (M600 / "colour change") at the
   rim height: 21 mm for 3u bins, 42 mm for 6u bins (height units x 7 mm). Only the raised
@@ -29,8 +29,13 @@ Bins: two parts, "bin" and "marker" (the code on the shelf).
 - STL files contain the bin with the marker merged in (one colour; glue a paper label from
   the labels sheet onto the shelf instead).
 
-The code number tells screwpick the bin's size:
+The code number tells screwpick the bin's size, and where its code sits:
 {sizes}
+
+Two styles of the same sizes: "shelf" bins carry the code on a 45-degree shelf along the back;
+"corner" bins (codes 50-99) on a square post in the back-right corner, straight down to the
+floor. Nothing overhangs in a corner bin, so no part gets trapped under it: use a corner tray
+as the plate, where the parts are thrown in and spread.
 
 Baseplate: a plain Gridfinity grid, any size and anywhere on the bed (Resync finds it). The
 slim one is 2.5 mm thin (the standard one 4.65 mm); bins stand on the bed in both. 5 x 5 is
@@ -43,8 +48,8 @@ Labels: print at 100 % (no "fit to page"); every black cell must measure 1.6 mm.
 
 def sizes_text() -> str:
     return (
-        "\n".join(f"  {s.markers.start}-{s.markers.stop - 1}: {s.name:8s} {s.use}" for s in SIZES)
-        + "\n  240-249: any other size (set it in the layout)"
+        "\n".join(f"  {s.markers.start}-{s.markers.stop - 1}: {s.name:15s} {s.use}" for s in SIZES)
+        + "\n  240-249: any other size (set it in the layout), shelf style"
     )
 
 

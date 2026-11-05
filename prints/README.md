@@ -2,7 +2,8 @@
 
 Every screwpick bin size as full build plates for a 220 × 220 mm bed (Ender 3), plus the
 baseplate and paper labels. Each bin carries its own black-and-white code on a shelf at the
-back. The camera reads it to find the bin and to know its size.
+back, or on a post in its back-right corner (corner bins, below). The camera reads it to find
+the bin and to know its size.
 
 ## Bin sizes
 
@@ -20,14 +21,37 @@ camera recognises it and knows how tall its rim is.
 | 230–239 | 4 × 4 cells, 3 units: a tray | **the plate** for big jobs (167 mm: fits the bed alone) | [230](bins/4x4x3u/bins_4x4x3u_230-230.3mf), [231](bins/4x4x3u/bins_4x4x3u_231-231.3mf) (1) |
 | 240–249 | any other size | set by hand in the Layout tab, printed from the web page | |
 
+### Corner bins: the code on a post, nothing overhangs
+
+The same sizes again, with the code on a square post (14 × 14 mm) in the **back-right corner**
+instead of on a shelf. The post goes straight down to the floor, so no part can slide under it
+and get stuck, as parts do under the 45° shelf. **Use a corner tray as the plate**, where the
+parts are thrown in and spread. Shelf bins are fine for the bins that receive the sorted parts.
+Both kinds can be mixed on the bed: the code number tells screwpick which kind it sees and where
+the bin's centre lies from its code.
+
+| Codes | Size | Plates (bins per plate) |
+|---|---|---|
+| 50–65 | 1 × 1 cell, 3 units | [50–65](bins/1x1x3u-corner/bins_1x1x3u-corner_50-65.3mf) (16) |
+| 66–73 | 1 × 2 cells, 3 units | [66–73](bins/1x2x3u-corner/bins_1x2x3u-corner_66-73.3mf) (8) |
+| 74–81 | 1 × 1 cell, 6 units | [74–81](bins/1x1x6u-corner/bins_1x1x6u-corner_74-81.3mf) (8) |
+| 82–85 | 1 × 2 cells, 6 units | [82–85](bins/1x2x6u-corner/bins_1x2x6u-corner_82-85.3mf) (4) |
+| 86–89 | 2 × 2 cells, 6 units | [86–89](bins/2x2x6u-corner/bins_2x2x6u-corner_86-89.3mf) (4) |
+| 90–94 | 3 × 3 cells, 3 units: **the plate** | [90](bins/3x3x3u-corner/bins_3x3x3u-corner_90-90.3mf), [91](bins/3x3x3u-corner/bins_3x3x3u-corner_91-91.3mf) (1) |
+| 95–99 | 4 × 4 cells, 3 units: **the plate** for big jobs | [95](bins/4x4x3u-corner/bins_4x4x3u-corner_95-95.3mf), [96](bins/4x4x3u-corner/bins_4x4x3u-corner_96-96.3mf) (1) |
+
+A corner tray's floor is the full inside, about 121 × 121 mm for 3 × 3: cut the TPU sheet to
+that and notch out the 14 mm square of the post. If a shelf tray and a corner tray of the same
+size are both on the bed, Resync takes the corner tray as the plate.
+
 A 1 × 1 bin is 41.5 mm square, inside about 39 mm: screws up to about 35 mm long. Longer parts
 (threaded rod up to 80 mm, 40-series brackets) go in 1 × 2 bins.
 
-**To start:** the 3 × 3 tray 220 (the plate) and one plate of 1 × 1 sorting bins (100–115):
+**To start:** the 3 × 3 corner tray 90 (the plate) and one plate of 1 × 1 sorting bins (100–115):
 together they fill the default 5 × 5 layout. Add 1 × 2 bins for long parts. For big jobs use
 the 4 × 4 tray. **Resync** makes the biggest bin the plate, unless you choose another.
 
-**In the tray** lay a TPU sheet cut to its floor (about 121 × 107 mm for 3 × 3, behind the
+**In the tray** lay a TPU sheet cut to its floor (about 121 × 107 mm for a 3 × 3 shelf tray, behind the
 shelf): parts don't bounce and the camera sees them well. Do the camera calibration with the
 board lying in the tray, at the height the parts will lie.
 

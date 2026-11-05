@@ -989,7 +989,7 @@ class Runner:
         self, layout: Layout, shot: Shot, T: Transform2D
     ) -> list[tuple[int, tuple[float, float], float]]:
         """(marker, bin centre, yaw) in printer X/Y for every bin marker in the photo."""
-        from .binspec import marker_offset_mm, size_for_marker
+        from .binspec import marker_offset_for, size_for_marker
 
         out = []
         for mk in shot.markers:
@@ -999,8 +999,8 @@ class Runner:
                 (a for a in layout.away if a.marker == mk.marker), None
             )
             size = size_for_marker(mk.marker)
-            depth = b.own_size()[1] if b is not None else (size.d if size else 1)
-            ox, oy = marker_offset_mm(depth)
+            own = b.own_size() if b is not None else ((size.w, size.d) if size else (1, 1))
+            ox, oy = marker_offset_for(mk.marker, *own)  # shelf middle or corner post
             c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
             mx, my = (float(v) for v in T.apply(np.asarray(mk.centre)))
             out.append((mk.marker, (mx - (c * ox - s * oy), my - (s * ox + c * oy)), yaw))

@@ -23,7 +23,7 @@ from .io import read_yaml, write_yaml
 
 ROLES = ("wild", "sort", "work", "unknown", "unsure", "overflow", "kit", "all")
 WILD_BY = ("part", "class", "family")  # what one wild bin collects
-MARKER_IDS = range(100, 250)  # DICT_4X4_250; ids below 100 are left to the calibration board
+MARKER_IDS = binspec.MARKER_IDS  # 50-99: corner-post bins, 100-249: shelf bins
 
 
 @dataclass
@@ -37,7 +37,7 @@ class Bin:
     holds: list[str] = field(default_factory=list)  # rules: DIN912_M4x16, DIN912_M4, DIN912*, *
     role: str = "wild"  # wild | sort | work | unknown | unsure | overflow | kit | all
     label: str = ""
-    rot: int = 0  # where its marker shelf faces: 0 back (+Y), 90 left, 180 front, 270 right
+    rot: int = 0  # where its marker side faces: 0 back (+Y), 90 left, 180 front, 270 right
 
     @classmethod
     def from_dict(cls, d: Mapping[str, Any]) -> Bin:
@@ -47,8 +47,14 @@ class Bin:
         return b
 
     def own_size(self) -> tuple[int, int]:
-        """(width, depth) in the bin's own frame (depth = towards its shelf)."""
+        """(width, depth) in the bin's own frame (depth = towards its marker)."""
         return (self.w, self.d) if self.rot % 180 == 0 else (self.d, self.w)
+
+    @property
+    def style(self) -> str:
+        """Where its marker sits: on a shelf along the back, or on a post in the back-right
+        corner (the marker id says which)."""
+        return binspec.style_for_marker(self.marker)
 
 
 @dataclass
@@ -96,13 +102,16 @@ class Layout:
 
     def work_rect(self) -> tuple[float, float, float, float]:
         """Where parts lie: inside the plate bin's walls, without its marker shelf (or the
-        cut-out cells of an older layout)."""
+        cut-out cells of an older layout). A corner-post tray keeps all of it: only the post's
+        square is left out (work_keepout)."""
         wb = self.work_bin()
         if wb is None:
             return self.cells_rect(self.work.x, self.work.y, self.work.w, self.work.d)
         x0, y0, x1, y1 = self.cells_rect(wb.x, wb.y, wb.w, wb.d)
         inset = binspec.GAP_MM / 2 + binspec.WALL_MM
         x0, y0, x1, y1 = x0 + inset, y0 + inset, x1 - inset, y1 - inset
+        if wb.style == "corner":
+            return x0, y0, x1, y1
         shelf = binspec.SHELF_DEPTH_MM
         return {
             0: (x0, y0, x1, y1 - shelf),
@@ -120,9 +129,24 @@ class Layout:
             self.bin_floor_mm + binspec.BASE_HEIGHT_MM + binspec.FLOOR_MM + self.plate_thickness_mm
         )
 
+    def work_keepout(self) -> tuple[float, float, float, float] | None:
+        """The corner post inside a corner-style plate (printer X/Y), or None."""
+        wb = self.work_bin()
+        if wb is None or wb.style != "corner":
+            return None
+        mx, my = self.marker_centre(wb)
+        h = binspec.POST_MM / 2
+        return mx - h, my - h, mx + h, my + h
+
     def in_work(self, xy: tuple[float, float], margin: float = 0.0) -> bool:
         x0, y0, x1, y1 = self.work_rect()
-        return x0 + margin <= xy[0] <= x1 - margin and y0 + margin <= xy[1] <= y1 - margin
+        if not (x0 + margin <= xy[0] <= x1 - margin and y0 + margin <= xy[1] <= y1 - margin):
+            return False
+        post = self.work_keepout()
+        if post is None:
+            return True
+        px0, py0, px1, py1 = post
+        return not (px0 - margin < xy[0] < px1 + margin and py0 - margin < xy[1] < py1 + margin)
 
     def bin_centre(self, b: Bin) -> tuple[float, float]:
         x0, y0, x1, y1 = self.cells_rect(b.x, b.y, b.w, b.d)
@@ -130,7 +154,7 @@ class Layout:
 
     def marker_centre(self, b: Bin) -> tuple[float, float]:
         cx, cy = self.bin_centre(b)
-        ox, oy = _rotate(binspec.marker_offset_mm(b.own_size()[1]), b.rot)
+        ox, oy = _rotate(binspec.marker_offset_for(b.marker, *b.own_size()), b.rot)
         return cx + ox, cy + oy
 
     def bin_rim_z(self, b: Bin) -> float:
@@ -149,7 +173,7 @@ class Layout:
 
     def next_marker(self) -> int:
         used = {b.marker for b in self.bins}
-        for m in MARKER_IDS:
+        for m in [*range(100, MARKER_IDS.stop), *range(MARKER_IDS.start, 100)]:
             if m not in used:
                 return m
         raise ValueError("all marker ids are in use")
@@ -303,7 +327,7 @@ class Layout:
                 )
             if b.height_u < binspec.MIN_HEIGHT_U:
                 out.append(
-                    f"{who}: at least {binspec.MIN_HEIGHT_U} height units (the marker shelf)"
+                    f"{who}: at least {binspec.MIN_HEIGHT_U} height units (the marker holder)"
                 )
             if b.w < 1 or b.d < 1:
                 out.append(f"{who}: at least 1x1 cells")
@@ -344,7 +368,7 @@ class Layout:
         ring = [(x, 0) for x in range(5)] + [(x, 4) for x in range(5)]
         ring += [(0, y) for y in range(1, 4)] + [(4, y) for y in range(1, 4)]
         for i, (x, y) in enumerate(ring):
-            lay.bins.append(Bin(marker=MARKER_IDS.start + i, x=x, y=y))
+            lay.bins.append(Bin(marker=100 + i, x=x, y=y))  # shelf sorting bins
         lay.bins[0].role, lay.bins[0].label = "unknown", "unknown parts"
         lay.bins[1].role, lay.bins[1].label = "unsure", "not sure"
         lay.bins[2].role, lay.bins[2].label = "overflow", "no bin"

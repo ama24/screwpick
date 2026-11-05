@@ -16,7 +16,7 @@ to Klipper through Moonraker, Klipper's built-in web API.
 
 ```
  ┌──┬──┬──┬──┬──┐   Gridfinity bins around the working area, each with a printed
- │B │B │B │B │B │   marker (a small black-and-white code) on a shelf: the camera
+ │B │B │B │B │B │   marker (a small black-and-white code) on a shelf or post: the camera
  ├──┼──┴──┴──┼──┤   finds every bin by itself, so you can rearrange them freely.
  │B │        │B │
  ├──┤  work  ├──┤   You choose what each bin holds: a part number (DIN912_M4x16),
