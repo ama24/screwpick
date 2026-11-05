@@ -204,7 +204,7 @@ ul.plain{margin:8px 0 0;padding-left:18px}
   </table>
  </div>
  <div class="card"><h2>Holders for the top bar</h2>
-  <p class="note">A screen holder (7" Waveshare HDMI LCD (H), the Pi 4 on its back) and a camera arm (Camera Module 3, lens straight down at the bed's centre with the bed all the way out), both on the printer's 2020 top bar with M5 T-nuts. Measure your printer: <b>reach</b> = from the bar's front face forward to the plate's centre, bed out; <b>bar height</b> = from the bar's underside down to the plate (the lens goes 300 mm above the plate).</p>
+  <p class="note">A screen holder (7" Waveshare HDMI LCD (H): an open frame holding it by its edge, so the Pi on the display's back sits free inside) and a camera arm (Camera Module 3, lens straight down at the bed's centre with the bed all the way out), both on the printer's 2020 top bar with M5 T-nuts. Measure your printer: <b>reach</b> = from the bar's front face forward to the plate's centre, bed out; <b>bar height</b> = from the bar's underside down to the plate (the lens goes 300 mm above the plate).</p>
   <div class="row"><label>reach<input id="mreach" type="number" value="135">mm</label><label>bar height<input id="mbar" type="number" placeholder="364">mm</label><label>screen tilt<input id="mtilt" type="number" value="20">°</label>
   <button class="b p s" onclick="location.href=`api/print/mounts?reach=${$('mreach').value}&tilt=${$('mtilt').value}`+($('mbar').value?`&bar_height=${$('mbar').value}`:'')">Download</button></div>
  </div>
