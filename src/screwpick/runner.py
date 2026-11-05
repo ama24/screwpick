@@ -12,7 +12,7 @@ import logging
 import math
 import threading
 import time
-from collections import deque
+from collections import Counter, deque
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -21,6 +21,7 @@ from typing import Any
 import numpy as np
 
 from .analysis import ModelChoice
+from .binswap import BinRequest, after_ok, choose_swap
 from .config import Machine
 from .fill import BinFill, bin_room_mm3, item_volume_mm3
 from .grip import jaw_angle
@@ -29,6 +30,7 @@ from .layout import Layout, yaw_from_up
 from .models import ModelError, ModelStore
 from .parts import compute_gaps, to_bed
 from .printer import Motion, Printer, PrinterError
+from .rules import wild_key
 from .setup import KEYS as SETUP_KEYS
 from .setup import Setup
 from .strategies import STRATEGIES, Plan, Planner
@@ -80,6 +82,9 @@ class Runner:
         # wild bin marker -> what it collects; bin marker -> parts in it since it was emptied
         self.claims, self.bin_counts, self.bin_volume = self._load_claims()
         self.ready: dict[int, dict[str, Any]] = {}  # bins that can be taken out
+        self.requests: list[BinRequest] = []  # bin changes asked for, until the OK
+        self._ok = threading.Event()  # the OK after a bin change (web page or printer menu)
+        self._no_swap_said = ""
         self._load_tool()
         self._load_machine()
         setup_path = self.m.path(self.m.paths.setup)
@@ -176,6 +181,7 @@ class Runner:
             "calib_pairs": self.calib_pairs,
             "driver": self.m.printer.driver,
             **self.bins_state(),
+            "requests": [r.to_dict() for r in self.requests],
             "auto": self.saved_mode()[0],
             "tip_offset_z": self.m.tool.offset[2],
             "timing": self.state.timing,
@@ -246,6 +252,12 @@ class Runner:
             )
             self._thread.start()
             return f"automatic: {strat}"
+        if cmd == "ok":  # a bin was changed: look what stands there now
+            if running:
+                self._ok.set()
+                return "OK: the bins are checked on the next photo"
+            res = self.bins_ok()
+            return "OK: " + ("; ".join(res["resolved"]) or "nothing was asked for")
         if cmd == "pause":
             if running:
                 self._pause.set()
@@ -409,6 +421,11 @@ class Runner:
                 planner.shakes_in_row = 0
                 prev = None  # someone may have moved parts
             shot, first = (first, None) if first is not None else (self.take_shot(layout, T), None)
+            if self._ok.is_set():  # a bin was changed: this photo shows what stands there now
+                self._ok.clear()
+                self._resolve_requests(layout, shot, T)
+                planner.claims = self.claims
+                prev = None
             with self._claims_lock:
                 before = dict(self.claims)
                 ok = prev is None or planner.report(prev, shot.parts)
@@ -437,6 +454,7 @@ class Runner:
                 picks=sum(planner.sorted_count.values()),
             )
             self._update_ready(planner, layout, shot.parts)
+            planner.full = {mk for mk, f in self.bin_fill(layout).items() if f["full"]}
             self._say_seen(shot.parts, layout)
             if steps is not None and done_steps >= steps:
                 return "steps"
@@ -446,6 +464,22 @@ class Runner:
             if plan.note:
                 self.note(plan.note)
                 self.say(plan.note)
+            self._ask_bins(planner, layout, shot.parts)
+            if plan.kind == "wait_bin":
+                asked = "; ".join(r.text() for r in self.requests) or plan.reason
+                self.note(f"waiting for a bin change: {plan.reason}")
+                self.say("waiting: " + asked)
+                with self._lock:
+                    self.motion.photo_position()  # parked, the bed out: hands are safe
+                    self.motion.message(
+                        self.requests[0].short() if self.requests else "screwpick: bin, OK"
+                    )
+                self._set(status="waiting", message=asked + "; then press OK")
+                while not self._ok.is_set() and not self._stop.is_set():
+                    time.sleep(0.2)
+                self._set(status="running")
+                prev = None
+                continue
             if plan.kind == "done":
                 self._set(status="done", message=plan.reason)
                 self.note(f"done: {plan.reason}")
@@ -1060,11 +1094,87 @@ class Runner:
                 self.motion.message(f"bin {mk} ready")
             self.ready = ready
 
+    def _ask_bins(self, planner: Planner, layout: Layout, parts: list[Any]) -> None:
+        """Ask for bin changes: every full bin, and a bin for each new kind without one."""
+        fill = self.bin_fill(layout)
+        asked = {r.marker for r in self.requests}
+        new: list[BinRequest] = []
+
+        def request(mk: int, why: str, kind: str | None = None) -> BinRequest:
+            b = layout.bin_by_marker(mk)
+            what = self.claims.get(mk) or (b.label or ", ".join(b.holds) or b.role if b else "?")
+            return BinRequest(mk, fill[mk]["cell"], why, what, fill[mk]["count"], kind)
+
+        for mk, f in fill.items():
+            if f["full"] and mk not in asked and mk != layout.work_marker:
+                new.append(request(mk, "full"))
+        margin = self.m.run.work_margin_mm
+        on_plate = Counter(
+            k
+            for p in parts
+            if layout.in_work(p.bed_xy, margin) and (k := wild_key(p, layout.wild_by)) is not None
+        )
+        for need, value in sorted(planner.needs, key=str):
+            if need != "new" or any(r.for_kind == value for r in self.requests + new):
+                continue
+            taken = asked | {r.marker for r in new}
+            share = {mk: f["share"] for mk, f in fill.items()}
+            pick = choose_swap(layout, self.claims, share, on_plate, taken)
+            if pick is None:
+                if self._no_swap_said != value:
+                    self.note(f"{value} needs a bin and there is none to ask for: add a bin")
+                    self._no_swap_said = str(value)
+                continue
+            b, why = pick
+            new.append(request(b.marker, "new_kind", str(value)))
+            self.note(f"bin {fill[b.marker]['cell']} chosen to make room: {why}")
+        for r in new:
+            self.requests.append(r)
+            self.note(r.text())
+            self.say(r.text())
+            self.motion.message(r.short())
+
+    def _resolve_requests(self, layout: Layout, shot: Shot, T: Transform2D) -> list[str]:
+        """After the OK: what stands where a bin was asked for (binswap.after_ok), then every
+        bin in the photo where it is."""
+        seen = self._seen_bins(layout, shot, T)
+        out = []
+        for r in list(self.requests):
+            self.requests = [q for q in self.requests if q is not r]
+            outcome = after_ok(layout, r, seen)
+            if outcome == "emptied":
+                self.bin_emptied(r.marker)
+                text = f"bin {r.cell} emptied: it starts again"
+            elif outcome == "replaced":
+                text = (
+                    f"another bin stands at {r.cell}; bin {r.marker} is kept aside with its parts"
+                )
+            else:
+                text = f"{r.cell} is empty now; bin {r.marker} is kept aside with its parts"
+            self.note(text)
+            out.append(text)
+        moved = self._place_bins(layout, shot, T)
+        added = [b["marker"] for b in moved if b.get("new")]
+        if added:
+            self.note(f"new bins seen, used as wild bins: {', '.join(map(str, added))}")
+        layout.save(self.layout_path)
+        return out
+
+    def bins_ok(self) -> dict[str, Any]:
+        """The OK while not sorting: photo of the bins, then as after a bin change."""
+        self._idle()
+        layout, T = self.layout(), self.transform()
+        with self._lock:
+            self.motion.preflight(home=False)
+        shot = self.take_shot(layout, T)
+        return {"resolved": self._resolve_requests(layout, shot, T), **self.bins_state()}
+
     def bin_emptied(self, marker: int | None) -> dict[str, Any]:
         """The bin was taken out and emptied: forget its contents (a wild bin becomes free).
         None = every bin marked ready."""
         with self._claims_lock:
             markers = list(self.ready) if marker is None else [int(marker)]
+            self.requests = [r for r in self.requests if r.marker not in markers]
             for mk in markers:
                 self.claims.pop(mk, None)
                 self.bin_counts.pop(mk, None)

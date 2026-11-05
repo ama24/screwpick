@@ -247,6 +247,30 @@ How full is an estimate, the same for screws or anything else the model learns:
 The bin's panel says "about 60 % full, room for about 8 more like them". Tune `packing` once
 you have filled a bin by hand: if it overflowed at 70 %, lower it.
 
+## Bin changes: full bins and new kinds
+
+The machine asks for a bin change when
+- a bin is **full** (see above): its kind carries on in a free wild bin if there is one;
+- a **new kind** needs a bin and no wild bin is free (`run.when_no_bin: ask`; `overflow`
+  sends it to the overflow bin instead, as before). It chooses the bin to give up: a bin
+  nothing on the plate goes to any more scores highest, a fuller bin higher, and a bin whose
+  kind still lies on the plate lower (it would be needed again soon).
+
+The request shows at the top of the web page ("Bin change: E1 DIN934_M4 30 · full"), the bin
+is outlined in amber in the Layout tab, the console and the printer's display say it. The
+machine keeps sorting everything else; when only the waiting parts are left it parks (bed out,
+safe for your hands) and waits.
+
+Empty the bin, or put another (empty) bin in its place, then press **OK, done** in the page or
+**OK, bin changed** in the printer menu. The next photo checks what stands there now:
+- **the same code:** the bin was emptied; its count starts again, a wild bin is free again;
+- **another code:** a different bin stands there; it becomes a wild bin (or takes up its old
+  rules, if it was used before). The old bin is kept aside with what it holds: put it back
+  later and its count and contents come back with it;
+- **no code:** the cell is empty; the old bin is kept aside the same way.
+
+OK also works when the machine is not sorting: it takes a photo and does the same check.
+
 ## Login
 
 The page needs a user name and password (`web.require_login`, on by default):
@@ -425,7 +449,8 @@ These rules apply to every strategy:
 ## Printer menu
 
 `screwpick.cfg` adds **Screw sorter** to the printer's display menu: *Sort*, *Clear plate*,
-*Pick kit*, *One pick*, *Pause*, *Resume*, *Stop*, *Picker mounted*, *Hotend mounted*. You can also
+*Pick kit*, *One pick*, *OK, bin changed*, *Pause*, *Resume*, *Stop*, *Picker mounted*,
+*Hotend mounted*. You can also
 type the commands in any Klipper console: `SCREWPICK CMD=start STRATEGY=sort`.
 
 ## How it works

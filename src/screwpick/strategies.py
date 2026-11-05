@@ -37,7 +37,7 @@ STRATEGIES = {
 
 @dataclass
 class Plan:
-    kind: str  # pick | shake | done | stuck
+    kind: str  # pick | shake | done | stuck | wait_bin (only a bin change helps now)
     part: Part | None = None
     bin: Bin | None = None
     reason: str = ""
@@ -65,6 +65,8 @@ class Planner:
     failed_picks: int = 0
     claims: dict[int, str] = field(default_factory=dict)  # wild bin marker -> what it collects
     started: list[str] = field(default_factory=list)  # census order: kinds begun, in order
+    full: set[int] = field(default_factory=set)  # bins too full to take more
+    needs: set[tuple[str, object]] = field(default_factory=set)  # bin changes the plate needs
     current: str | None = None  # the kind being picked now
 
     def __post_init__(self) -> None:
@@ -76,7 +78,9 @@ class Planner:
     # ------------------------------------------------------------------ decisions
     def _decide(self, p: Part) -> tuple[Decision | None, str | None]:
         if self.strategy == "sort":
-            return destination(p, self.layout, self.machine.run.min_score, self.claims), None
+            run = self.machine.run
+            ask = run.when_no_bin == "ask"
+            return destination(p, self.layout, run.min_score, self.claims, self.full, ask), None
         if self.strategy == "clear":
             b = next((b for b in self.layout.bins if b.role == "all"), None) or next(
                 (b for b in self.layout.bins if b.role == "overflow"), None
@@ -115,6 +119,8 @@ class Planner:
         options: list[tuple[Part, Decision, str | None]] = []
         waiting: list[tuple[Part, str | None]] = []
         no_bin: list[Part] = []
+        for_bin: list[Part] = []  # waiting for a bin change
+        self.needs = set()
         blocked = 0
         for p in cands:
             if self._blocked(p):
@@ -123,7 +129,10 @@ class Planner:
             dec, kit_rule = self._decide(p)
             if dec is None:
                 continue
-            if dec.waiting:
+            if dec.needs is not None:
+                self.needs.add(dec.needs)
+                for_bin.append(p)
+            elif dec.waiting:
                 waiting.append((p, kit_rule))
             elif dec.bin is None:
                 no_bin.append(p)
@@ -148,6 +157,8 @@ class Planner:
                 ),
             )
             return Plan("pick", p, dec.bin, dec.reason, rule, dec.claim, note)
+        if for_bin:
+            return Plan("wait_bin", reason=f"{len(for_bin)} part(s) wait for a bin change")
         stuck_parts = len(waiting) + blocked
         if stuck_parts:
             if run.shake.enabled and self.shakes_in_row < run.shake.max_in_a_row:

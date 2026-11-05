@@ -159,6 +159,7 @@ def test_old_claims_file_still_loads(machine):
 
 def test_bins_the_camera_finds_join_as_wild_and_unseen_ones_are_skipped(machine):
     machine.run.shake.enabled = False
+    machine.run.when_no_bin = "overflow"  # no bin changes asked for here
     lay = Layout.default()
     lay.bins = [b for b in lay.bins if b.role == "wild"][:3] + [lay.work_bin()]
     seen = Layout.from_dict(lay.to_dict())

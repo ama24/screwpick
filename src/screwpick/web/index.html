@@ -68,7 +68,9 @@ td small{display:block;color:var(--mut);font-size:12.5px}
 .stat b{font-weight:600}
 
 /* ready notice */
-#ready{display:none;max-width:1180px;margin:16px auto 0;padding:0 16px}#ready.on{display:block}
+#ready,#swap{display:none;max-width:1180px;margin:16px auto 0;padding:0 16px}#ready.on,#swap.on{display:block}
+#swap .notice{background:var(--warn-soft);border-color:#ecdcbc}#swap .check{background:var(--warn)}#swap .notice li{border-color:#ecdcbc}
+#swap .ok{border:0;background:var(--warn);color:#fff;border-radius:999px;padding:7px 18px;font:inherit;font-weight:600;cursor:pointer;margin-top:12px}
 .notice{background:var(--ok-soft);border:1px solid #d3e6d7;border-radius:var(--r);padding:14px 18px;display:flex;gap:14px;align-items:flex-start}
 .check{flex:none;width:22px;height:22px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:13px;margin-top:1px}
 .notice ul{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:8px}.notice li{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid #d3e6d7;border-radius:999px;padding:4px 5px 4px 12px;font-size:13px}.notice li .x{border:0;background:var(--ok-soft);color:var(--ok);border-radius:999px;padding:3px 10px;font:inherit;cursor:pointer}.notice li .x:hover{background:var(--ok);color:#fff}
@@ -98,6 +100,7 @@ ul.plain{margin:8px 0 0;padding-left:18px}
  <nav><button data-t="setup">Setup<span id="setupbadge" class="badge" hidden></span></button><button data-t="run" class="on">Run</button><button data-t="layout">Layout</button><button data-t="calib">Calibrate</button><button data-t="print">Print bins</button><button data-t="models">Models</button><button data-t="users">Users</button></nav>
  <div class="right"><span id="status"><span class="dot"></span>…</span><span id="me"></span><button class="estop" onclick="cmd('estop')">STOP</button></div>
 </div></header>
+<div id="swap"><div class="notice"><span class="check">!</span><div><b>Bin change</b><span class="note"> · empty these bins, or put an empty bin in their place. The machine waits parked (bed out) once nothing else can be sorted. Then press OK: the camera checks what stands there now.</span><ul id="swaplist"></ul><button class="ok" onclick="cmd('ok')">OK, done</button></div></div></div>
 <div id="ready"><div class="notice"><span class="check">✓</span><div><b>Ready to take out</b><span class="note"> · nothing on the plate goes into these bins any more. Empty them, then press Emptied.</span><ul id="readylist"></ul></div></div></div>
 
 <div id="login"><form onsubmit="doLogin(event)">
@@ -263,7 +266,11 @@ async function changePw(){try{await api("api/users/password",{old:$("oldpw").val
 async function cmd(c){try{const j=await api("api/command",{command:c,strategy:$("strategy").value});flash("msg",j.result);}catch(e){flash("msg",e.message,1);}poll();}
 async function emptied(m){try{const j=await api("api/bins/emptied",{marker:m});Object.assign(S,j);renderBins();if(lay)render();if(sel!==null&&lay)panel();}catch(e){flash("msg",e.message,1);}}
 function readyMap(){const r={};for(const x of S.ready||[])r[x.marker]=x;return r;}
+function swapMap(){const r={};for(const x of S.requests||[])r[x.marker]=x;return r;}
 function renderBins(){
+ const reqs=S.requests||[];
+ $("swap").classList.toggle("on",reqs.length>0);
+ $("swaplist").innerHTML=reqs.map(x=>`<li><b>${esc(x.cell)}</b><span>${esc(x.what)}</span><span class="mut">${x.count} · ${x.why==="full"?"full":"for "+esc(x.for_kind||"")}</span></li>`).join("");
  const ready=S.ready||[];
  $("ready").classList.toggle("on",ready.length>0);
  $("readylist").innerHTML=ready.map(x=>`<li><b>${x.marker}</b><span>${esc(x.what)}</span><span class="mut">${x.count}</span><button class="x" onclick="emptied(${x.marker})">Emptied</button></li>`).join("")+(ready.length>1?`<li style="padding-left:5px"><button class="x" onclick="emptied(null)">All emptied</button></li>`:"");
@@ -272,7 +279,7 @@ function renderBins(){
  $("binsuse").innerHTML=ids.length?ids.map(m=>`<div class="stat"><span>Bin ${esc(m)} <span class="mut">${esc(claims[m]||"")}</span> ${rm[m]?'<span class="tag on">ready</span>':""}</span><b>${counts[m]||0}</b></div>`).join(""):"no bin filled yet";}
 let shown="";
 async function poll(){try{S=await api("api/state");}catch(e){$("status").innerHTML='<span class="dot bad"></span>no connection';return;}
- const cls={running:"ok",done:"ok",standby:"ok",error:"bad",stuck:"warn",paused:"warn",stopping:"warn"}[S.status]||"";
+ const cls={running:"ok",done:"ok",standby:"ok",error:"bad",stuck:"warn",waiting:"warn",paused:"warn",stopping:"warn"}[S.status]||"";
  $("status").innerHTML=`<span class="dot ${cls}"></span><b>${esc(S.status)}</b>${S.auto?" · automatic":""}${S.driver==="sim"?" · simulation":""}`;$("tipz").textContent=(S.tip_offset_z>=0?"+":"")+(+S.tip_offset_z).toFixed(2)+" mm";
  $("msg").textContent=S.message;$("plan").textContent=S.plan||"";
  const st=$("strategy");if(!st.options.length){for(const[k,v]of Object.entries(S.strategies)){const o=document.createElement("option");o.value=k;o.textContent=v;st.appendChild(o);}st.value=S.strategy;}
@@ -313,8 +320,8 @@ function render(){const W=lay.cols*CELL,H=lay.rows*CELL,svg=$("grid"),rm=readyMa
  const w=lay.work;if(lay.work_marker==null)s+=`<rect x="${w.x*CELL+3}" y="${Y(w.y,w.d)+3}" width="${w.w*CELL-6}" height="${w.d*CELL-6}" rx="9" fill="var(--work)" pointer-events="none"/>`+
   `<text x="${(w.x+w.w/2)*CELL}" y="${Y(w.y,w.d)+w.d*CELL/2+2}" text-anchor="middle" font-size="6.2" letter-spacing="1.2" fill="#9aa9ae">WORKING AREA</text>`;
  for(const b of lay.bins){const on=b.marker===sel,r=rm[b.marker],t=binText(b),x0=b.x*CELL+4,y0=Y(b.y,b.d)+4,bw=b.w*CELL-8,bh=b.d*CELL-8;
-  const f=(S.fill||{})[b.marker],fill=t.plate?"var(--work)":r?"var(--ok-soft)":t.special?"var(--cell)":"#fff",stroke=on?"var(--acc)":r?"var(--ok)":t.plate?"#c9d6db":"#d9d8d2";
-  s+=`<g data-m="${b.marker}" style="cursor:pointer"><rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="${on?1.6:0.8}" ${t.free&&!on?'stroke-dasharray="3 2.5"':""}/>`+
+  const f=(S.fill||{})[b.marker],q=swapMap()[b.marker],fill=t.plate?"var(--work)":r?"var(--ok-soft)":t.special?"var(--cell)":"#fff",stroke=on?"var(--acc)":q?"var(--warn)":r?"var(--ok)":t.plate?"#c9d6db":"#d9d8d2";
+  s+=`<g data-m="${b.marker}" style="cursor:pointer"><rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="${on||q?1.6:0.8}" ${t.free&&!on?'stroke-dasharray="3 2.5"':""}/>`+
    (()=>{const k=CELL*14/42,rot=(b.rot||0)%360,sh=styleOf(b.marker)==="corner"?{0:[x0+bw-k,y0,k,k],90:[x0,y0,k,k],180:[x0,y0+bh-k,k,k],270:[x0+bw-k,y0+bh-k,k,k]}[rot]:{0:[x0,y0,bw,k],180:[x0,y0+bh-k,bw,k],90:[x0,y0,k,bh],270:[x0+bw-k,y0,k,bh]}[rot];
      return `<rect x="${sh[0]+1}" y="${sh[1]+1}" width="${sh[2]-2}" height="${sh[3]-2}" rx="5" fill="${t.plate?"#dfe7ea":"var(--line2)"}" opacity="${t.plate?1:0.55}"/>`;})()+
    `<text x="${x0+7}" y="${y0+11}" font-size="5.6" fill="var(--soft)"><tspan font-weight="600" fill="var(--mut)">${cellName(b.x,b.y)}</tspan> · ${b.marker}</text>`+

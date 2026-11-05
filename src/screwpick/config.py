@@ -129,6 +129,8 @@ class Run:
     pipeline: bool = True
     shake: Shake = field(default_factory=Shake)
     fill: Fill = field(default_factory=Fill)  # how full the bins are (estimated, see fill.py)
+    # a new kind and no free wild bin: ask (a bin change, chosen by binswap.py) | overflow
+    when_no_bin: str = "ask"
 
 
 @dataclass
@@ -191,6 +193,8 @@ class Machine:
                 raise ConfigError(f"printer.{name}: wrong number of values {v}")
         if len(self.tool.offset) != 3:
             raise ConfigError("tool.offset needs X Y Z")
+        if self.run.when_no_bin not in ("ask", "overflow"):
+            raise ConfigError("run.when_no_bin must be ask or overflow")
         if self.run.order not in ("census", "largest_group", "nearest"):
             raise ConfigError("run.order must be census, largest_group or nearest")
         if self.run.shake.axis.upper() not in ("X", "Y"):
