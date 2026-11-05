@@ -345,15 +345,11 @@ def make_store(m: Any) -> ModelStore | None:
     root = m.path(m.paths.models)
     if root is None:
         return None
-    classes_yaml = None
-    try:
-        from screwsynth.common.config import load_config
-        from screwsynth.common.paths import resolve
+    from .files import find
 
-        cfg = load_config(m.path(m.paths.screwsynth_config))
-        classes_yaml = resolve(cfg.get("paths.classes", "configs/classes.yaml"))
-    except Exception as exc:  # noqa: BLE001 - screwsynth missing or not set up: no class check
-        log.info("no class check for uploaded models: %s", exc)
+    classes_yaml, _ = find(m, "classes")  # the Files tab's copy first
+    if classes_yaml is None:
+        log.info("no class list (Files tab): uploaded models are not checked")
     return ModelStore(root, classes_yaml, tuple(m.models.prefer))
 
 

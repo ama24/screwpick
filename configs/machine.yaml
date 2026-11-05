@@ -17,6 +17,7 @@ paths:
   tool: ../data/tool.json      # tip height, measured in the Calibrate tab
   setup: ../data/setup.json    # the Setup tab's checklist
   machine: ../data/machine.json  # limits/positions saved in the Setup tab (they override printer: below)
+  files: ../data/files         # files dropped in the Files tab (calibration, items.json, ...)
 
 camera:
   settings: null               # screwrig lock settings json (locked focus/exposure); null: rpicam-still
@@ -86,7 +87,7 @@ run:
     shape: 0.5                 # a part's volume = outline area x height x this
     packing: 0.3               # loose parts fill this share of a bin's room
     full_at: 0.9               # a bin this full asks to be emptied
-    catalogue: true            # exact volumes of catalogued parts (screwsynth's data/assets)
+    catalogue: true            # exact volumes from items.json (Files tab), when there is one
     learn: true                # Full on a bin teaches how densely its family packs
   when_no_bin: ask             # a new kind, no free wild bin: ask for a bin change | overflow
   check_emptied: true          # after a bin change, parts still seen in a bin are counted

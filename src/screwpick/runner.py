@@ -21,6 +21,7 @@ from typing import Any
 import numpy as np
 
 from . import binspec
+from . import files as files_mod
 from .analysis import ModelChoice
 from .binswap import BinRequest, after_ok, choose_swap
 from .config import Machine
@@ -1144,20 +1145,53 @@ class Runner:
         return p
 
     def _load_volumes(self) -> CatalogueVolumes | None:
-        """Exact volumes of the catalogued items (screwsynth's data/assets); None without."""
+        """Exact volumes from items.json (the Files tab); None: estimated from the outlines."""
         if not self.m.run.fill.catalogue:
             return None
-        try:
-            from screwsynth.common.config import load_config
-            from screwsynth.common.paths import resolve
-
-            cfg = load_config(self.m.path(self.m.paths.screwsynth_config))
-            cat = CatalogueVolumes.load(resolve(cfg.get("paths.assets_dir", "data/assets")))
-        except Exception as exc:  # noqa: BLE001 - the outline estimate still works
-            log.warning("no catalogue volumes (%s): estimating from the outlines", exc)
+        path, _ = files_mod.find(self.m, "items")
+        if path is None:
             return None
-        log.info("catalogue volumes: %d items", len(cat))
+        try:
+            cat = CatalogueVolumes.from_items(read_json(path))
+        except (OSError, ValueError) as exc:
+            log.warning("items.json cannot be read (%s): estimating from the outlines", exc)
+            return None
+        log.info("item volumes: %d items", len(cat))
         return cat or None
+
+    # ------------------------------------------------------------------ the Files tab
+    def files_state(self) -> dict[str, Any]:
+        return {"slots": files_mod.slots_state(self.m)}
+
+    def add_file(self, key: str, data: bytes, original: str = "") -> dict[str, Any]:
+        store = files_mod.store_of(self.m)
+        if store is None:
+            raise ValueError("paths.files is not set")
+        self._idle()
+        info = store.save(key, data, original)
+        self.note(f"file added: {files_mod.BY_KEY[key].title} ({info['summary']})")
+        self._files_changed(key)
+        return self.files_state()
+
+    def remove_file(self, key: str) -> dict[str, Any]:
+        store = files_mod.store_of(self.m)
+        if store is not None:
+            self._idle()
+            store.remove(key)
+            self.note(f"file removed: {files_mod.BY_KEY[key].title}")
+            self._files_changed(key)
+        return self.files_state()
+
+    def _files_changed(self, key: str) -> None:
+        """Use the new copy at once."""
+        if key == "items":
+            self.volumes = self._load_volumes()
+            return
+        if self.store is not None:
+            self.store.classes_yaml = files_mod.find(self.m, "classes")[0]
+        reload = getattr(self.vision, "reload_setup", None)
+        if reload is not None:
+            reload()
 
     def _load_claims(self) -> tuple[dict[int, str], dict[int, int], dict[int, float]]:
         """(what each wild bin collects, how many items each bin received, their volume);

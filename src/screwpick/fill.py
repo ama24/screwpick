@@ -1,8 +1,9 @@
 """How full a bin is: the volume of the items that went in, against the room inside the bin.
 
 An item's volume, best first:
-- the catalogue: catalogued items (screwsynth's generated parts) carry their exact mesh volume;
-  by part number, else by class at the measured length, else the class average;
+- the catalogue: items.json (dropped in the Files tab, made by `screwsynth-partgen items`)
+  has the exact mesh volume of every catalogued item; by part number, else by class at the
+  measured length, else the class average;
 - generic, for any item the model segments (screws today, anything tomorrow): from what the
   camera measured, its outline area on the plate times its height, times a shape factor (a
   lying screw fills about half of that box: round shank, the head only at one end).
@@ -18,9 +19,7 @@ twice a 3-unit one (the floor is the same).
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
-from pathlib import Path
 
 import numpy as np
 
@@ -33,7 +32,7 @@ class Fill:
     packing: float = 0.3  # loose items fill this share of a bin's room
     full_at: float = 0.9  # a bin this full (estimated) asks to be emptied
     default_mm3: float = 300.0  # an item without an outline (nothing measured)
-    catalogue: bool = True  # exact volumes of catalogued items (screwsynth's data/assets)
+    catalogue: bool = True  # exact volumes from items.json (Files tab), when there is one
     learn: bool = True  # "Full" on a bin teaches how densely its kind really packs
 
 
@@ -85,26 +84,26 @@ class BinFill:
 
 
 class CatalogueVolumes:
-    """Exact volumes of the catalogued items, from screwsynth's generated assets (each
-    part.json carries its mesh volume). Better than the outline estimate when the item is
-    known: by part number, else by its class (at the measured length, or the class average)."""
+    """Exact volumes of the catalogued items, from items.json (the Files tab). Better than the
+    outline estimate when the item is known: by part number, else by its class (at the
+    measured length, or the class average)."""
 
     def __init__(self, by_class: dict[str, list[tuple[float | None, float]]] | None = None):
         self.by_class = by_class or {}  # class -> [(length or None, volume mm3)]
 
     @classmethod
-    def load(cls, assets_dir: Path) -> CatalogueVolumes:
+    def from_items(cls, table: dict) -> CatalogueVolumes:
+        """From an items.json (screwsynth-partgen items), dropped in the Files tab."""
         by: dict[str, list[tuple[float | None, float]]] = {}
-        for f in sorted(assets_dir.glob("*/part.json")):
+        for r in table.get("items", []):
             try:
-                d = json.loads(f.read_text(encoding="utf-8"))
-                vol = float(d["mesh"]["volume_mm3"])
-                name = str(d["class_name"])
-            except (OSError, ValueError, KeyError, TypeError):
+                vol = float(r["volume_mm3"])
+                name = str(r["class"])
+            except (ValueError, KeyError, TypeError):
                 continue
             if name.upper() == "UNKNOWN" or vol <= 0:
                 continue  # every unknown item is different: the outline knows better
-            length = d.get("length")
+            length = r.get("length")
             by.setdefault(name, []).append((float(length) if length else None, vol))
         for v in by.values():
             v.sort(key=lambda t: (t[0] is None, t[0] or 0.0))

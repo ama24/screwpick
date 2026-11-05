@@ -44,6 +44,7 @@ class Paths:
     tool: str = "../data/tool.json"  # tip height measured in the Calibrate tab
     setup: str = "../data/setup.json"  # the Setup tab's checklist
     machine: str = "../data/machine.json"  # limits/positions set in the Setup tab (over this file)
+    files: str = "../data/files"  # files dropped in the Files tab (calibration, items.json, ...)
 
 
 @dataclass

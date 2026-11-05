@@ -229,6 +229,25 @@ machine could move complete bins aside by itself.
 
 So you can put a new printed bin on the bed and it's used straight away.
 
+## Files tab: files from the other projects
+
+screwpick keeps its own copy of every file it uses from the other projects, so it runs on its
+own and never reads their folders. The **Files** tab has a card for each one, saying where to
+find it, what it is for and what is done without it, and which copy is in use. Fetch the file,
+drop it on its card: it is checked, kept on the Pi (`paths.files`) and used at once.
+
+| File | Where to get it | Without it |
+|---|---|---|
+| `calibration.json` | screw-sorting: `data/calibration/calibration.json` (calibration tool) | nominal camera |
+| `head_calibration.json` | the same, from the head camera's photos | only needed with a head camera |
+| `config.yaml` | screw-sorting: `output/<recipe>/config.yaml` of the model's dataset (or `configs/config.yaml`) | the settings of the installed screw-sorting code |
+| `classes.yaml` | screw-sorting: `configs/classes.yaml` | models are not checked against the catalogue |
+| `items.json` | screw-sorting: `screwsynth-partgen items --out items.json` | volumes estimated from the camera |
+
+A dropped file comes first, then a path set in machine.yaml, then (settings, classes and
+calibration only) what the installed screw-sorting code brings along. Models, including ones
+from anywhere else, go in the Models tab.
+
 ## How full the bins are
 
 Cells are named like a chess board: a column letter from the left and a row number from the
@@ -238,8 +257,9 @@ bar for how full it is, turning amber when it is full (`run.fill.full_at`, 90 %)
 
 How full is an estimate:
 - **each part's volume**, the best known:
-  - a catalogued part (everything screwsynth generates) has its **exact volume** from its 3D
-    model: by part number, else by class at the measured length, else the class average;
+  - with **items.json** dropped in the Files tab, a catalogued part has its **exact volume**
+    from its 3D model: by part number, else by class at the measured length, else the class
+    average;
   - anything else (unknown parts, new kinds of items) from what the camera measured: the area
     of its outline on the plate times its height, times `run.fill.shape` (0.5: a lying screw
     fills about half of that box). Nothing in it is specific to screws;

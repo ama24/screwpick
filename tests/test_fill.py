@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import numpy as np
 import pytest
 
@@ -53,20 +50,23 @@ def test_bin_fill_share_and_more():
     assert bf.more(room, 0.5) == 15  # 3000 mm3 left, 200 each
 
 
-def _asset(root, pid, cls, length, vol):
-    d = root / pid
-    d.mkdir()
-    (d / "part.json").write_text(
-        json.dumps({"id": pid, "class_name": cls, "length": length, "mesh": {"volume_mm3": vol}})
+def _items(*rows):
+    return {
+        "format": "screwsynth-items",
+        "version": 1,
+        "items": [{"id": i, "class": c, "length": n, "volume_mm3": v} for i, c, n, v in rows],
+    }
+
+
+def test_catalogue_volumes():
+    cat = CatalogueVolumes.from_items(
+        _items(
+            ("DIN912_M4x10", "DIN912_M4", 10.0, 200.0),
+            ("DIN912_M4x20", "DIN912_M4", 20.0, 300.0),
+            ("DIN934_M4", "DIN934_M4", None, 99.0),
+            ("UNKNOWN_WOODSCREW_01", "UNKNOWN", None, 500.0),
+        )
     )
-
-
-def test_catalogue_volumes(tmp_path):
-    _asset(tmp_path, "DIN912_M4x10", "DIN912_M4", 10.0, 200.0)
-    _asset(tmp_path, "DIN912_M4x20", "DIN912_M4", 20.0, 300.0)
-    _asset(tmp_path, "DIN934_M4", "DIN934_M4", None, 99.0)
-    _asset(tmp_path, "UNKNOWN_WOODSCREW_01", "UNKNOWN", None, 500.0)
-    cat = CatalogueVolumes.load(tmp_path)
     assert len(cat) == 3  # unknown items are all different: not averaged
     assert cat.volume("DIN912_M4", 10) == 200.0  # the part number
     assert cat.volume("DIN912_M4", 16) == pytest.approx(260.0)  # between two lengths
@@ -79,14 +79,6 @@ def test_catalogue_volumes(tmp_path):
     assert part_volume_mm3(known, f, cat) == 300.0
     known.cls = "SOMETHING_NEW"  # not catalogued: from its outline
     assert part_volume_mm3(known, f, cat) == item_volume_mm3(known, f)
-
-
-def test_real_catalogue_when_present():
-    assets = Path(__file__).resolve().parents[2] / "supreme-screw-sortering" / "data" / "assets"
-    if not assets.is_dir():
-        pytest.skip("screwsynth's data/assets is not next to this repository")
-    cat = CatalogueVolumes.load(assets)
-    assert cat.volume("DIN912_M4", 16) == pytest.approx(295, rel=0.05)
 
 
 def test_packing_is_learnt_per_family():
