@@ -5,11 +5,14 @@ Both fix to the top bar (Ender 3: a 2020 aluminium profile) with M5 screws and T
 T-nuts go in without taking the printer apart). Print in PETG or PLA, 0.2 mm layers, 4 walls,
 30 % infill, lying as the files are; no supports.
 
-screen_holder.stl: a thin L for the Waveshare 7inch HDMI LCD (H) (case 191 x 115 mm, four M2
-  holes 175 x 99 mm, 8 mm from the edges): M2 x 6 screws from the back into the case.
-  The Raspberry Pi 4 screws to the middle strip, on the back (M2.5 standoffs, holes 49 x 58 mm).
-  The foot sits on top of the bar: 2 x M5 x 8 into the top slot. The screen leans back
-  20 degrees, so it faces you. Put it on one side of the bar; the camera is in the middle.
+screen_holder.stl: an open frame for the Waveshare 7inch HDMI LCD (H) (case 191 x 115 mm,
+  four M2 holes 175 x 99 mm, 8 mm from the edges): M2 x 10 screws through the frame into the
+  case. It touches only a 12 mm band along the display's edge: the Raspberry Pi stays
+  screwed to the display's back where it is (off centre) and sits free inside the frame, with
+  45 mm of room behind the display for it and its cables. A leg at each end stands on
+  the bar, the display's bottom 10 mm above it: 2 x M5 x 8 into the top slot, one in each
+  foot, 203 mm apart. The screen leans back 20 degrees, so it faces you. Put it on one
+  side of the bar; the camera is in the middle.
 
 camera_arm.stl: the plate goes on the bar's front face, at the bar's centre: 2 x M5 x 10 into
   the front slot. The arm reaches 135 mm forward and the post goes 60 mm down: the

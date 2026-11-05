@@ -28,14 +28,14 @@ def test_screen_holder_leans_back_and_prints_flat():
     p = ScreenHolder()
     v, _ = _to_mesh(_screen_holder_installed(p))
     lo, hi = v.min(axis=0), v.max(axis=0)
-    assert hi[0] - lo[0] == pytest.approx(191.0, abs=0.1)  # as wide as the display
-    assert lo[2] == pytest.approx(0.0, abs=0.05)  # sits on the bar's top
-    assert hi[2] == pytest.approx(115 * math.cos(math.radians(20)), abs=1.5)  # leans back 20 deg
-    assert hi[1] == pytest.approx(max(20.0, 115 * math.sin(math.radians(20))), abs=1.5)
+    assert hi[0] - lo[0] == pytest.approx(191.0 + 2 * p.foot_out, abs=0.1)  # feet outside
+    assert lo[2] == pytest.approx(0.0, abs=0.05)  # stands on the bar's top
+    top = p.bottom_z + 115 * math.cos(math.radians(20))  # leans back 20 deg
+    assert hi[2] == pytest.approx(top, abs=0.1)
     m = trimesh.Trimesh(*build_screen_holder(p))
-    assert m.is_watertight
-    assert m.bounds[1][0] <= 214 and m.bounds[1][1] <= 214  # fits an Ender 3 bed
-    assert m.bounds[1][2] < 30  # lies flat: the upright on the bed, the foot rises a little
+    assert m.is_watertight and m.body_count == 1
+    assert m.bounds[1][0] <= 220 and m.bounds[1][1] <= 220  # fits an Ender 3 bed
+    assert m.bounds[1][2] < 45  # lies flat: the frame on the bed, rim and legs rise
 
 
 def _hole_centres(v: np.ndarray, r: float, near: list[tuple[float, float]], axes: tuple[int, int]):
@@ -48,13 +48,26 @@ def _hole_centres(v: np.ndarray, r: float, near: list[tuple[float, float]], axes
     return found
 
 
-def test_screen_holes_match_the_display_and_the_pi():
-    p = ScreenHolder(tilt_deg=0.0)  # upright: x across, z up
+def test_screen_holes_and_feet():
+    p = ScreenHolder(tilt_deg=0.0, lift=0.0)  # upright: x across, z up
     v, _ = _to_mesh(_screen_holder_installed(p))
     display = [(sx * 87.5, z) for sx in (-1, 1) for z in (8.0, 107.0)]
-    pi = [(sx * 24.5, z) for sx in (-1, 1) for z in (57.5 - 29.0, 57.5 + 29.0)]
     assert all(_hole_centres(v, 1.2, display, (0, 2)))
-    assert all(_hole_centres(v, 1.4, pi, (0, 2)))
+    feet = [(sx * p.foot_hole_dx / 2, p.foot_depth / 2) for sx in (-1, 1)]
+    assert all(_hole_centres(v, 2.7, feet, (0, 1)))
+
+
+@pytest.mark.parametrize("tilt", [0.0, 20.0, 35.0])
+def test_the_pi_behind_the_display_has_room(tilt):
+    """The Pi is screwed to the display's back, off centre: nothing of the holder may be
+    anywhere behind the display except the band along its edge."""
+    from screwpick.printables.mounts import screen_open_space
+
+    p = ScreenHolder(tilt_deg=tilt)
+    clash = _screen_holder_installed(p) ^ screen_open_space(p)
+    assert clash.volume() < 1e-3
+    assert screen_open_space(p).volume() > 160 * 85 * 40  # most of the back is free
+    assert screen_open_space(p).bounding_box()[2] > 2.9  # the Pi stays above the bar
 
 
 def test_camera_lens_over_the_bed_centre():
