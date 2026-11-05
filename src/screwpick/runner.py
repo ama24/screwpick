@@ -86,7 +86,7 @@ class Runner:
         self.claims, self.bin_counts, self.bin_volume = self._load_claims()
         self.volumes = self._load_volumes()
         self.ready: dict[int, dict[str, Any]] = {}  # bins that can be taken out
-        self.requests: list[BinRequest] = []  # bin changes asked for, until the OK
+        self.requests: list[BinRequest] = self._loaded_requests  # bin changes, until the OK
         # a bin change takes two OKs (web page or printer menu): the first parks the machine
         # (bed out, hands safe), the second says the bins are changed: a photo checks them
         self._park = threading.Event()  # first OK, while sorting: park after this move
@@ -486,6 +486,7 @@ class Runner:
         self._last_seen = ""
         prev: Plan | None = None
         done_steps = 0
+        waiting_for = ""  # the bin change last announced
         while not self._stop.is_set():
             if self._pause.is_set():
                 self._set(
@@ -498,12 +499,16 @@ class Runner:
                 self._set(status="running")
                 planner.shakes_in_row = 0
                 prev = None  # someone may have moved parts
+                first = None  # ... so a photo from before the pause is out of date
             if self._park.is_set():  # first OK: park and wait for the second
                 self._park.clear()
                 if self._parked_for_bins():
                     break
                 prev = None
-            area = "bins" if self._ok.is_set() else "work"  # after a bin change: the bins too
+                first = None
+            if self._ok.is_set():  # after a bin change: a new photo, with the bins
+                first = None
+            area = "bins" if self._ok.is_set() else "work"
             shot, first = (
                 (first, None) if first is not None else (self.take_shot(layout, T, area=area), None)
             )
@@ -554,15 +559,24 @@ class Runner:
             self._ask_bins(planner, layout, shot.parts)
             if plan.kind == "wait_bin":  # everything else is sorted: only a bin change helps
                 asked = "; ".join(r.text() for r in self.requests) or plan.reason
-                self.note(f"waiting for a bin change: {plan.reason}")
-                self.say("waiting: " + asked)
-                self.motion.message("Bin change: OK=park")
+                if asked != waiting_for:  # say it once, not on every look
+                    waiting_for = asked
+                    self.note(f"waiting for a bin change: {plan.reason}")
+                    self.say("waiting: " + asked)
+                    self.motion.message("Bin change: OK=park")
                 self._set(status="waiting", message=asked + "; press OK to park")
-                while not (self._park.is_set() or self._ok.is_set()) and not self._stop.is_set():
+                # look again now and then: parts thrown in meanwhile are sorted while it waits
+                end = time.monotonic() + self.m.standby.interval_s
+                while (
+                    not (self._park.is_set() or self._ok.is_set())
+                    and not self._stop.is_set()
+                    and time.monotonic() < end
+                ):
                     time.sleep(0.2)
                 self._set(status="running")
                 prev = None
                 continue
+            waiting_for = ""
             if plan.kind == "done":
                 self._set(status="done", message=plan.reason)
                 self.note(f"done: {plan.reason}")
@@ -584,6 +598,7 @@ class Runner:
                     time.sleep(0.2)
                 planner.shakes_in_row = 0
                 prev = None
+                first = None
                 self._set(status="running")
                 continue
             if plan.kind == "shake":
@@ -1198,9 +1213,13 @@ class Runner:
         also the learnt packing and each bin's family."""
         self.packing = Packing()
         self.bin_family: dict[int, str] = {}
+        self._loaded_requests: list[BinRequest] = []
         if not self.claims_path.is_file():
             return {}, {}, {}
         d = read_json(self.claims_path) or {}
+        self._loaded_requests = [
+            BinRequest(**{k: v for k, v in r.items() if k != "text"}) for r in d.get("requests", [])
+        ]
         self.packing = Packing(
             {str(k): [float(x) for x in v] for k, v in d.get("packing", {}).items()}
         )
@@ -1221,6 +1240,7 @@ class Runner:
                 "volumes": {str(k): round(v, 1) for k, v in sorted(self.bin_volume.items())},
                 "families": {str(k): v for k, v in sorted(self.bin_family.items())},
                 "packing": self.packing.samples,
+                "requests": [r.to_dict() for r in self.requests],
             },
         )
 
@@ -1295,8 +1315,11 @@ class Runner:
             b, why = pick
             new.append(request(b.marker, "new_kind", str(value)))
             self.note(f"bin {fill[b.marker]['cell']} chosen to make room: {why}")
+        if new:
+            with self._claims_lock:
+                self.requests = self.requests + new
+                self._save_claims()
         for r in new:
-            self.requests.append(r)
             self.note(r.text())
             self.say(r.text())
             self.motion.message(r.short())
@@ -1305,10 +1328,14 @@ class Runner:
         """After the OK: what stands where a bin was asked for (binswap.after_ok), then every
         bin in the photo where it is."""
         seen = self._seen_bins(layout, shot, T)
+        disk = self.layout()  # the whole layout: a run leaves out the bins it did not see
         out = []
         for r in list(self.requests):
-            self.requests = [q for q in self.requests if q is not r]
+            with self._claims_lock:
+                self.requests = [q for q in self.requests if q is not r]
             outcome = after_ok(layout, r, seen)
+            if outcome != "emptied" and disk.bin_by_marker(r.marker) is not None:
+                after_ok(disk, r, seen)
             left = self._parts_in_bin(layout, r.marker, shot)
             if outcome == "emptied" and left:  # the camera still sees parts in it
                 with self._claims_lock:
@@ -1330,10 +1357,13 @@ class Runner:
             self.note(text)
             out.append(text)
         moved = self._place_bins(layout, shot, T)
+        self._place_bins(disk, shot, T)
         added = [b["marker"] for b in moved if b.get("new")]
         if added:
             self.note(f"new bins seen, used as wild bins: {', '.join(map(str, added))}")
-        layout.save(self.layout_path)
+        disk.save(self.layout_path)
+        with self._claims_lock:
+            self._save_claims()
         return out
 
     def _parts_in_bin(self, layout: Layout, marker: int, shot: Shot) -> int:
@@ -1429,7 +1459,10 @@ class Runner:
         if not any(r.marker == b.marker for r in self.requests):
             fill = self.bin_fill(layout)[b.marker]
             what = self.claims.get(b.marker) or b.label or ", ".join(b.holds) or b.role
-            self.requests.append(BinRequest(b.marker, fill["cell"], "full", what, fill["count"]))
+            with self._claims_lock:
+                req = BinRequest(b.marker, fill["cell"], "full", what, fill["count"])
+                self.requests = self.requests + [req]
+                self._save_claims()
         return self.bins_state()
 
     def bins_state(self) -> dict[str, Any]:
