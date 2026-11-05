@@ -89,7 +89,8 @@ board lying in the tray, at the height the parts will lie.
 - **Holders for the printer's top bar** ([mounts/](mounts/)), both fixed with M5 screws and
   T-nuts in the 2020 top bar of an Ender 3:
   - [screen_holder.stl](mounts/screen_holder.stl): an open frame for the 7" Waveshare HDMI
-    LCD (H) (M2 holes 175 × 99 mm), leaning back 20° towards you. It holds the display by a
+    LCD (H) (M2 holes 155 × 92 mm, M2 screws with heads up to 5.6 mm), leaning back 20° towards
+    you. It holds the display by a
     12 mm band along its edge only, so the Raspberry Pi stays screwed to the display's back
     where it is (it isn't centred) and sits free inside the frame, with 45 mm of room for it
     and its cables. A leg at each end stands on the bar, with one M5 in each foot (203 mm

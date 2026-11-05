@@ -80,7 +80,7 @@ TODOS: tuple[Todo, ...] = (
         "screen",
         "Pi clear of the screen holder",
         "The Raspberry Pi on the screen's back must stay more than 12 mm inside the screen's "
-        "edge (the holder's frame touches only that band).",
+        "edge, and clear of the four round screw pads (11 mm across) at the screen's holes.",
     ),
     Todo(
         "menu",
