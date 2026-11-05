@@ -22,6 +22,7 @@ from .grip import Shape, axis_grip, outline_grip
 from .markers import MarkerPose, detect, marker_pose
 from .models import ModelStore
 from .parts import Part
+from .trayview import WorkArea, paint_outside, parse_colour
 
 log = logging.getLogger("screwpick.vision")
 
@@ -37,14 +38,22 @@ class Shot:
 
 
 class Vision(Protocol):
-    def capture(self, name: str, marker_height: Callable[[int], float]) -> Shot:
+    def capture(
+        self, name: str, marker_height: Callable[[int], float], work: WorkArea | None = None
+    ) -> Shot:
         """Take a photo, find parts and markers; `marker_height(id)` = plate-frame height of a
-        marker (bins differ in height)."""
+        marker (bins differ in height); `work`: the model sees only the tray's inside."""
 
     def snap(self, name: str) -> Any:
         """Only take the photo (fast); `analyse` it later, e.g. while the machine moves."""
 
-    def analyse(self, photo: Any, name: str, marker_height: Callable[[int], float]) -> Shot: ...
+    def analyse(
+        self,
+        photo: Any,
+        name: str,
+        marker_height: Callable[[int], float],
+        work: WorkArea | None = None,
+    ) -> Shot: ...
 
     def close(self) -> None: ...
 
@@ -227,6 +236,20 @@ class CameraVision:
             return {"error": self.model_error or "no model loaded"}
         return self.analyzer.describe()
 
+    def _painted(self, scene: Any, work: WorkArea) -> Any:
+        import dataclasses
+
+        def px(poly: np.ndarray) -> np.ndarray:
+            return scene.cam.project(np.c_[poly, np.zeros(len(poly))])
+
+        img = paint_outside(
+            scene.image,
+            px(work.outline),
+            [px(h) for h in work.holes],
+            parse_colour(self.m.camera.mask_colour),
+        )
+        return dataclasses.replace(scene, image=img, gray=None)
+
     def _scene(self, photo: Path) -> Any:
         from screwsynth.measure.infer import load_scene
 
@@ -243,8 +266,10 @@ class CameraVision:
         cmd = ["rpicam-still", "-n", "-t", "500", "--width", "4608", "--height", "2592"]
         subprocess.run([*cmd, "-q", "95", "-o", str(path)], check=True, capture_output=True)
 
-    def capture(self, name: str, marker_height: Callable[[int], float]) -> Shot:
-        return self.analyse(self.snap(name), name, marker_height)
+    def capture(
+        self, name: str, marker_height: Callable[[int], float], work: WorkArea | None = None
+    ) -> Shot:
+        return self.analyse(self.snap(name), name, marker_height, work)
 
     def snap(self, name: str) -> Path:
         if self.analyzer is None:
@@ -255,12 +280,22 @@ class CameraVision:
         self._snap(photo)
         return photo
 
-    def analyse(self, photo: Path, name: str, marker_height: Callable[[int], float]) -> Shot:
+    def analyse(
+        self,
+        photo: Path,
+        name: str,
+        marker_height: Callable[[int], float],
+        work: WorkArea | None = None,
+    ) -> Shot:
+        """`work`: the tray's inside (plate frame): the rest is painted over for the model
+        (trayview.py); None: the whole photo (e.g. to look into the bins)."""
         import cv2
         from screwsynth.measure.infer import draw
 
         assert self.analyzer is not None
         scene = self._scene(photo)
+        if work is not None and self.m.camera.mask:
+            scene = self._painted(scene, work)
         result = self.analyzer.analyse(scene, str(photo))
         parts = parts_from_result(
             result,

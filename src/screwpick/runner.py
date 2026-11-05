@@ -37,7 +37,10 @@ from .rules import family, wild_key
 from .setup import KEYS as SETUP_KEYS
 from .setup import Setup
 from .strategies import STRATEGIES, Plan, Planner
+from .todo import TodoList
 from .transform import BedCalibration, Transform2D
+from .trayview import WorkArea
+from .trayview import rect as tray_rect
 from .vision import Shot, Vision
 
 log = logging.getLogger("screwpick.runner")
@@ -86,18 +89,23 @@ class Runner:
         self.claims, self.bin_counts, self.bin_volume = self._load_claims()
         self.volumes = self._load_volumes()
         self.ready: dict[int, dict[str, Any]] = {}  # bins that can be taken out
-        self.requests: list[BinRequest] = []  # bin changes asked for, until the OK
+        self.requests: list[BinRequest] = self._loaded_requests  # bin changes, until the OK
         # a bin change takes two OKs (web page or printer menu): the first parks the machine
         # (bed out, hands safe), the second says the bins are changed: a photo checks them
         self._park = threading.Event()  # first OK, while sorting: park after this move
         self._ok = threading.Event()  # second OK: the bins are changed
         self.swap_phase = ""  # "" sorting | parked (waiting for the second OK)
         self._no_swap_said = ""
+        self.mask_checked = False  # the tray view was checked and saved (Calibrate tab)
+        self.markers_seen: set[int] = set()  # every code the camera has read
         self._load_tool()
         self._load_machine()
         setup_path = self.m.path(self.m.paths.setup)
         assert setup_path is not None
         self.setup = Setup(setup_path)
+        todo_path = self.m.path(self.m.paths.todo)
+        assert todo_path is not None
+        self.todo = TodoList(todo_path)
         # the simulator needs no setup; a real printer does
         self.require_setup = self.m.printer.driver != "sim"
         self._setup_homed = False  # homed from the Setup tab since the program started
@@ -190,6 +198,7 @@ class Runner:
             "driver": self.m.printer.driver,
             **self.bins_state(),
             "requests": [r.to_dict() for r in self.requests],
+            "mask_margin_mm": self.m.camera.mask_margin_mm,
             "swap_phase": self.swap_phase,
             "auto": self.saved_mode()[0],
             "tip_offset_z": self.m.tool.offset[2],
@@ -316,22 +325,83 @@ class Runner:
         return time.strftime("%Y%m%d-%H%M%S") + f"_{self._shot_no:04d}"
 
     def take_shot(
-        self, layout: Layout, T: Transform2D | None, move: bool = True, area: str = "work"
+        self,
+        layout: Layout,
+        T: Transform2D | None,
+        move: bool = True,
+        area: str = "work",
+        paint: bool = True,
     ) -> Shot:
         """Photo position, photo, parts (with printer X/Y when T is known), markers. `move`
         False: photograph where the bed is (standby with the motors off: still parked).
         A head camera photographs `area`: work (the tray), bins (the grid and around it) or
-        here (one photo at the photo position: calibration)."""
+        here (one photo at the photo position: calibration). `paint`: the model sees only the
+        tray's inside (trayview.py); False to look into the bins too."""
+        work = self._work_area(layout, T) if paint else None
         if self.m.camera.source == "head":
-            return self._head_shot(layout, T, area)
+            return self._head_shot(layout, T, area, work)
         with self._lock:
             if move:
                 self.motion.photo_position()
             name = self._photo_name()
-            shot = self.vision.capture(name, lambda mid: _marker_plate_height(layout, mid))
+            shot = self.vision.capture(name, lambda mid: _marker_plate_height(layout, mid), work)
         return self._finish_shot(shot, layout, T)
 
-    def _head_shot(self, layout: Layout, T: Transform2D | None, area: str) -> Shot:
+    def _work_area(self, layout: Layout, T: Transform2D | None) -> WorkArea | None:
+        """The tray's inside (and its corner post) in the plate frame, for painting the rest."""
+        if T is None or not self.m.camera.mask:
+            return None
+        Ti = T.inverse()
+        g = self.m.camera.mask_margin_mm  # + keeps more of the wall, - paints more of the floor
+        x0, y0, x1, y1 = layout.work_rect()
+        post = layout.work_keepout()
+        holes = []
+        if post is not None:
+            px0, py0, px1, py1 = post
+            holes = [Ti.apply(tray_rect(px0 + g, py0 + g, px1 - g, py1 - g))]
+        return WorkArea(Ti.apply(tray_rect(x0 - g, y0 - g, x1 + g, y1 + g)), holes)
+
+    # ------------------------------------------------------------------ what the model sees
+    def mask_preview(self, margin_mm: float) -> dict[str, Any]:
+        """A photo painted with this margin (not saved): the Run tab's picture shows what the
+        model sees."""
+        self._idle()
+        layout, T = self.layout(), self.transform()
+        with self._lock:
+            self.motion.preflight(home=False)
+        old = self.m.camera.mask_margin_mm
+        self.m.camera.mask_margin_mm = float(margin_mm)
+        try:
+            shot = self.take_shot(layout, T)
+        finally:
+            self.m.camera.mask_margin_mm = old
+        return {
+            "image": shot.vis.name if shot.vis else None,
+            "parts": len(shot.parts),
+            "margin_mm": float(margin_mm),
+        }
+
+    def mask_save(self, margin_mm: float) -> dict[str, Any]:
+        p = self.m.path(self.m.paths.machine)
+        assert p is not None
+        kept = read_json(p) if p.is_file() else {}
+        write_json(p, {**kept, "mask_margin_mm": float(margin_mm)})
+        self.m.camera.mask_margin_mm = float(margin_mm)
+        self.mask_checked = True
+        self.note(f"tray view saved: margin {float(margin_mm):g} mm")
+        return {"margin_mm": float(margin_mm), "saved": True}
+
+    # ------------------------------------------------------------------ on the machine
+    def todo_state(self) -> dict[str, Any]:
+        return {"items": self.todo.state(self)}
+
+    def todo_tick(self, key: str, done: bool) -> dict[str, Any]:
+        self.todo.tick(key, done)
+        return self.todo_state()
+
+    def _head_shot(
+        self, layout: Layout, T: Transform2D | None, area: str, work: WorkArea | None = None
+    ) -> Shot:
         """The head camera over `area`: overlapping photos, joined in the frame of the
         calibration photo (headcam.py)."""
         hc = self.m.camera.head
@@ -363,10 +433,13 @@ class Runner:
                 self.motion.travel(x, y)
                 self.motion.move(z=pc.photo_position[2])
                 self.printer.gcode("M400")
-                last = self.vision.capture(
-                    f"{name}_{k:02d}", lambda mid: _marker_plate_height(layout, mid)
-                )
             d = Ai @ (np.array([x, y]) - ref)  # the view moved with the head
+            with self._lock:
+                last = self.vision.capture(
+                    f"{name}_{k:02d}",
+                    lambda mid: _marker_plate_height(layout, mid),
+                    work.shifted(-d) if work is not None else None,
+                )
             for p in last.parts:
                 shift_part(p, d)
             for mk in last.markers:
@@ -384,6 +457,7 @@ class Runner:
         return self._finish_shot(shot, layout, T)
 
     def _finish_shot(self, shot: Shot, layout: Layout, T: Transform2D | None) -> Shot:
+        self.markers_seen |= {mk.marker for mk in shot.markers}
         if T is not None:
             to_bed(shot.parts, T)
         compute_gaps(shot.parts)
@@ -486,6 +560,7 @@ class Runner:
         self._last_seen = ""
         prev: Plan | None = None
         done_steps = 0
+        waiting_for = ""  # the bin change last announced
         while not self._stop.is_set():
             if self._pause.is_set():
                 self._set(
@@ -498,14 +573,21 @@ class Runner:
                 self._set(status="running")
                 planner.shakes_in_row = 0
                 prev = None  # someone may have moved parts
+                first = None  # ... so a photo from before the pause is out of date
             if self._park.is_set():  # first OK: park and wait for the second
                 self._park.clear()
                 if self._parked_for_bins():
                     break
                 prev = None
-            area = "bins" if self._ok.is_set() else "work"  # after a bin change: the bins too
+                first = None
+            if self._ok.is_set():  # after a bin change: a new photo, with the bins
+                first = None
+            check = self._ok.is_set()  # it must look into the bins: nothing painted over
+            area = "bins" if check else "work"
             shot, first = (
-                (first, None) if first is not None else (self.take_shot(layout, T, area=area), None)
+                (first, None)
+                if first is not None
+                else (self.take_shot(layout, T, area=area, paint=not check), None)
             )
             if self._ok.is_set():  # a bin was changed: this photo shows what stands there now
                 self._ok.clear()
@@ -554,15 +636,24 @@ class Runner:
             self._ask_bins(planner, layout, shot.parts)
             if plan.kind == "wait_bin":  # everything else is sorted: only a bin change helps
                 asked = "; ".join(r.text() for r in self.requests) or plan.reason
-                self.note(f"waiting for a bin change: {plan.reason}")
-                self.say("waiting: " + asked)
-                self.motion.message("Bin change: OK=park")
+                if asked != waiting_for:  # say it once, not on every look
+                    waiting_for = asked
+                    self.note(f"waiting for a bin change: {plan.reason}")
+                    self.say("waiting: " + asked)
+                    self.motion.message("Bin change: OK=park")
                 self._set(status="waiting", message=asked + "; press OK to park")
-                while not (self._park.is_set() or self._ok.is_set()) and not self._stop.is_set():
+                # look again now and then: parts thrown in meanwhile are sorted while it waits
+                end = time.monotonic() + self.m.standby.interval_s
+                while (
+                    not (self._park.is_set() or self._ok.is_set())
+                    and not self._stop.is_set()
+                    and time.monotonic() < end
+                ):
                     time.sleep(0.2)
                 self._set(status="running")
                 prev = None
                 continue
+            waiting_for = ""
             if plan.kind == "done":
                 self._set(status="done", message=plan.reason)
                 self.note(f"done: {plan.reason}")
@@ -584,6 +675,7 @@ class Runner:
                     time.sleep(0.2)
                 planner.shakes_in_row = 0
                 prev = None
+                first = None
                 self._set(status="running")
                 continue
             if plan.kind == "shake":
@@ -750,7 +842,9 @@ class Runner:
             photo = self.vision.snap(name)
         t_photo = time.perf_counter()
         heights = lambda mid: _marker_plate_height(layout, mid)  # noqa: E731
-        job = self._pool.submit(self.vision.analyse, photo, name, heights)
+        job = self._pool.submit(
+            self.vision.analyse, photo, name, heights, self._work_area(layout, T)
+        )
         with self._lock:
             self._drop(plan, layout)
         t_drop = time.perf_counter()
@@ -917,6 +1011,9 @@ class Runner:
         for k, v in (read_json(p) or {}).items():
             if k in self.MACHINE_KEYS:
                 setattr(self.m.printer, k, v)
+            elif k == "mask_margin_mm":
+                self.m.camera.mask_margin_mm = float(v)
+                self.mask_checked = True
 
     def machine_values(self) -> dict[str, Any]:
         return {k: getattr(self.m.printer, k) for k in self.MACHINE_KEYS}
@@ -951,7 +1048,8 @@ class Runner:
             raise
         p = self.m.path(self.m.paths.machine)
         assert p is not None
-        write_json(p, new)
+        kept = read_json(p) if p.is_file() else {}  # e.g. the tray view's margin
+        write_json(p, {**kept, **new})
         self.setup.reset("machine")
         self.note("machine values saved: confirm them in the Setup tab")
         return self.setup_state()
@@ -1198,9 +1296,13 @@ class Runner:
         also the learnt packing and each bin's family."""
         self.packing = Packing()
         self.bin_family: dict[int, str] = {}
+        self._loaded_requests: list[BinRequest] = []
         if not self.claims_path.is_file():
             return {}, {}, {}
         d = read_json(self.claims_path) or {}
+        self._loaded_requests = [
+            BinRequest(**{k: v for k, v in r.items() if k != "text"}) for r in d.get("requests", [])
+        ]
         self.packing = Packing(
             {str(k): [float(x) for x in v] for k, v in d.get("packing", {}).items()}
         )
@@ -1221,6 +1323,7 @@ class Runner:
                 "volumes": {str(k): round(v, 1) for k, v in sorted(self.bin_volume.items())},
                 "families": {str(k): v for k, v in sorted(self.bin_family.items())},
                 "packing": self.packing.samples,
+                "requests": [r.to_dict() for r in self.requests],
             },
         )
 
@@ -1287,16 +1390,24 @@ class Runner:
             taken = asked | {r.marker for r in new}
             share = {mk: f["share"] for mk, f in fill.items()}
             pick = choose_swap(layout, self.claims, share, on_plate, taken)
-            if pick is None:
+            if pick is None:  # no wild bin to give up: overflow, else wait for a bin
+                planner.to_overflow.add((need, value))
                 if self._no_swap_said != value:
-                    self.note(f"{value} needs a bin and there is none to ask for: add a bin")
+                    has = any(b.role in ("all", "overflow") for b in layout.bins)
+                    self.note(
+                        f"{value} needs a bin and there is none to ask for: "
+                        + ("into the overflow bin" if has else "add a bin")
+                    )
                     self._no_swap_said = str(value)
                 continue
             b, why = pick
             new.append(request(b.marker, "new_kind", str(value)))
             self.note(f"bin {fill[b.marker]['cell']} chosen to make room: {why}")
+        if new:
+            with self._claims_lock:
+                self.requests = self.requests + new
+                self._save_claims()
         for r in new:
-            self.requests.append(r)
             self.note(r.text())
             self.say(r.text())
             self.motion.message(r.short())
@@ -1305,10 +1416,14 @@ class Runner:
         """After the OK: what stands where a bin was asked for (binswap.after_ok), then every
         bin in the photo where it is."""
         seen = self._seen_bins(layout, shot, T)
+        disk = self.layout()  # the whole layout: a run leaves out the bins it did not see
         out = []
         for r in list(self.requests):
-            self.requests = [q for q in self.requests if q is not r]
+            with self._claims_lock:
+                self.requests = [q for q in self.requests if q is not r]
             outcome = after_ok(layout, r, seen)
+            if outcome != "emptied" and disk.bin_by_marker(r.marker) is not None:
+                after_ok(disk, r, seen)
             left = self._parts_in_bin(layout, r.marker, shot)
             if outcome == "emptied" and left:  # the camera still sees parts in it
                 with self._claims_lock:
@@ -1330,10 +1445,13 @@ class Runner:
             self.note(text)
             out.append(text)
         moved = self._place_bins(layout, shot, T)
+        self._place_bins(disk, shot, T)
         added = [b["marker"] for b in moved if b.get("new")]
         if added:
             self.note(f"new bins seen, used as wild bins: {', '.join(map(str, added))}")
-        layout.save(self.layout_path)
+        disk.save(self.layout_path)
+        with self._claims_lock:
+            self._save_claims()
         return out
 
     def _parts_in_bin(self, layout: Layout, marker: int, shot: Shot) -> int:
@@ -1361,7 +1479,7 @@ class Runner:
         layout, T = self.layout(), self.transform()
         with self._lock:
             self.motion.preflight(home=False)
-        shot = self.take_shot(layout, T, area="bins")
+        shot = self.take_shot(layout, T, area="bins", paint=False)
         return {"resolved": self._resolve_requests(layout, shot, T), **self.bins_state()}
 
     def bin_emptied(self, marker: int | None) -> dict[str, Any]:
@@ -1429,7 +1547,10 @@ class Runner:
         if not any(r.marker == b.marker for r in self.requests):
             fill = self.bin_fill(layout)[b.marker]
             what = self.claims.get(b.marker) or b.label or ", ".join(b.holds) or b.role
-            self.requests.append(BinRequest(b.marker, fill["cell"], "full", what, fill["count"]))
+            with self._claims_lock:
+                req = BinRequest(b.marker, fill["cell"], "full", what, fill["count"])
+                self.requests = self.requests + [req]
+                self._save_claims()
         return self.bins_state()
 
     def bins_state(self) -> dict[str, Any]:

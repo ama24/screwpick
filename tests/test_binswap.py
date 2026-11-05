@@ -194,3 +194,125 @@ def test_ok_counts_parts_still_in_an_emptied_bin(machine):
     runner.command("ok")
     assert runner.command("ok") == "OK: bin E1 still has 2 part(s) in it: counted 2"
     assert runner.bin_counts[104] == 2 and runner.bin_volume[104] == pytest.approx(200.0)
+
+
+def _running(machine, lay, cam):
+    world = _world(lay)
+    runner = Runner(
+        machine,
+        SimPrinter(machine, world),
+        SimVision(world, lambda: cam["layout"], Transform2D.identity),
+    )
+    return runner, world
+
+
+def test_the_check_after_ok_uses_a_new_photo(machine):
+    """Photo during the drop (pipeline): the photo from before parking must not be used to
+    check the bins after the second OK (it would show the old bin: "emptied")."""
+    machine.run.shake.enabled = False
+    assert machine.run.pipeline
+    lay = _lay()
+    lay.save(machine.path(machine.paths.layout))
+    cam = {"layout": Layout.from_dict(lay.to_dict())}
+    runner, world = _running(machine, lay, cam)
+    runner.claims[103] = "DIN934_M4"
+    runner.bin_counts[103], runner.bin_volume[103] = 60, 1e6  # full: asked for at once
+    runner.vision.delay_s = 0.05
+    runner.command("start", "sort")
+    end = time.time() + 10
+    while runner.state.picks < 1 and time.time() < end:
+        time.sleep(0.01)
+    runner.command("ok")
+    _wait_for(runner, "parked")
+    seen = Layout.from_dict(lay.to_dict())
+    seen.bins = [b for b in seen.bins if b.marker != 103] + [Bin(marker=135, x=3, y=0)]
+    cam["layout"] = seen  # bin 103 swapped for an empty one
+    runner.command("ok")
+    _wait_for(runner, "done")
+    assert any("another bin stands at D1" in e for e in runner.events), runner.events[-8:]
+    assert runner.bin_counts[103] == 60  # kept aside with its parts, not "emptied"
+
+
+def test_bins_not_seen_during_a_run_stay_in_the_layout(machine):
+    machine.run.shake.enabled = False
+    lay = _lay()
+    lay.save(machine.path(machine.paths.layout))
+    seen = Layout.from_dict(lay.to_dict())
+    seen.bins = [b for b in seen.bins if b.marker != 105]  # its code is covered
+    cam = {"layout": seen}
+    runner, _ = _running(machine, lay, cam)
+    runner.bin_counts[104], runner.bin_volume[104] = 60, 1e6
+    runner.claims[104] = "X"
+    runner.command("start", "sort")
+    _wait_for(runner, "waiting")  # 105 unseen, 104 full: not enough bins
+    runner.command("ok")
+    _wait_for(runner, "parked")
+    runner.command("ok")  # the bin change is checked and the layout saved
+    end = time.time() + 10
+    while runner.requests and time.time() < end:
+        time.sleep(0.05)
+    runner.command("stop")
+    runner.wait(10)
+    saved = runner.layout()
+    assert saved.bin_by_marker(105) is not None  # still there, with its settings
+    assert saved.bin_by_marker(104) is not None  # the same code back: emptied, still there
+
+
+def test_waiting_for_a_bin_still_sorts_new_parts(machine):
+    machine.run.shake.enabled = False
+    machine.standby.interval_s = 0.3  # look again soon
+    lay = _lay()
+    lay.bins = [b for b in lay.bins if b.marker != 105]
+    lay.save(machine.path(machine.paths.layout))
+    cam = {"layout": Layout.from_dict(lay.to_dict())}
+    runner, world = _running(machine, lay, cam)
+    runner.command("start", "sort")
+    _wait_for(runner, "waiting")
+    n = len(world.dropped)
+    x0, y0, _, _ = lay.work_rect()
+    world.parts.append(SimPart("DIN934_M4", x0 + 60, y0 + 70, 0.0, None, (7.0, 7.0), 3.2))
+    end = time.time() + 15
+    while len(world.dropped) == n and time.time() < end:
+        time.sleep(0.05)
+    assert len(world.dropped) == n + 1  # sorted without pressing OK
+    _wait_for(runner, "waiting")
+    runner.command("stop")
+    runner.wait(10)
+
+
+def test_requests_survive_a_restart(machine):
+    lay = _lay()
+    lay.save(machine.path(machine.paths.layout))
+    world = SimWorld(seed=1)
+    runner = Runner(
+        machine, SimPrinter(machine, world), SimVision(world, lambda: lay, Transform2D.identity)
+    )
+    runner.bin_counts[104], runner.bin_volume[104] = 20, 4000.0
+    runner.bin_full(104)
+    again = Runner(machine, SimPrinter(machine, world), runner.vision)
+    assert [(r.marker, r.why) for r in again.requests] == [(104, "full")]
+
+
+def test_a_new_kind_with_no_bin_to_ask_for_goes_to_overflow(machine):
+    lay = Layout.default()
+    lay.bins = [b for b in lay.bins if b.marker in (102, 103)] + [lay.work_bin()]
+    lay.bin_by_marker(103).role = "wild"  # one wild bin, and the overflow bin 102
+    lay.save(machine.path(machine.paths.layout))
+    world = _world(lay)
+    world.parts = [p for p in world.parts if p.cls != "ISO7380_M4"]  # nuts and washers
+    runner = Runner(
+        machine, SimPrinter(machine, world), SimVision(world, lambda: lay, Transform2D.identity)
+    )
+    runner.claims[103] = "DIN912_M3x8"  # taken by a kind no longer on the plate
+    runner.printer.gcode("G28")
+    shot = runner.take_shot(lay, Transform2D.identity())
+    from screwpick.strategies import Planner
+
+    planner = Planner(lay, machine, "sort")
+    planner.claims = runner.claims
+    assert planner.next(shot.parts).kind == "wait_bin"  # nuts and washers both need a bin
+    runner._ask_bins(planner, lay, shot.parts)
+    assert [r.marker for r in runner.requests] == [103]  # one bin for one of them
+    plan = planner.next(shot.parts)
+    assert plan.kind == "pick" and plan.bin.marker == 102  # the other: into overflow
+    assert any("into the overflow bin" in e for e in runner.events)

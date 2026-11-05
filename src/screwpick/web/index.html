@@ -122,6 +122,9 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 <section id="setup">
  <div class="card"><h2>Setup</h2><p class="note" style="margin:0">Go through these steps once, in order, and again whenever something changes (picker, Z switch, camera, bins). <b>Sort</b> and <b>Automatic</b> start only when every step is checked. Until then the machine only makes the moves you ask for here. <span id="setupsum"></span></p></div>
  <div id="steps"></div>
+ <div class="card"><h2>On the machine</h2>
+  <p class="note">Things only you can do on the real machine. They do not stop the sorting; some tick themselves off when the program notices.</p>
+  <div id="todo"></div></div>
 </section>
 
 <section id="run" class="on">
@@ -173,6 +176,11 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 </section>
 
 <section id="calib">
+ <div class="card"><h2>What the model sees</h2>
+  <p class="note" style="margin:0 0 12px">Only the tray's inside goes to the model: the bins, their codes and the tray's walls are painted over with the floor's colour, the photo keeping its size (the parts stay as large as the model learnt them). Take a photo and look: the painted edge should sit just at the foot of the tray's walls. <b>Margin</b>: + keeps a strip of the wall's foot (parts lying right against it stay whole), − paints more of the floor's edge (if the wall still shows).</p>
+  <div class="row"><label>margin<input id="mmargin" type="number" step="0.5" value="0" style="width:72px">mm</label>
+   <button class="b s" onclick="maskPreview()">Take a photo</button><button class="b p s" onclick="maskSave()">Save</button><span id="maskmsg" class="note"></span></div>
+  <img id="maskshot" class="shot" alt="" style="margin-top:12px" hidden></div>
  <div class="card"><h2>Camera to printer</h2>
   <ol class="note" style="padding-left:18px;margin:0 0 14px"><li>Put at least 3 bins far apart on the bed, then <b>Take photo</b>.</li>
   <li>Jog the picker tip onto the centre of a marker, then <b>Tip is here</b> on its row.</li>
@@ -307,7 +315,7 @@ async function poll(){try{S=await api("api/state");}catch(e){$("status").innerHT
  con.innerHTML=(S.console||[]).map(l=>`<div><span class="t">${esc(l.slice(0,8))}</span>${esc(l.slice(9))}</div>`).join("")||'<span class="note">nothing yet</span>';
  if(atEnd)con.scrollTop=con.scrollHeight;
  const su=S.setup||{};$("setupbadge").hidden=!(su.required&&!su.complete);$("setupbadge").textContent=(su.missing||[]).length;$("setupnote").hidden=!(su.required&&!su.complete);$("setupmissing").textContent="still to do: "+(su.missing||[]).join(", ");
- renderPairs(S.calib_pairs||[]);renderBins();if(lay&&$("layout").classList.contains("on")&&!workStart)render();}
+ renderPairs(S.calib_pairs||[]);renderBins();if(!maskSet&&S.mask_margin_mm!=null){$("mmargin").value=S.mask_margin_mm;maskSet=true;}if(lay&&$("layout").classList.contains("on")&&!workStart)render();}
 setInterval(()=>{if(!$("login").classList.contains("on"))poll();},1500);session();
 
 // ---------------------------------------------------------------- layout
@@ -392,7 +400,7 @@ function renderPrint(){$("printlist").innerHTML="<tr><th>bin</th><th>size</th><t
 // ---------------------------------------------------------------- setup
 function go(t){document.querySelector(`nav button[data-t="${t}"]`).click();}
 let SU={steps:[]},CHECKS=null;
-async function loadSetup(){try{SU=await api("api/setup");renderSetup();}catch(e){flash("setupsum",e.message,1);}}
+async function loadSetup(){try{SU=await api("api/setup");renderSetup();loadTodo();}catch(e){flash("setupsum",e.message,1);}}
 async function setupCall(path,body,msg){try{if(msg)flash("setupsum",msg);const j=await api(path,body||{});if(j.checks)CHECKS=j.checks;SU=j.steps?j:await api("api/setup");renderSetup();if(j.tip)flash("setupsum",`tip at ${j.tip.join(", ")}`);poll();}catch(e){flash("setupsum",e.message,1);}}
 function mval(id){return +$(id).value;}
 function saveMachine(){setupCall("api/setup/machine",{values:{limits_x:[mval("mx0"),mval("mx1")],limits_y:[mval("my0"),mval("my1")],limits_z:[mval("mz0"),mval("mz1")],travel_z:mval("mtz"),photo_position:[mval("mpx"),mval("mpy"),mval("mpz")]}},"saving…");}
@@ -417,6 +425,17 @@ function stepBody(st){const m=SU.machine||{},redo=st.done?` <button class="b s" 
 function renderSetup(){const left=SU.steps.filter(x=>!x.done).length;
  $("setupsum").innerHTML=SU.required?(left?`<b>${left}</b> step${left===1?"":"s"} to go.`:'<span class="ok">All done: the machine may sort.</span>'):"(Simulation: not required.)";
  $("steps").innerHTML=SU.steps.map((st,i)=>`<div class="card step"><span class="num ${st.done?"ok":""}">${st.done?"✓":i+1}</span><div><h3>${esc(st.title)}</h3><span class="note">${esc(st.goal)}${st.done?` · done ${esc(st.at||"")} ${esc(st.note||"")}`:""}</span></div><div class="body" style="margin-top:8px">${stepBody(st)}</div></div>`).join("");}
+
+// ---------------------------------------------------------------- what the model sees, on the machine
+let maskSet=false;
+async function maskPreview(){flash("maskmsg","taking a photo…");try{const j=await api("api/mask/preview",{margin:+$("mmargin").value});
+ if(j.image){$("maskshot").src="runs/"+encodeURIComponent(j.image)+"?"+Date.now();$("maskshot").hidden=false;}
+ flash("maskmsg",`margin ${j.margin_mm} mm · ${j.parts} part(s) in the tray (not saved yet)`);}catch(e){flash("maskmsg",e.message,1);}}
+async function maskSave(){try{const j=await api("api/mask/save",{margin:+$("mmargin").value});flash("maskmsg",`saved: margin ${j.margin_mm} mm`);}catch(e){flash("maskmsg",e.message,1);}}
+async function loadTodo(){try{renderTodo((await api("api/todo")).items);}catch(e){}}
+function renderTodo(items){$("todo").innerHTML=items.map(t=>`<div class="step" style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line2)"><span class="num ${t.done?"ok":""}" style="flex:none">${t.done?"✓":"·"}</span><div style="flex:1"><b>${esc(t.title)}</b><br><span class="note">${esc(t.how)}${t.why?` <span class="ok">· ${esc(t.why)}</span>`:""}</span></div>`+
+ (t.done&&!t.why.startsWith("ticked")?"":`<button class="b s" onclick="todoTick('${t.key}',${!t.done})">${t.done?"Undo":"Done"}</button>`)+`</div>`).join("");}
+async function todoTick(key,done){try{renderTodo((await api("api/todo",{key,done})).items);}catch(e){}}
 
 // ---------------------------------------------------------------- calibration
 async function calibPhoto(){flash("calmsg","taking a photo…");try{const j=await api("api/calib/photo",{});markers=j.markers;renderMarkers();flash("calmsg",`${markers.length} marker(s) seen`);poll();}catch(e){flash("calmsg",e.message,1);}}

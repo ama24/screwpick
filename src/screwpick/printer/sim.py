@@ -211,11 +211,12 @@ class SimVision:
         self.head_tip: Callable[[], list[float]] | None = None
         self.head = None  # config.HeadCamera
         self.head_ref: tuple[float, float] = (0.0, 0.0)  # tip X/Y of the calibration photo
+        self.painted: list[bool] = []  # per photo: was everything outside the tray painted over
 
     delay_s: float = 0.0  # pretend the analysis takes this long (tests of the pipeline)
 
-    def capture(self, name: str, marker_height: Callable[[int], float]) -> Shot:
-        return self.analyse(self.snap(name), name, marker_height)
+    def capture(self, name: str, marker_height: Callable[[int], float], work=None) -> Shot:  # noqa: ANN001
+        return self.analyse(self.snap(name), name, marker_height, work)
 
     def snap(self, name: str) -> list[SimPart]:
         """The plate as it is now (the part in the picker is not on it)."""
@@ -223,7 +224,11 @@ class SimVision:
         return [copy.copy(sp) for sp in self.world.parts]
 
     def analyse(
-        self, plate: list[SimPart], name: str, marker_height: Callable[[int], float]
+        self,
+        plate: list[SimPart],
+        name: str,
+        marker_height: Callable[[int], float],
+        work=None,  # noqa: ANN001 - trayview.WorkArea: the model sees only the tray's inside
     ) -> Shot:
         if self.delay_s:
             time.sleep(self.delay_s)
@@ -243,6 +248,11 @@ class SimVision:
                 return abs(x - cx) <= hw and abs(y - cy) <= hh
 
         plate = [sp for sp in plate if seen(sp.x, sp.y)]
+        if work is not None:  # painted over: the model cannot see what lies outside the tray
+            plate = [
+                sp for sp in plate if work.contains(tuple(Ti.apply([sp.x - d[0], sp.y - d[1]])))
+            ]
+        self.painted.append(work is not None)
         parts = []
         for i, sp in enumerate(plate, start=1):
             bed_poly = _rect(sp.x - d[0], sp.y - d[1], sp.size[0], sp.size[1], sp.angle)
@@ -275,10 +285,17 @@ class SimVision:
             )
         shot = Shot(name, parts, markers)
         if self.out is not None:
-            shot.vis = self._draw(name, lay, plate)
+            painted = [T.apply(work.outline)] if work is not None else None
+            shot.vis = self._draw(name, lay, plate, painted)
         return shot
 
-    def _draw(self, name: str, lay: Layout, plate: list[SimPart]) -> Path | None:
+    def _draw(
+        self,
+        name: str,
+        lay: Layout,
+        plate: list[SimPart],
+        keep: list[np.ndarray] | None = None,  # painted: only this (bed mm) is left
+    ) -> Path | None:
         try:
             import cv2
         except ImportError:
@@ -329,6 +346,11 @@ class SimVision:
                 1,
                 cv2.LINE_AA,
             )
+        if keep is not None:  # what the model sees: the rest painted the floor's colour
+            mask = np.zeros(img.shape[:2], np.uint8)
+            for poly in keep:
+                cv2.fillPoly(mask, [np.array([px(*q) for q in poly], np.int32)], 255)
+            img[mask == 0] = (244, 242, 237)
         path = self.out / f"{name}_vis.jpg"
         cv2.imwrite(str(path), img)
         return path
