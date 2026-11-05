@@ -25,6 +25,7 @@ from .binswap import BinRequest, after_ok, choose_swap
 from .config import Machine
 from .fill import BinFill, bin_room_mm3, item_volume_mm3
 from .grip import jaw_angle
+from .headcam import merge_markers, merge_parts, shift_part, tiles
 from .io import read_json, write_json
 from .layout import Layout, yaw_from_up
 from .models import ModelError, ModelStore
@@ -298,14 +299,72 @@ class Runner:
         self._shot_no += 1
         return time.strftime("%Y%m%d-%H%M%S") + f"_{self._shot_no:04d}"
 
-    def take_shot(self, layout: Layout, T: Transform2D | None, move: bool = True) -> Shot:
+    def take_shot(
+        self, layout: Layout, T: Transform2D | None, move: bool = True, area: str = "work"
+    ) -> Shot:
         """Photo position, photo, parts (with printer X/Y when T is known), markers. `move`
-        False: photograph where the bed is (standby with the motors off: still parked)."""
+        False: photograph where the bed is (standby with the motors off: still parked).
+        A head camera photographs `area`: work (the tray), bins (the grid and around it) or
+        here (one photo at the photo position: calibration)."""
+        if self.m.camera.source == "head":
+            return self._head_shot(layout, T, area)
         with self._lock:
             if move:
                 self.motion.photo_position()
             name = self._photo_name()
             shot = self.vision.capture(name, lambda mid: _marker_plate_height(layout, mid))
+        return self._finish_shot(shot, layout, T)
+
+    def _head_shot(self, layout: Layout, T: Transform2D | None, area: str) -> Shot:
+        """The head camera over `area`: overlapping photos, joined in the frame of the
+        calibration photo (headcam.py)."""
+        hc = self.m.camera.head
+        pc = self.m.printer
+        ref = np.asarray(pc.photo_position[:2], dtype=float)
+        if area == "here" or T is None:
+            spots = [tuple(ref)]
+        else:
+            if area == "bins":
+                k = hc.margin_cells
+                rect = layout.cells_rect(-k, -k, layout.cols + 2 * k, layout.rows + 2 * k)
+            else:
+                rect = layout.work_rect()
+            ox, oy = hc.offset
+            spots = [
+                (
+                    min(max(x - ox, pc.limits_x[0]), pc.limits_x[1]),
+                    min(max(y - oy, pc.limits_y[0]), pc.limits_y[1]),
+                )
+                for x, y in tiles(rect, hc.fov_mm, hc.overlap)
+            ]
+        Ai = np.linalg.inv(T.A) if T is not None else np.eye(2)
+        name = self._photo_name()
+        parts: list[Any] = []
+        markers: list[Any] = []
+        last: Shot | None = None
+        for k, (x, y) in enumerate(spots):
+            with self._lock:
+                self.motion.travel(x, y)
+                self.motion.move(z=pc.photo_position[2])
+                self.printer.gcode("M400")
+                last = self.vision.capture(
+                    f"{name}_{k:02d}", lambda mid: _marker_plate_height(layout, mid)
+                )
+            d = Ai @ (np.array([x, y]) - ref)  # the view moved with the head
+            for p in last.parts:
+                shift_part(p, d)
+            for mk in last.markers:
+                mk.centre = (mk.centre[0] + d[0], mk.centre[1] + d[1])
+            parts += last.parts
+            markers += last.markers
+        assert last is not None
+        shot = Shot(
+            name,
+            merge_parts(parts, hc.same_mm),
+            merge_markers(markers),
+            last.photo,
+            last.vis,
+        )
         return self._finish_shot(shot, layout, T)
 
     def _finish_shot(self, shot: Shot, layout: Layout, T: Transform2D | None) -> Shot:
@@ -376,7 +435,7 @@ class Runner:
         first: Shot | None = None
         run = self.m.run
         if run.scan_bins_on_start or run.only_seen_bins:
-            first = self.take_shot(layout, T)
+            first = self.take_shot(layout, T, area="bins")
             seen = {mk.marker for mk in first.markers}
             if run.scan_bins_on_start:
                 moved = self._place_bins(layout, first, T)
@@ -420,7 +479,10 @@ class Runner:
                 self._set(status="running")
                 planner.shakes_in_row = 0
                 prev = None  # someone may have moved parts
-            shot, first = (first, None) if first is not None else (self.take_shot(layout, T), None)
+            area = "bins" if self._ok.is_set() else "work"  # after a bin change: the bins too
+            shot, first = (
+                (first, None) if first is not None else (self.take_shot(layout, T, area=area), None)
+            )
             if self._ok.is_set():  # a bin was changed: this photo shows what stands there now
                 self._ok.clear()
                 self._resolve_requests(layout, shot, T)
@@ -508,7 +570,11 @@ class Runner:
                 with self._lock:
                     self.note(plan.reason)
                     self.motion.shake()
-            elif self.m.run.pipeline and hasattr(self.vision, "snap"):
+            elif (
+                self.m.run.pipeline
+                and hasattr(self.vision, "snap")
+                and self.m.camera.source != "head"  # it travels with the part in the picker
+            ):
                 first = self._pick_photo_drop(plan, layout, T)
             else:
                 with self._lock:
@@ -528,6 +594,9 @@ class Runner:
         layout, T = self._prepare()
         st = self.printer.status(None)
         homed = st.ready and all(a in st.homed for a in "xyz")
+        if self.m.camera.source == "head" and not homed:  # it must move to look
+            with self._lock:
+                self.motion.preflight()
         shot = self.take_shot(layout, T, move=homed)
         margin = self.m.run.work_margin_mm
         return shot, [p for p in shot.parts if layout.in_work(p.bed_xy, margin)], layout
@@ -567,7 +636,7 @@ class Runner:
                             _, tried, _ = self._look()
                         if outcome == "stopped":
                             break
-                        if sb.motors_off:
+                        if sb.motors_off and self.m.camera.source != "head":
                             with self._lock:
                                 self.motion.motors_off()
                         errors = 0
@@ -728,7 +797,7 @@ class Runner:
         cal = self.calibration()
         with self._lock:
             self.motion.preflight(home=False)
-        shot = self.take_shot(layout, cal.transform if cal else None)
+        shot = self.take_shot(layout, cal.transform if cal else None, area="here")
         out = []
         for mk in shot.markers:
             d: dict[str, Any] = {"marker": mk.marker, "plate": [round(v, 2) for v in mk.centre]}
@@ -800,7 +869,7 @@ class Runner:
         T = self.transform()
         with self._lock:
             self.motion.preflight(home=False)
-        shot = self.take_shot(layout, T)
+        shot = self.take_shot(layout, T, area="bins")
         report = layout.resync(self._seen_bins(layout, shot, T))
         layout.save(self.layout_path)
         wb = layout.work_bin()
@@ -1166,7 +1235,7 @@ class Runner:
         layout, T = self.layout(), self.transform()
         with self._lock:
             self.motion.preflight(home=False)
-        shot = self.take_shot(layout, T)
+        shot = self.take_shot(layout, T, area="bins")
         return {"resolved": self._resolve_requests(layout, shot, T), **self.bins_state()}
 
     def bin_emptied(self, marker: int | None) -> dict[str, Any]:

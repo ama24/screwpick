@@ -17,6 +17,7 @@ from typing import Any
 import yaml
 
 from .fill import Fill
+from .headcam import HeadCamera
 
 PICKER_MODES = ("vacuum", "gripper", "tweezers", "both")
 PRINTER_DRIVERS = ("moonraker", "sim")
@@ -30,6 +31,7 @@ class ConfigError(ValueError):
 class Paths:
     screwsynth_config: str | None = None  # screwsynth's configs/config.yaml (classes, geometry)
     calibration: str | None = None  # calibration.json of the camera; None = nominal camera
+    head_calibration: str | None = None  # the same for the head camera (camera.source: head)
     models: str = "../models"  # models uploaded in the web page (Models tab)
     model: str | None = None  # fallback when no model is active: weights or NCNN folder
     stage2: str | None = None  # keypoint model; None = classical measurement only
@@ -49,6 +51,10 @@ class Camera:
     settings: str | None = (
         None  # screwrig lock settings (locked focus/exposure); None = rpicam-still
     )
+    # overview: fixed above the bed, one photo sees everything | head: on the tool head, moved
+    # over the tray (sorting) or the whole grid (Resync, bin changes); see headcam.py
+    source: str = "overview"
+    head: HeadCamera = field(default_factory=HeadCamera)
 
 
 @dataclass
@@ -193,6 +199,8 @@ class Machine:
                 raise ConfigError(f"printer.{name}: wrong number of values {v}")
         if len(self.tool.offset) != 3:
             raise ConfigError("tool.offset needs X Y Z")
+        if self.camera.source not in ("overview", "head"):
+            raise ConfigError("camera.source must be overview or head")
         if self.run.when_no_bin not in ("ask", "overflow"):
             raise ConfigError("run.when_no_bin must be ask or overflow")
         if self.run.order not in ("census", "largest_group", "nearest"):

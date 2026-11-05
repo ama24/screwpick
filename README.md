@@ -271,6 +271,31 @@ Empty the bin, or put another (empty) bin in its place, then press **OK, done** 
 
 OK also works when the machine is not sorting: it takes a photo and does the same check.
 
+## A camera on the tool head (optional)
+
+`camera.source: head` uses a camera on the tool head instead of the one above the bed. It is
+closer, so it sees more detail, but only a patch at a time (`camera.head.fov_mm`), so the
+machine moves it around and joins the photos:
+- **sorting:** only the tray, in a few overlapping photos (a part on the seam between two
+  photos is counted once);
+- **Resync, the OK after a bin change, the start of a run:** the whole grid and one cell
+  around it (`margin_cells`), so a bin put next to the grid is found too.
+
+Set it up:
+1. `printer.photo_position`: the tip X Y Z with the camera over the middle of the tray, at the
+   height its model was trained for (the camera's height sets the pixels per mm).
+2. `camera.head.offset`: roughly how far the image centre is from the tip (X, Y), and
+   `fov_mm`: what one photo covers at that height.
+3. Calibrate tab, as for the fixed camera: the photo is taken at the photo position; jog the
+   tip onto three markers. Every other photo is shifted by how far the head moved, so this one
+   calibration places all of them.
+4. Models tab: **Use on head camera** on a stage-1 model trained at the head camera's scale.
+   Without one the normal stage-1 model is used, with a warning.
+
+The head camera cannot look while the picker holds a part (it travels with it), so the
+photo-during-drop pipeline is off, and in automatic mode the motors stay on (it must move to
+look).
+
 ## Login
 
 The page needs a user name and password (`web.require_login`, on by default):

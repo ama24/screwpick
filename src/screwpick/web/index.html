@@ -416,7 +416,7 @@ async function tipTouch(){try{const j=await api("api/calib/tip",{});flash("tipms
 async function getTip(){try{const j=await api("api/tip");$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
 
 // ---------------------------------------------------------------- models
-const ROLE={stage1:"finds parts",stage2:"measures length",classifier:"re-checks classes"};
+const ROLE={stage1:"finds parts",stage2:"measures length",classifier:"re-checks classes",head:"finds parts, head camera"};
 let M={models:[],active:{},loaded:{}};
 async function loadModels(){try{M=await api("api/models");renderModels();}catch(e){flash("mmsg",e.message,1);}}
 function renderModels(){
@@ -430,10 +430,11 @@ function renderModels(){
   const fmts=m.formats.length>1?`<select onchange="chooseWeights('${m.id}',this.value)">${m.formats.map(f=>`<option value="${esc(f.path)}"${f.path===m.weights?" selected":""}>${esc(f.format)}: ${esc(f.path)}</option>`).join("")}</select>`:esc(m.weights||"–");
   const notes=[...m.problems.map(p=>`<span class="bad">${esc(p)}</span>`),...m.warnings.map(w=>esc(w))].map(x=>`<small>${x}</small>`).join("");
   const btn=m.role&&!m.problems.length?(on?(m.role==="stage1"?"":`<button class="b s" onclick="activate('${m.role}',null)">Stop using</button>`):`<button class="b p s" onclick="activate('${m.role}','${m.id}')">Use</button>`):"";
-  return `<tr><td><b>${esc(m.name)}</b> ${on?'<span class="tag on">in use</span>':""}<small>${esc(m.uploaded)} · ${esc(m.source)}</small>${notes}</td>`+
+  const headOn=act.head===m.id,headBtn=m.role==="stage1"&&!m.problems.length?(headOn?`<button class="b s" onclick="activate('head',null)">Stop on head camera</button>`:`<button class="b s" onclick="activate('head','${m.id}')" title="the model for a camera on the tool head (camera.source: head), trained at its scale">Use on head camera</button>`):"";
+  return `<tr><td><b>${esc(m.name)}</b> ${on?'<span class="tag on">in use</span>':""}${headOn?' <span class="tag on">head camera</span>':""}<small>${esc(m.uploaded)} · ${esc(m.source)}</small>${notes}</td>`+
    `<td>${esc(m.task)}<small>${esc(ROLE[m.role]||"not usable")} · ${m.classes.length} classes${m.imgsz?` · ${m.imgsz} px`:""}</small></td>`+
    `<td>${m.metric_value!=null?(+m.metric_value).toFixed(3):"–"}<small>${esc(m.metric||"")}</small></td><td>${fmts}</td>`+
-   `<td style="text-align:right;white-space:nowrap">${btn} ${m.role&&!m.problems.length?`<button class="b s" onclick="testModel('${m.id}')">Test</button>`:""} <button class="b s" onclick="renameModel('${m.id}')">Rename</button> ${on?"":`<button class="b s" onclick="deleteModel('${m.id}')">Delete</button>`}</td></tr>`;}).join("")||"<tr><td class='note'>No models yet: drop one above.</td></tr>";}
+   `<td style="text-align:right;white-space:nowrap">${btn} ${headBtn} ${m.role&&!m.problems.length?`<button class="b s" onclick="testModel('${m.id}')">Test</button>`:""} <button class="b s" onclick="renameModel('${m.id}')">Rename</button> ${on?"":`<button class="b s" onclick="deleteModel('${m.id}')">Delete</button>`}</td></tr>`;}).join("")||"<tr><td class='note'>No models yet: drop one above.</td></tr>";}
 async function activate(role,id){flash("mmsg","loading the model…");try{M=await api("api/models/activate",{role,id});renderModels();flash("mmsg","switched");}catch(e){flash("mmsg",e.message,1);}}
 async function chooseWeights(id,path){try{M=await api("api/models/weights",{id,path});renderModels();flash("mmsg","weights chosen (press Use again if it is in use, to reload)");}catch(e){flash("mmsg",e.message,1);}}
 async function renameModel(id){const n=prompt("New name");if(!n)return;try{M=await api("api/models/rename",{id,name:n});renderModels();}catch(e){flash("mmsg",e.message,1);}}

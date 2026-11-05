@@ -4,6 +4,7 @@
 paths:
   screwsynth_config: null      # screwsynth's configs/config.yaml (null: the screwsynth checkout's own)
   calibration: null            # camera calibration.json (null: screwsynth's data/calibration/calibration.json)
+  head_calibration: null       # the same for the head camera
   models: ../models            # models uploaded in the web page (Models tab), one folder each
   model: null                  # used only while no model is active: NCNN folder / .onnx / .pt (null: newest in screwsynth's models/)
   stage2: null                 # keypoint model; null: classical length measurement
@@ -19,6 +20,12 @@ paths:
 
 camera:
   settings: null               # screwrig lock settings json (locked focus/exposure); null: rpicam-still
+  source: overview             # overview: fixed above the bed | head: on the tool head (see README)
+  head:                        # only for source: head
+    fov_mm: [80, 60]           # what one photo covers at the photo height, X x Y
+    offset: [0, 0]             # image centre minus the tip, X Y (roughly: the photos overlap)
+    overlap: 0.25
+    margin_cells: 1            # Resync looks this many cells beyond the grid, for new bins
 
 printer:
   driver: moonraker            # moonraker (Klipper on this Pi) | sim (simulated, nothing moves)

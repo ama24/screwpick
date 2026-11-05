@@ -33,7 +33,7 @@ TASK_ROLE = {
     "pose": "stage2",
     "classify": "classifier",
 }
-ROLES = ("stage1", "stage2", "classifier")
+ROLES = ("stage1", "stage2", "classifier", "head")  # head: stage 1 for the head camera
 WEIGHT_SUFFIXES = (".pt", ".onnx")
 MAX_UNZIPPED = 4 * 1024**3
 META = "screwpick.json"
@@ -181,7 +181,7 @@ class ModelStore:
             raise ModelError(f"unknown role {role!r}")
         if model_id is not None:
             m = self.get(model_id)
-            if m.role != role:
+            if m.role != role and not (role == "head" and m.role == "stage1"):
                 raise ModelError(f"{m.name} is a {m.task} model: it cannot be the {role} model")
             if m.problems:
                 raise ModelError(f"{m.name} cannot be used: {'; '.join(m.problems)}")

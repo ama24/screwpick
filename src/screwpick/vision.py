@@ -167,7 +167,8 @@ class CameraVision:
         self.out.mkdir(parents=True, exist_ok=True)
         self.store = store
         cfg = load_config(m.path(m.paths.screwsynth_config))
-        calib_path = m.path(m.paths.calibration) or resolve(
+        own = m.paths.head_calibration if m.camera.source == "head" else m.paths.calibration
+        calib_path = m.path(own) or resolve(
             Path(cfg.get("paths.calibration_dir", "data/calibration")) / "calibration.json"
         )
         self.calibration = read_json(calib_path) if calib_path.is_file() else None
@@ -304,6 +305,11 @@ def active_choice(m: Machine, store: ModelStore | None) -> ModelChoice:
     """The models to use: the active ones in the store; without one, paths.model in machine.yaml
     or the newest model in screwsynth's models/ folder."""
     s1 = store.active_model("stage1") if store else None
+    if m.camera.source == "head" and store is not None:  # its own model, trained at its scale
+        head = store.active_model("head")
+        if head is None:
+            log.warning("head camera: no head camera model chosen, using the stage-1 model")
+        s1 = head or s1
     if s1 is not None and store is not None:
         choice = ModelChoice(
             store.weights_path(s1),
