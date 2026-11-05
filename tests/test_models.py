@@ -150,7 +150,11 @@ def test_active_roles_rename_choose_delete(store, tmp_path):
     store.set_active("stage2", b.id)
     with pytest.raises(ModelError, match="cannot be the stage1"):
         store.set_active("stage1", b.id)
-    assert store.active() == {"stage1": a.id, "stage2": b.id, "classifier": None}
+    assert store.active() == {"stage1": a.id, "stage2": b.id, "classifier": None, "head": None}
+    store.set_active("head", a.id)  # a stage-1 model can be the head camera's
+    with pytest.raises(ModelError, match="cannot be the head"):
+        store.set_active("head", b.id)
+    store.set_active("head", None)
     with pytest.raises(ModelError, match="in use"):
         store.delete(a.id)
     assert store.rename(a.id, "v3 more nuts").name == "v3 more nuts"

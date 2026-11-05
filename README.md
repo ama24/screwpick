@@ -229,6 +229,107 @@ machine could move complete bins aside by itself.
 
 So you can put a new printed bin on the bed and it's used straight away.
 
+## Files tab: files from the other projects
+
+screwpick keeps its own copy of every file it uses from the other projects, so it runs on its
+own and never reads their folders. The **Files** tab has a card for each one, saying where to
+find it, what it is for and what is done without it, and which copy is in use. Fetch the file,
+drop it on its card: it is checked, kept on the Pi (`paths.files`) and used at once.
+
+| File | Where to get it | Without it |
+|---|---|---|
+| `calibration.json` | screw-sorting: `data/calibration/calibration.json` (calibration tool) | nominal camera |
+| `head_calibration.json` | the same, from the head camera's photos | only needed with a head camera |
+| `config.yaml` | screw-sorting: `output/<recipe>/config.yaml` of the model's dataset (or `configs/config.yaml`) | the settings of the installed screw-sorting code |
+| `classes.yaml` | screw-sorting: `configs/classes.yaml` | models are not checked against the catalogue |
+| `items.json` | screw-sorting: `screwsynth-partgen items --out items.json` | volumes estimated from the camera |
+
+A dropped file comes first, then a path set in machine.yaml, then (settings, classes and
+calibration only) what the installed screw-sorting code brings along. Models, including ones
+from anywhere else, go in the Models tab.
+
+## How full the bins are
+
+Cells are named like a chess board: a column letter from the left and a row number from the
+front (A1 is front-left), so the machine can say "bin E1". Every bin in the Layout tab shows
+how many parts went in since it was last emptied (the small number at its top right), and a
+bar for how full it is, turning amber when it is full (`run.fill.full_at`, 90 %).
+
+How full is an estimate:
+- **each part's volume**, the best known:
+  - with **items.json** dropped in the Files tab, a catalogued part has its **exact volume**
+    from its 3D model: by part number, else by class at the measured length, else the class
+    average;
+  - anything else (unknown parts, new kinds of items) from what the camera measured: the area
+    of its outline on the plate times its height, times `run.fill.shape` (0.5: a lying screw
+    fills about half of that box). Nothing in it is specific to screws;
+- **each bin's room** from its Gridfinity size: the inside from the floor to the rim, without
+  the code's shelf or post. A 1x2 holds about twice a 1x1, a 6-unit bin about three times a
+  3-unit one (the foot and floor are the same);
+- **how densely loose parts pack:** `run.fill.packing` (0.3) to start with. Press **Full** in a
+  bin's panel when a bin really is full: the machine learns how densely that family packs
+  (its parts' volume / the bin's room; washers differ from long screws) and asks for the bin
+  to be emptied. Each family uses its own learnt value; one never seen uses all of them.
+
+The bin's panel says "about 60 % full, room for about 8 more like them".
+
+After a bin change, the photo also looks **into** a bin that was said to be emptied: parts it
+still sees there are counted (`run.check_emptied`), so a half-emptied bin is not taken for an
+empty one. The camera may miss parts hidden by the walls.
+
+## Bin changes: full bins and new kinds
+
+The machine asks for a bin change when
+- a bin is **full** (see above): its kind carries on in a free wild bin if there is one;
+- a **new kind** needs a bin and no wild bin is free (`run.when_no_bin: ask`; `overflow`
+  sends it to the overflow bin instead, as before). It chooses the bin to give up: a bin
+  nothing on the plate goes to any more scores highest, a fuller bin higher, and a bin whose
+  kind still lies on the plate lower (it would be needed again soon).
+
+The request shows at the top of the web page ("Bin change: E1 DIN934_M4 30 · full"), the bin
+is outlined in amber in the Layout tab, the console and the printer's display say it. The
+machine never stops for it: it keeps sorting everything else (when only the waiting parts are
+left, it waits).
+
+The OK takes two presses, in the page or with **OK (bin change)** in the printer menu:
+1. **OK, park for the change:** the machine finishes its move and parks (bed out, safe for
+   your hands);
+2. empty the bin, or put another (empty) bin in its place, then **OK, bins changed**. The next
+   photo checks what stands there now, and sorting goes on:
+- **the same code:** the bin was emptied; its count starts again, a wild bin is free again;
+- **another code:** a different bin stands there; it becomes a wild bin (or takes up its old
+  rules, if it was used before). The old bin is kept aside with what it holds: put it back
+  later and its count and contents come back with it;
+- **no code:** the cell is empty; the old bin is kept aside the same way.
+
+OK also works when the machine is not sorting: the first press only confirms, the second
+takes a photo and does the same check.
+
+## A camera on the tool head (optional)
+
+`camera.source: head` uses a camera on the tool head instead of the one above the bed. It is
+closer, so it sees more detail, but only a patch at a time (`camera.head.fov_mm`), so the
+machine moves it around and joins the photos:
+- **sorting:** only the tray, in a few overlapping photos (a part on the seam between two
+  photos is counted once);
+- **Resync, the OK after a bin change, the start of a run:** the whole grid and one cell
+  around it (`margin_cells`), so a bin put next to the grid is found too.
+
+Set it up:
+1. `printer.photo_position`: the tip X Y Z with the camera over the middle of the tray, at the
+   height its model was trained for (the camera's height sets the pixels per mm).
+2. `camera.head.offset`: roughly how far the image centre is from the tip (X, Y), and
+   `fov_mm`: what one photo covers at that height.
+3. Calibrate tab, as for the fixed camera: the photo is taken at the photo position; jog the
+   tip onto three markers. Every other photo is shifted by how far the head moved, so this one
+   calibration places all of them.
+4. Models tab: **Use on head camera** on a stage-1 model trained at the head camera's scale.
+   Without one the normal stage-1 model is used, with a warning.
+
+The head camera cannot look while the picker holds a part (it travels with it), so the
+photo-during-drop pipeline is off, and in automatic mode the motors stay on (it must move to
+look).
+
 ## Login
 
 The page needs a user name and password (`web.require_login`, on by default):
@@ -387,10 +488,14 @@ standby photos, and the machine homes again before the next sort.
 | **kit** | only the parts on `run.kit` (e.g. `{DIN912_M3x10: 4, DIN934_M3: 4}`) into the *kit* bin, then stop |
 
 These rules apply to every strategy:
-- **The largest group first** (`run.order: largest_group`): the part number with the most
-  pieces on the plate is picked first, then the next. Within a group, parts with free space
-  around them come first, then the most confident, then the nearest. `nearest` skips the
-  grouping.
+- **The largest group first, one group at a time** (`run.order: census`): the first photo
+  counts every kind (part number, else class) on the plate. The most numerous is picked
+  until none is left, then the next most numerous. Parts dug out from under others can bring
+  back a kind that was already done: the sorter goes back to it at once, then carries on where
+  it was. The console says each change ("next: …", "back to …"). `largest_group` re-counts on
+  every photo instead (it may switch back and forth); `nearest` skips the grouping. Within a
+  group, parts with free space around them come first, then the most confident, then the
+  nearest.
 - Detections below `run.min_score` go to the *unsure* bin.
 - UNKNOWN parts go to the *unknown* bin.
 - A part whose length decides its bin, but which can't be measured yet (tilted, covered), waits.
@@ -403,7 +508,8 @@ These rules apply to every strategy:
 ## Printer menu
 
 `screwpick.cfg` adds **Screw sorter** to the printer's display menu: *Sort*, *Clear plate*,
-*Pick kit*, *One pick*, *Pause*, *Resume*, *Stop*, *Picker mounted*, *Hotend mounted*. You can also
+*Pick kit*, *One pick*, *OK (bin change)*, *Pause*, *Resume*, *Stop*, *Picker mounted*,
+*Hotend mounted*. You can also
 type the commands in any Klipper console: `SCREWPICK CMD=start STRATEGY=sort`.
 
 ## How it works

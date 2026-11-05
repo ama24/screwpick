@@ -12,7 +12,7 @@ import logging
 import math
 import threading
 import time
-from collections import deque
+from collections import Counter, deque
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -20,14 +20,20 @@ from typing import Any
 
 import numpy as np
 
+from . import binspec
+from . import files as files_mod
 from .analysis import ModelChoice
+from .binswap import BinRequest, after_ok, choose_swap
 from .config import Machine
+from .fill import BinFill, CatalogueVolumes, Packing, bin_room_mm3, part_volume_mm3
 from .grip import jaw_angle
+from .headcam import merge_markers, merge_parts, shift_part, tiles
 from .io import read_json, write_json
 from .layout import Layout, yaw_from_up
 from .models import ModelError, ModelStore
 from .parts import compute_gaps, to_bed
 from .printer import Motion, Printer, PrinterError
+from .rules import family, wild_key
 from .setup import KEYS as SETUP_KEYS
 from .setup import Setup
 from .strategies import STRATEGIES, Plan, Planner
@@ -77,8 +83,16 @@ class Runner:
         self.last_shot: Shot | None = None
         self._claims_lock = threading.RLock()
         # wild bin marker -> what it collects; bin marker -> parts in it since it was emptied
-        self.claims, self.bin_counts = self._load_claims()
+        self.claims, self.bin_counts, self.bin_volume = self._load_claims()
+        self.volumes = self._load_volumes()
         self.ready: dict[int, dict[str, Any]] = {}  # bins that can be taken out
+        self.requests: list[BinRequest] = []  # bin changes asked for, until the OK
+        # a bin change takes two OKs (web page or printer menu): the first parks the machine
+        # (bed out, hands safe), the second says the bins are changed: a photo checks them
+        self._park = threading.Event()  # first OK, while sorting: park after this move
+        self._ok = threading.Event()  # second OK: the bins are changed
+        self.swap_phase = ""  # "" sorting | parked (waiting for the second OK)
+        self._no_swap_said = ""
         self._load_tool()
         self._load_machine()
         setup_path = self.m.path(self.m.paths.setup)
@@ -175,6 +189,8 @@ class Runner:
             "calib_pairs": self.calib_pairs,
             "driver": self.m.printer.driver,
             **self.bins_state(),
+            "requests": [r.to_dict() for r in self.requests],
+            "swap_phase": self.swap_phase,
             "auto": self.saved_mode()[0],
             "tip_offset_z": self.m.tool.offset[2],
             "timing": self.state.timing,
@@ -245,6 +261,20 @@ class Runner:
             )
             self._thread.start()
             return f"automatic: {strat}"
+        if cmd == "ok":  # first OK: park; second OK: the bins are changed, check them
+            if self.swap_phase != "parked":
+                self.swap_phase = "parked"
+                if running:
+                    self._park.set()
+                    return "OK: parking after this move; change the bins, then OK again"
+                self.note("parked for a bin change")
+                return "OK: change the bins, then OK again"
+            if running:
+                self._ok.set()
+                return "OK: checking the bins, then sorting on"
+            self.swap_phase = ""
+            res = self.bins_ok()
+            return "OK: " + ("; ".join(res["resolved"]) or "nothing was asked for")
         if cmd == "pause":
             if running:
                 self._pause.set()
@@ -285,14 +315,72 @@ class Runner:
         self._shot_no += 1
         return time.strftime("%Y%m%d-%H%M%S") + f"_{self._shot_no:04d}"
 
-    def take_shot(self, layout: Layout, T: Transform2D | None, move: bool = True) -> Shot:
+    def take_shot(
+        self, layout: Layout, T: Transform2D | None, move: bool = True, area: str = "work"
+    ) -> Shot:
         """Photo position, photo, parts (with printer X/Y when T is known), markers. `move`
-        False: photograph where the bed is (standby with the motors off: still parked)."""
+        False: photograph where the bed is (standby with the motors off: still parked).
+        A head camera photographs `area`: work (the tray), bins (the grid and around it) or
+        here (one photo at the photo position: calibration)."""
+        if self.m.camera.source == "head":
+            return self._head_shot(layout, T, area)
         with self._lock:
             if move:
                 self.motion.photo_position()
             name = self._photo_name()
             shot = self.vision.capture(name, lambda mid: _marker_plate_height(layout, mid))
+        return self._finish_shot(shot, layout, T)
+
+    def _head_shot(self, layout: Layout, T: Transform2D | None, area: str) -> Shot:
+        """The head camera over `area`: overlapping photos, joined in the frame of the
+        calibration photo (headcam.py)."""
+        hc = self.m.camera.head
+        pc = self.m.printer
+        ref = np.asarray(pc.photo_position[:2], dtype=float)
+        if area == "here" or T is None:
+            spots = [tuple(ref)]
+        else:
+            if area == "bins":
+                k = hc.margin_cells
+                rect = layout.cells_rect(-k, -k, layout.cols + 2 * k, layout.rows + 2 * k)
+            else:
+                rect = layout.work_rect()
+            ox, oy = hc.offset
+            spots = [
+                (
+                    min(max(x - ox, pc.limits_x[0]), pc.limits_x[1]),
+                    min(max(y - oy, pc.limits_y[0]), pc.limits_y[1]),
+                )
+                for x, y in tiles(rect, hc.fov_mm, hc.overlap)
+            ]
+        Ai = np.linalg.inv(T.A) if T is not None else np.eye(2)
+        name = self._photo_name()
+        parts: list[Any] = []
+        markers: list[Any] = []
+        last: Shot | None = None
+        for k, (x, y) in enumerate(spots):
+            with self._lock:
+                self.motion.travel(x, y)
+                self.motion.move(z=pc.photo_position[2])
+                self.printer.gcode("M400")
+                last = self.vision.capture(
+                    f"{name}_{k:02d}", lambda mid: _marker_plate_height(layout, mid)
+                )
+            d = Ai @ (np.array([x, y]) - ref)  # the view moved with the head
+            for p in last.parts:
+                shift_part(p, d)
+            for mk in last.markers:
+                mk.centre = (mk.centre[0] + d[0], mk.centre[1] + d[1])
+            parts += last.parts
+            markers += last.markers
+        assert last is not None
+        shot = Shot(
+            name,
+            merge_parts(parts, hc.same_mm),
+            merge_markers(markers),
+            last.photo,
+            last.vis,
+        )
         return self._finish_shot(shot, layout, T)
 
     def _finish_shot(self, shot: Shot, layout: Layout, T: Transform2D | None) -> Shot:
@@ -363,7 +451,7 @@ class Runner:
         first: Shot | None = None
         run = self.m.run
         if run.scan_bins_on_start or run.only_seen_bins:
-            first = self.take_shot(layout, T)
+            first = self.take_shot(layout, T, area="bins")
             seen = {mk.marker for mk in first.markers}
             if run.scan_bins_on_start:
                 moved = self._place_bins(layout, first, T)
@@ -384,6 +472,9 @@ class Runner:
         if problems:
             raise PrinterError("layout: " + "; ".join(problems))
         planner = Planner(layout, self.m, strategy)
+        self._park.clear()  # an OK left from before this run
+        self._ok.clear()
+        self.swap_phase = ""
         wild = {b.marker for b in layout.bins if b.role == "wild"}
         with self._claims_lock:
             for mk in [k for k in self.claims if k not in wild and layout.bin_by_marker(k)]:
@@ -407,7 +498,20 @@ class Runner:
                 self._set(status="running")
                 planner.shakes_in_row = 0
                 prev = None  # someone may have moved parts
-            shot, first = (first, None) if first is not None else (self.take_shot(layout, T), None)
+            if self._park.is_set():  # first OK: park and wait for the second
+                self._park.clear()
+                if self._parked_for_bins():
+                    break
+                prev = None
+            area = "bins" if self._ok.is_set() else "work"  # after a bin change: the bins too
+            shot, first = (
+                (first, None) if first is not None else (self.take_shot(layout, T, area=area), None)
+            )
+            if self._ok.is_set():  # a bin was changed: this photo shows what stands there now
+                self._ok.clear()
+                self._resolve_requests(layout, shot, T)
+                planner.claims = self.claims
+                prev = None
             with self._claims_lock:
                 before = dict(self.claims)
                 ok = prev is None or planner.report(prev, shot.parts)
@@ -426,6 +530,10 @@ class Runner:
                 with self._claims_lock:
                     mk = prev.bin.marker
                     self.bin_counts[mk] = self.bin_counts.get(mk, 0) + 1
+                    if prev.part is not None:
+                        vol = part_volume_mm3(prev.part, self.m.run.fill, self.volumes)
+                        self.bin_volume[mk] = self.bin_volume.get(mk, 0.0) + vol
+                        self.bin_family[mk] = family(prev.part.cls)
                     self._save_claims()
             self._set(
                 counts=dict(planner.sorted_count),
@@ -433,12 +541,28 @@ class Runner:
                 picks=sum(planner.sorted_count.values()),
             )
             self._update_ready(planner, layout, shot.parts)
+            planner.full = {mk for mk, f in self.bin_fill(layout).items() if f["full"]}
             self._say_seen(shot.parts, layout)
             if steps is not None and done_steps >= steps:
                 return "steps"
             here = tuple(self.motion.current_tip()[:2])
             plan = planner.next(shot.parts, here)  # type: ignore[arg-type]
             self._set(plan=_describe(plan))
+            if plan.note:
+                self.note(plan.note)
+                self.say(plan.note)
+            self._ask_bins(planner, layout, shot.parts)
+            if plan.kind == "wait_bin":  # everything else is sorted: only a bin change helps
+                asked = "; ".join(r.text() for r in self.requests) or plan.reason
+                self.note(f"waiting for a bin change: {plan.reason}")
+                self.say("waiting: " + asked)
+                self.motion.message("Bin change: OK=park")
+                self._set(status="waiting", message=asked + "; press OK to park")
+                while not (self._park.is_set() or self._ok.is_set()) and not self._stop.is_set():
+                    time.sleep(0.2)
+                self._set(status="running")
+                prev = None
+                continue
             if plan.kind == "done":
                 self._set(status="done", message=plan.reason)
                 self.note(f"done: {plan.reason}")
@@ -467,7 +591,11 @@ class Runner:
                 with self._lock:
                     self.note(plan.reason)
                     self.motion.shake()
-            elif self.m.run.pipeline and hasattr(self.vision, "snap"):
+            elif (
+                self.m.run.pipeline
+                and hasattr(self.vision, "snap")
+                and self.m.camera.source != "head"  # it travels with the part in the picker
+            ):
                 first = self._pick_photo_drop(plan, layout, T)
             else:
                 with self._lock:
@@ -487,6 +615,9 @@ class Runner:
         layout, T = self._prepare()
         st = self.printer.status(None)
         homed = st.ready and all(a in st.homed for a in "xyz")
+        if self.m.camera.source == "head" and not homed:  # it must move to look
+            with self._lock:
+                self.motion.preflight()
         shot = self.take_shot(layout, T, move=homed)
         margin = self.m.run.work_margin_mm
         return shot, [p for p in shot.parts if layout.in_work(p.bed_xy, margin)], layout
@@ -526,7 +657,7 @@ class Runner:
                             _, tried, _ = self._look()
                         if outcome == "stopped":
                             break
-                        if sb.motors_off:
+                        if sb.motors_off and self.m.camera.source != "head":
                             with self._lock:
                                 self.motion.motors_off()
                         errors = 0
@@ -687,7 +818,7 @@ class Runner:
         cal = self.calibration()
         with self._lock:
             self.motion.preflight(home=False)
-        shot = self.take_shot(layout, cal.transform if cal else None)
+        shot = self.take_shot(layout, cal.transform if cal else None, area="here")
         out = []
         for mk in shot.markers:
             d: dict[str, Any] = {"marker": mk.marker, "plate": [round(v, 2) for v in mk.centre]}
@@ -759,7 +890,7 @@ class Runner:
         T = self.transform()
         with self._lock:
             self.motion.preflight(home=False)
-        shot = self.take_shot(layout, T)
+        shot = self.take_shot(layout, T, area="bins")
         report = layout.resync(self._seen_bins(layout, shot, T))
         layout.save(self.layout_path)
         wb = layout.work_bin()
@@ -1013,15 +1144,72 @@ class Runner:
         assert p is not None
         return p
 
-    def _load_claims(self) -> tuple[dict[int, str], dict[int, int]]:
-        """(what each wild bin collects, how many parts each bin received)."""
+    def _load_volumes(self) -> CatalogueVolumes | None:
+        """Exact volumes from items.json (the Files tab); None: estimated from the outlines."""
+        if not self.m.run.fill.catalogue:
+            return None
+        path, _ = files_mod.find(self.m, "items")
+        if path is None:
+            return None
+        try:
+            cat = CatalogueVolumes.from_items(read_json(path))
+        except (OSError, ValueError) as exc:
+            log.warning("items.json cannot be read (%s): estimating from the outlines", exc)
+            return None
+        log.info("item volumes: %d items", len(cat))
+        return cat or None
+
+    # ------------------------------------------------------------------ the Files tab
+    def files_state(self) -> dict[str, Any]:
+        return {"slots": files_mod.slots_state(self.m)}
+
+    def add_file(self, key: str, data: bytes, original: str = "") -> dict[str, Any]:
+        store = files_mod.store_of(self.m)
+        if store is None:
+            raise ValueError("paths.files is not set")
+        self._idle()
+        info = store.save(key, data, original)
+        self.note(f"file added: {files_mod.BY_KEY[key].title} ({info['summary']})")
+        self._files_changed(key)
+        return self.files_state()
+
+    def remove_file(self, key: str) -> dict[str, Any]:
+        store = files_mod.store_of(self.m)
+        if store is not None:
+            self._idle()
+            store.remove(key)
+            self.note(f"file removed: {files_mod.BY_KEY[key].title}")
+            self._files_changed(key)
+        return self.files_state()
+
+    def _files_changed(self, key: str) -> None:
+        """Use the new copy at once."""
+        if key == "items":
+            self.volumes = self._load_volumes()
+            return
+        if self.store is not None:
+            self.store.classes_yaml = files_mod.find(self.m, "classes")[0]
+        reload = getattr(self.vision, "reload_setup", None)
+        if reload is not None:
+            reload()
+
+    def _load_claims(self) -> tuple[dict[int, str], dict[int, int], dict[int, float]]:
+        """(what each wild bin collects, how many items each bin received, their volume);
+        also the learnt packing and each bin's family."""
+        self.packing = Packing()
+        self.bin_family: dict[int, str] = {}
         if not self.claims_path.is_file():
-            return {}, {}
+            return {}, {}, {}
         d = read_json(self.claims_path) or {}
+        self.packing = Packing(
+            {str(k): [float(x) for x in v] for k, v in d.get("packing", {}).items()}
+        )
+        self.bin_family = {int(k): str(v) for k, v in d.get("families", {}).items()}
         claims = d.get("claims", {}) if "claims" in d else d  # older files: claims only
         return (
             {int(k): str(v) for k, v in claims.items()},
             {int(k): int(v) for k, v in d.get("counts", {}).items()},
+            {int(k): float(v) for k, v in d.get("volumes", {}).items()},
         )
 
     def _save_claims(self) -> None:
@@ -1030,6 +1218,9 @@ class Runner:
             {
                 "claims": {str(k): v for k, v in sorted(self.claims.items())},
                 "counts": {str(k): v for k, v in sorted(self.bin_counts.items())},
+                "volumes": {str(k): round(v, 1) for k, v in sorted(self.bin_volume.items())},
+                "families": {str(k): v for k, v in sorted(self.bin_family.items())},
+                "packing": self.packing.samples,
             },
         )
 
@@ -1051,25 +1242,206 @@ class Runner:
                 self.motion.message(f"bin {mk} ready")
             self.ready = ready
 
+    def _parked_for_bins(self) -> bool:
+        """After the first OK: park (bed out, hands safe) until the second OK; True = stopped."""
+        with self._lock:
+            self.motion.photo_position()
+            self.printer.gcode("M400")
+            self.motion.message("Change bins, OK")
+        asked = "; ".join(r.text() for r in self.requests)
+        self.note("parked for a bin change")
+        self.say("parked: change the bins, then OK")
+        self._set(
+            status="parked",
+            message=(asked + "; " if asked else "") + "change the bins, then press OK again",
+        )
+        while not self._ok.is_set() and not self._stop.is_set():
+            time.sleep(0.2)
+        self.swap_phase = ""
+        self._set(status="running")
+        return self._stop.is_set()
+
+    def _ask_bins(self, planner: Planner, layout: Layout, parts: list[Any]) -> None:
+        """Ask for bin changes: every full bin, and a bin for each new kind without one."""
+        fill = self.bin_fill(layout)
+        asked = {r.marker for r in self.requests}
+        new: list[BinRequest] = []
+
+        def request(mk: int, why: str, kind: str | None = None) -> BinRequest:
+            b = layout.bin_by_marker(mk)
+            what = self.claims.get(mk) or (b.label or ", ".join(b.holds) or b.role if b else "?")
+            return BinRequest(mk, fill[mk]["cell"], why, what, fill[mk]["count"], kind)
+
+        for mk, f in fill.items():
+            if f["full"] and mk not in asked and mk != layout.work_marker:
+                new.append(request(mk, "full"))
+        margin = self.m.run.work_margin_mm
+        on_plate = Counter(
+            k
+            for p in parts
+            if layout.in_work(p.bed_xy, margin) and (k := wild_key(p, layout.wild_by)) is not None
+        )
+        for need, value in sorted(planner.needs, key=str):
+            if need != "new" or any(r.for_kind == value for r in self.requests + new):
+                continue
+            taken = asked | {r.marker for r in new}
+            share = {mk: f["share"] for mk, f in fill.items()}
+            pick = choose_swap(layout, self.claims, share, on_plate, taken)
+            if pick is None:
+                if self._no_swap_said != value:
+                    self.note(f"{value} needs a bin and there is none to ask for: add a bin")
+                    self._no_swap_said = str(value)
+                continue
+            b, why = pick
+            new.append(request(b.marker, "new_kind", str(value)))
+            self.note(f"bin {fill[b.marker]['cell']} chosen to make room: {why}")
+        for r in new:
+            self.requests.append(r)
+            self.note(r.text())
+            self.say(r.text())
+            self.motion.message(r.short())
+
+    def _resolve_requests(self, layout: Layout, shot: Shot, T: Transform2D) -> list[str]:
+        """After the OK: what stands where a bin was asked for (binswap.after_ok), then every
+        bin in the photo where it is."""
+        seen = self._seen_bins(layout, shot, T)
+        out = []
+        for r in list(self.requests):
+            self.requests = [q for q in self.requests if q is not r]
+            outcome = after_ok(layout, r, seen)
+            left = self._parts_in_bin(layout, r.marker, shot)
+            if outcome == "emptied" and left:  # the camera still sees parts in it
+                with self._claims_lock:
+                    n = self.bin_counts.get(r.marker, 0)
+                    each = self.bin_volume.get(r.marker, 0.0) / n if n else 0.0
+                    self.bin_counts[r.marker] = left
+                    self.bin_volume[r.marker] = each * left
+                    self._save_claims()
+                text = f"bin {r.cell} still has {left} part(s) in it: counted {left}"
+            elif outcome == "emptied":
+                self.bin_emptied(r.marker)
+                text = f"bin {r.cell} emptied: it starts again"
+            elif outcome == "replaced":
+                text = (
+                    f"another bin stands at {r.cell}; bin {r.marker} is kept aside with its parts"
+                )
+            else:
+                text = f"{r.cell} is empty now; bin {r.marker} is kept aside with its parts"
+            self.note(text)
+            out.append(text)
+        moved = self._place_bins(layout, shot, T)
+        added = [b["marker"] for b in moved if b.get("new")]
+        if added:
+            self.note(f"new bins seen, used as wild bins: {', '.join(map(str, added))}")
+        layout.save(self.layout_path)
+        return out
+
+    def _parts_in_bin(self, layout: Layout, marker: int, shot: Shot) -> int:
+        """Parts the camera sees inside a bin (its floor, without the code's shelf or post):
+        a bin said to be emptied may not be. The model can miss some through the walls."""
+        b = layout.bin_by_marker(marker)
+        if b is None or not self.m.run.check_emptied:
+            return 0
+        x0, y0, x1, y1 = layout.cells_rect(b.x, b.y, b.w, b.d)
+        inset = binspec.GAP_MM / 2 + binspec.WALL_MM + 1.0
+        x0, y0, x1, y1 = x0 + inset, y0 + inset, x1 - inset, y1 - inset
+        mx, my = layout.marker_centre(b)
+        h = binspec.SHELF_DEPTH_MM / 2 + 1.0
+        return sum(
+            1
+            for p in shot.parts
+            if x0 <= p.bed_xy[0] <= x1
+            and y0 <= p.bed_xy[1] <= y1
+            and not (abs(p.bed_xy[0] - mx) <= h and abs(p.bed_xy[1] - my) <= h)
+        )
+
+    def bins_ok(self) -> dict[str, Any]:
+        """The OK while not sorting: photo of the bins, then as after a bin change."""
+        self._idle()
+        layout, T = self.layout(), self.transform()
+        with self._lock:
+            self.motion.preflight(home=False)
+        shot = self.take_shot(layout, T, area="bins")
+        return {"resolved": self._resolve_requests(layout, shot, T), **self.bins_state()}
+
     def bin_emptied(self, marker: int | None) -> dict[str, Any]:
         """The bin was taken out and emptied: forget its contents (a wild bin becomes free).
         None = every bin marked ready."""
         with self._claims_lock:
             markers = list(self.ready) if marker is None else [int(marker)]
+            self.requests = [r for r in self.requests if r.marker not in markers]
             for mk in markers:
                 self.claims.pop(mk, None)
                 self.bin_counts.pop(mk, None)
+                self.bin_volume.pop(mk, None)
+                self.bin_family.pop(mk, None)
                 self.ready.pop(mk, None)
             self._save_claims()
             if markers:
                 self.note(f"emptied: bin {', '.join(map(str, markers))}")
             return self.bins_state()
 
+    def bin_fill(self, layout: Layout) -> dict[int, dict[str, Any]]:
+        """Every bin on the bed: where it stands, how many items went in, how full it is
+        (estimated) and about how many more fit."""
+        f = self.m.run.fill
+        out: dict[int, dict[str, Any]] = {}
+        for b in layout.bins:
+            room = bin_room_mm3(*b.own_size(), b.height_u, b.marker)
+            bf = BinFill(self.bin_counts.get(b.marker, 0), self.bin_volume.get(b.marker, 0.0))
+            pack = self._packing(b.marker)
+            out[b.marker] = {
+                "cell": layout.bin_name(b),
+                "count": bf.count,
+                "share": round(bf.share(room, pack), 3),
+                "more": bf.more(room, pack, f.default_mm3) if bf.count else None,
+                "full": bf.share(room, pack) >= f.full_at,
+                "packing": round(pack, 3),
+            }
+        return out
+
+    def _packing(self, marker: int) -> float:
+        f = self.m.run.fill
+        return (
+            self.packing.for_family(self.bin_family.get(marker), f.packing)
+            if f.learn
+            else f.packing
+        )
+
+    def bin_full(self, marker: int) -> dict[str, Any]:
+        """The user says this bin is full now: learn how densely its kind packs (its items'
+        volume / its room), and ask for it to be emptied."""
+        layout = self.layout()
+        b = layout.bin_by_marker(int(marker))
+        if b is None:
+            raise ValueError(f"bin {marker} is not on the bed")
+        with self._claims_lock:
+            vol = self.bin_volume.get(b.marker, 0.0)
+            if self.m.run.fill.learn and vol > 0:
+                room = bin_room_mm3(*b.own_size(), b.height_u, b.marker)
+                fam = self.bin_family.get(b.marker, "")
+                self.packing.add(fam, vol / room)
+                self.note(
+                    f"bin {layout.bin_name(b)} is full: {fam or 'its items'} pack to "
+                    f"{round(100 * vol / room)} % of the room (learnt)"
+                )
+            self._save_claims()
+        if not any(r.marker == b.marker for r in self.requests):
+            fill = self.bin_fill(layout)[b.marker]
+            what = self.claims.get(b.marker) or b.label or ", ".join(b.holds) or b.role
+            self.requests.append(BinRequest(b.marker, fill["cell"], "full", what, fill["count"]))
+        return self.bins_state()
+
     def bins_state(self) -> dict[str, Any]:
+        try:
+            fill = {str(k): v for k, v in self.bin_fill(self.layout()).items()}
+        except Exception:  # noqa: BLE001 - a broken layout file must not break the page
+            fill = {}
         return {
             "claims": {str(k): v for k, v in sorted(self.claims.items())},
             "bin_counts": {str(k): v for k, v in sorted(self.bin_counts.items())},
             "ready": list(self.ready.values()),
+            "fill": fill,
         }
 
     # ------------------------------------------------------------------ models

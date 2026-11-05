@@ -68,7 +68,9 @@ td small{display:block;color:var(--mut);font-size:12.5px}
 .stat b{font-weight:600}
 
 /* ready notice */
-#ready{display:none;max-width:1180px;margin:16px auto 0;padding:0 16px}#ready.on{display:block}
+#ready,#swap{display:none;max-width:1180px;margin:16px auto 0;padding:0 16px}#ready.on,#swap.on{display:block}
+#swap .notice{background:var(--warn-soft);border-color:#ecdcbc}#swap .check{background:var(--warn)}#swap .notice li{border-color:#ecdcbc}
+#swap .ok{border:0;background:var(--warn);color:#fff;border-radius:999px;padding:7px 18px;font:inherit;font-weight:600;cursor:pointer;margin-top:12px}
 .notice{background:var(--ok-soft);border:1px solid #d3e6d7;border-radius:var(--r);padding:14px 18px;display:flex;gap:14px;align-items:flex-start}
 .check{flex:none;width:22px;height:22px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:13px;margin-top:1px}
 .notice ul{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:8px}.notice li{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid #d3e6d7;border-radius:999px;padding:4px 5px 4px 12px;font-size:13px}.notice li .x{border:0;background:var(--ok-soft);color:var(--ok);border-radius:999px;padding:3px 10px;font:inherit;cursor:pointer}.notice li .x:hover{background:var(--ok);color:#fff}
@@ -79,6 +81,11 @@ svg text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;pointer-event
 .legend span{display:flex;align-items:center;gap:6px}.sw{width:14px;height:14px;border-radius:4px;border:1px solid var(--soft);background:#fff}
 #drop{border:1.5px dashed var(--soft);border-radius:var(--r);padding:30px 16px;text-align:center;cursor:pointer;color:var(--mut);transition:background .15s,border-color .15s}
 #drop b{color:var(--ink);font-weight:600}#drop.over{border-color:var(--acc);background:var(--acc-soft)}
+.fdrop{border:1.5px dashed var(--line2);border-radius:var(--r);padding:14px;text-align:center;cursor:pointer;color:var(--mut);font-size:13px;margin-top:12px;transition:background .15s,border-color .15s}
+.fdrop.over{border-color:var(--acc);background:var(--acc-soft)}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.fmeta{display:grid;grid-template-columns:86px 1fr;gap:4px 10px;font-size:13px;margin-top:10px}.fmeta dt{color:var(--soft)}.fmeta dd{margin:0;color:var(--mut)}
+.src{font-size:12px;border-radius:999px;padding:2px 10px;background:var(--cell);color:var(--mut)}.src.dropped{background:var(--ok-soft);color:var(--ok)}.src.none{background:var(--warn-soft);color:var(--warn)}
 progress{width:100%;height:6px;accent-color:var(--acc)}
 ul.plain{margin:8px 0 0;padding-left:18px}
 
@@ -95,9 +102,10 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 </style></head><body>
 <header><div class="bar">
  <div class="brand"><span class="logo"><i></i><i></i><i></i><i></i></span>screwpick</div>
- <nav><button data-t="setup">Setup<span id="setupbadge" class="badge" hidden></span></button><button data-t="run" class="on">Run</button><button data-t="layout">Layout</button><button data-t="calib">Calibrate</button><button data-t="print">Print bins</button><button data-t="models">Models</button><button data-t="users">Users</button></nav>
+ <nav><button data-t="setup">Setup<span id="setupbadge" class="badge" hidden></span></button><button data-t="run" class="on">Run</button><button data-t="layout">Layout</button><button data-t="calib">Calibrate</button><button data-t="print">Print bins</button><button data-t="models">Models</button><button data-t="files">Files</button><button data-t="users">Users</button></nav>
  <div class="right"><span id="status"><span class="dot"></span>…</span><span id="me"></span><button class="estop" onclick="cmd('estop')">STOP</button></div>
 </div></header>
+<div id="swap"><div class="notice"><span class="check">!</span><div><b>Bin change</b><span class="note" id="swapnote"></span><ul id="swaplist"></ul><button class="ok" id="swapok" onclick="cmd('ok')">OK</button></div></div></div>
 <div id="ready"><div class="notice"><span class="check">✓</span><div><b>Ready to take out</b><span class="note"> · nothing on the plate goes into these bins any more. Empty them, then press Emptied.</span><ul id="readylist"></ul></div></div></div>
 
 <div id="login"><form onsubmit="doLogin(event)">
@@ -223,6 +231,13 @@ ul.plain{margin:8px 0 0;padding-left:18px}
  </div>
 </section>
 
+<section id="files">
+ <div class="card"><h2>Files from the other projects</h2>
+  <p class="note">screwpick keeps its own copy of every file it uses, so it runs on its own. Fetch each one from where it says, and drop it on its card: it is checked, kept on this Pi and used at once. A file you leave out is not missing: the card says what is done without it. The models are in the Models tab.</p>
+  <span id="fmsg" class="note"></span></div>
+ <div id="flist" class="fgrid"></div>
+</section>
+
 <section id="models">
  <div class="card"><h2>In use</h2><div id="loaded" class="note">…</div></div>
  <div class="card"><h2>Add a model</h2>
@@ -240,7 +255,7 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 <script>
 const $=id=>document.getElementById(id);
 let S={},lay=null,sel=null,workStart=null,markers=[];
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");history.replaceState(null,"","#"+b.dataset.t);if(b.dataset.t==="setup")loadSetup();else if(b.dataset.t==="models")loadModels();else if(b.dataset.t==="print")loadLayout();else if(b.dataset.t==="users")loadUsers();else if(b.dataset.t!=="run")loadLayout();});
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");history.replaceState(null,"","#"+b.dataset.t);if(b.dataset.t==="setup")loadSetup();else if(b.dataset.t==="models")loadModels();else if(b.dataset.t==="files")loadFiles();else if(b.dataset.t==="print")loadLayout();else if(b.dataset.t==="users")loadUsers();else if(b.dataset.t!=="run")loadLayout();});
 setTimeout(()=>{const t=location.hash.slice(1),b=t&&document.querySelector(`nav button[data-t="${t}"]`);if(b)b.click();window.scrollTo(0,0);});
 if("scrollRestoration" in history)history.scrollRestoration="manual";
 async function api(path,body){const r=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json();if(r.status===401){showLogin(false);}if(!r.ok)throw new Error(j.error||r.status);return j;}
@@ -261,9 +276,16 @@ async function changePw(){try{await api("api/users/password",{old:$("oldpw").val
 
 // ---------------------------------------------------------------- run
 async function cmd(c){try{const j=await api("api/command",{command:c,strategy:$("strategy").value});flash("msg",j.result);}catch(e){flash("msg",e.message,1);}poll();}
+async function binFull(m){try{const j=await api("api/bins/full",{marker:m});Object.assign(S,j);poll();if(lay)render();if(sel!==null&&lay)panel();flash("laymsg","noted: it will be asked to be emptied; the next estimates learn from it");}catch(e){flash("laymsg",e.message,1);}}
 async function emptied(m){try{const j=await api("api/bins/emptied",{marker:m});Object.assign(S,j);renderBins();if(lay)render();if(sel!==null&&lay)panel();}catch(e){flash("msg",e.message,1);}}
 function readyMap(){const r={};for(const x of S.ready||[])r[x.marker]=x;return r;}
+function swapMap(){const r={};for(const x of S.requests||[])r[x.marker]=x;return r;}
 function renderBins(){
+ const reqs=S.requests||[],parked=S.swap_phase==="parked";
+ $("swap").classList.toggle("on",reqs.length>0||parked);
+ $("swapnote").textContent=parked?" · the machine is parked (bed out). Empty these bins or put an empty bin in their place, then press OK: the camera checks what stands there now and sorting goes on.":" · the machine keeps sorting everything else. Press OK when you want to change the bins: it parks first (bed out).";
+ $("swapok").textContent=parked?"OK, bins changed":"OK, park for the change";
+ $("swaplist").innerHTML=reqs.map(x=>`<li><b>${esc(x.cell)}</b><span>${esc(x.what)}</span><span class="mut">${x.count} · ${x.why==="full"?"full":"for "+esc(x.for_kind||"")}</span></li>`).join("");
  const ready=S.ready||[];
  $("ready").classList.toggle("on",ready.length>0);
  $("readylist").innerHTML=ready.map(x=>`<li><b>${x.marker}</b><span>${esc(x.what)}</span><span class="mut">${x.count}</span><button class="x" onclick="emptied(${x.marker})">Emptied</button></li>`).join("")+(ready.length>1?`<li style="padding-left:5px"><button class="x" onclick="emptied(null)">All emptied</button></li>`:"");
@@ -272,7 +294,7 @@ function renderBins(){
  $("binsuse").innerHTML=ids.length?ids.map(m=>`<div class="stat"><span>Bin ${esc(m)} <span class="mut">${esc(claims[m]||"")}</span> ${rm[m]?'<span class="tag on">ready</span>':""}</span><b>${counts[m]||0}</b></div>`).join(""):"no bin filled yet";}
 let shown="";
 async function poll(){try{S=await api("api/state");}catch(e){$("status").innerHTML='<span class="dot bad"></span>no connection';return;}
- const cls={running:"ok",done:"ok",standby:"ok",error:"bad",stuck:"warn",paused:"warn",stopping:"warn"}[S.status]||"";
+ const cls={running:"ok",done:"ok",standby:"ok",error:"bad",stuck:"warn",waiting:"warn",paused:"warn",stopping:"warn"}[S.status]||"";
  $("status").innerHTML=`<span class="dot ${cls}"></span><b>${esc(S.status)}</b>${S.auto?" · automatic":""}${S.driver==="sim"?" · simulation":""}`;$("tipz").textContent=(S.tip_offset_z>=0?"+":"")+(+S.tip_offset_z).toFixed(2)+" mm";
  $("msg").textContent=S.message;$("plan").textContent=S.plan||"";
  const st=$("strategy");if(!st.options.length){for(const[k,v]of Object.entries(S.strategies)){const o=document.createElement("option");o.value=k;o.textContent=v;st.appendChild(o);}st.value=S.strategy;}
@@ -313,22 +335,26 @@ function render(){const W=lay.cols*CELL,H=lay.rows*CELL,svg=$("grid"),rm=readyMa
  const w=lay.work;if(lay.work_marker==null)s+=`<rect x="${w.x*CELL+3}" y="${Y(w.y,w.d)+3}" width="${w.w*CELL-6}" height="${w.d*CELL-6}" rx="9" fill="var(--work)" pointer-events="none"/>`+
   `<text x="${(w.x+w.w/2)*CELL}" y="${Y(w.y,w.d)+w.d*CELL/2+2}" text-anchor="middle" font-size="6.2" letter-spacing="1.2" fill="#9aa9ae">WORKING AREA</text>`;
  for(const b of lay.bins){const on=b.marker===sel,r=rm[b.marker],t=binText(b),x0=b.x*CELL+4,y0=Y(b.y,b.d)+4,bw=b.w*CELL-8,bh=b.d*CELL-8;
-  const fill=t.plate?"var(--work)":r?"var(--ok-soft)":t.special?"var(--cell)":"#fff",stroke=on?"var(--acc)":r?"var(--ok)":t.plate?"#c9d6db":"#d9d8d2";
-  s+=`<g data-m="${b.marker}" style="cursor:pointer"><rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="${on?1.6:0.8}" ${t.free&&!on?'stroke-dasharray="3 2.5"':""}/>`+
+  const f=(S.fill||{})[b.marker],q=swapMap()[b.marker],fill=t.plate?"var(--work)":r?"var(--ok-soft)":t.special?"var(--cell)":"#fff",stroke=on?"var(--acc)":q?"var(--warn)":r?"var(--ok)":t.plate?"#c9d6db":"#d9d8d2";
+  s+=`<g data-m="${b.marker}" style="cursor:pointer"><rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="${on||q?1.6:0.8}" ${t.free&&!on?'stroke-dasharray="3 2.5"':""}/>`+
    (()=>{const k=CELL*14/42,rot=(b.rot||0)%360,sh=styleOf(b.marker)==="corner"?{0:[x0+bw-k,y0,k,k],90:[x0,y0,k,k],180:[x0,y0+bh-k,k,k],270:[x0+bw-k,y0+bh-k,k,k]}[rot]:{0:[x0,y0,bw,k],180:[x0,y0+bh-k,bw,k],90:[x0,y0,k,bh],270:[x0+bw-k,y0,k,bh]}[rot];
      return `<rect x="${sh[0]+1}" y="${sh[1]+1}" width="${sh[2]-2}" height="${sh[3]-2}" rx="5" fill="${t.plate?"#dfe7ea":"var(--line2)"}" opacity="${t.plate?1:0.55}"/>`;})()+
-   `<text x="${x0+7}" y="${y0+11}" font-size="5.6" fill="var(--soft)">${b.marker}</text>`+
-   `<text x="${x0+bw-7}" y="${y0+11}" font-size="5.6" fill="var(--soft)" text-anchor="end">${esc(r?"":t.top)}</text>`+
+   `<text x="${x0+7}" y="${y0+11}" font-size="5.6" fill="var(--soft)"><tspan font-weight="600" fill="var(--mut)">${cellName(b.x,b.y)}</tspan> · ${b.marker}</text>`+
+   (f&&f.count&&!r?`<rect x="${x0+bw-7-countW(f.count)}" y="${y0+4}" width="${countW(f.count)}" height="9.5" rx="4.75" fill="${f.full?"var(--warn)":"var(--ink)"}"/><text x="${x0+bw-7-countW(f.count)/2}" y="${y0+10.9}" font-size="6" font-weight="600" fill="#fff" text-anchor="middle">${f.count}</text>`
+    :`<text x="${x0+bw-7}" y="${y0+11}" font-size="5.6" fill="var(--soft)" text-anchor="end">${esc(r?"":t.top)}</text>`)+
    `<text x="${x0+7}" y="${y0+bh/2+3}" font-size="7.6" font-weight="600" fill="${t.free?"var(--soft)":"var(--ink)"}">${esc(t.lines[0].slice(0,11*b.w))}</text>`+
    `<text x="${x0+7}" y="${y0+bh/2+13}" font-size="7.6" fill="var(--mut)">${esc(t.lines[1].slice(0,11*b.w))}</text>`;
   if(r)s+=`<circle cx="${x0+bw-11}" cy="${y0+9}" r="5" fill="var(--ok)"/><path d="M${x0+bw-13.4} ${y0+9.2} l1.8 1.8 l3.2 -3.4" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`+
    `<text x="${x0+7}" y="${y0+bh-7}" font-size="5.6" fill="var(--ok)">ready · ${r.count}</text>`;
-  else if((S.bin_counts||{})[b.marker])s+=`<text x="${x0+7}" y="${y0+bh-7}" font-size="5.6" fill="var(--soft)">${(S.bin_counts||{})[b.marker]} in it</text>`;
+  else if(f&&f.count&&!t.plate){const share=Math.min(1,f.share),bar=bw-14;
+   s+=`<g><title>${f.full?"full: empty it soon":`about ${Math.round(share*100)} % full, room for about ${f.more} more`}</title><rect x="${x0+7}" y="${y0+bh-6}" width="${bar}" height="2.4" rx="1.2" fill="var(--line2)"/><rect x="${x0+7}" y="${y0+bh-6}" width="${Math.max(2.4,bar*share)}" height="2.4" rx="1.2" fill="${f.full?"var(--warn)":"var(--acc)"}"/></g>`;}
   s+="</g>";}
  if(workStart)s+=`<rect x="${workStart[0]*CELL+2}" y="${Y(workStart[1],1)+2}" width="${CELL-4}" height="${CELL-4}" rx="7" fill="none" stroke="var(--acc)" stroke-width="1.6"/>`;
  svg.innerHTML=s;
  svg.querySelectorAll("rect[data-cx]").forEach(r=>r.onclick=()=>cellClick(+r.dataset.cx,+r.dataset.cy));
  svg.querySelectorAll("g[data-m]").forEach(g=>g.onclick=e=>{e.stopPropagation();if(mode()==="select"){sel=+g.dataset.m;render();panel();}});}
+function cellName(x,y){let c="",n=x;for(;;){c=String.fromCharCode(65+n%26)+c;n=Math.floor(n/26)-1;if(n<0)break;}return c+(y+1);}
+function countW(n){return 5+String(n).length*3.6;}
 function nextMarker(w,d,u,st){const used=new Set(lay.bins.map(b=>b.marker));const s=SIZES.find(s=>s.style===st&&s.height_u===u&&((s.w===w&&s.d===d)||(s.w===d&&s.d===w)));
  const [a,z]=s?[s.first,s.last]:[240,249];for(let m=a;m<=z;m++)if(!used.has(m))return m;return null;}
 function cellClick(x,y){const m=mode();
@@ -338,11 +364,11 @@ function cellClick(x,y){const m=mode();
 function panel(){const b=lay.bins.find(b=>b.marker===sel),p=$("binpanel");
  if(!b){p.innerHTML='<h2>Bin</h2><p class="note">Click a bin in the grid.</p>';return;}
  const roles=["wild","sort","work","unknown","unsure","overflow","kit","all"],claim=(S.claims||{})[b.marker],r=readyMap()[b.marker],n=(S.bin_counts||{})[b.marker]||0;
- p.innerHTML=`<h2>Bin ${b.marker}</h2>
+ const f=(S.fill||{})[b.marker];p.innerHTML=`<h2>Bin ${b.marker} · ${cellName(b.x,b.y)}</h2>
  ${r?`<div class="notice" style="margin-bottom:14px;padding:10px 12px"><span class="check">✓</span><div><b>Ready to take out</b><br><span class="note">${esc(r.what)} · ${r.count} part${r.count===1?"":"s"}</span></div></div>`:""}
  ${b.role==="wild"?`<p>${claim?`Collects <b>${esc(claim)}</b>`:'<span class="mut">Free: the next new kind goes here.</span>'}</p>`:""}
- ${n?`<p class="note">${n} part${n===1?"":"s"} in it since it was last emptied.</p>`:""}
- ${n||claim?`<p><button class="b s" onclick="emptied(${b.marker})">Emptied</button></p>`:""}
+ ${n?`<p class="note">${n} part${n===1?"":"s"} in it since it was last emptied${f&&b.role!=="work"?`: about ${Math.round(Math.min(1,f.share)*100)} % full${f.full?" (full)":`, room for about ${f.more} more like them`}`:""}. Estimated from the size of each part the camera saw.</p>`:""}
+ ${n||claim?`<p class="row"><button class="b s" onclick="emptied(${b.marker})">Emptied</button>${n&&b.role!=="work"?`<button class="b s" onclick="binFull(${b.marker})" title="it is really full now: the estimates learn how densely these parts pack">Full</button>`:""}</p>`:""}
  <div style="display:grid;gap:10px;margin-top:6px">
  <label>role<select id="br">${roles.map(x=>`<option${x===b.role?" selected":""}>${x}</option>`).join("")}</select></label>
  <label>rules<input id="bh" style="flex:1" value="${esc(b.holds.join(", "))}" placeholder="none: wild"></label>
@@ -404,8 +430,24 @@ async function jog(x,y,z){const s=+$("step").value;try{const j=await api("api/jo
 async function tipTouch(){try{const j=await api("api/calib/tip",{});flash("tipmsg",`saved: the plate is at toolhead Z ${j.toolhead_z}`);poll();}catch(e){flash("tipmsg",e.message,1);}}
 async function getTip(){try{const j=await api("api/tip");$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
 
+// ---------------------------------------------------------------- files
+const SRC={dropped:"dropped here",["machine.yaml"]:"from machine.yaml",["screw-sorting"]:"from the screw-sorting code",none:"not there"};
+async function loadFiles(){try{renderFiles((await api("api/files")).slots);}catch(e){flash("fmsg",e.message,1);}}
+function renderFiles(slots){
+ $("flist").innerHTML=slots.map(f=>`<div class="card" style="margin:0"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(f.title)}</h2><span class="src ${f.source==="dropped"?"dropped":f.source==="none"?"none":""}">${esc(SRC[f.source]||f.source)}</span></div>
+  <p style="margin:8px 0 0"><b>${esc(f.filename)}</b> <span class="note">${esc(f.summary||"")}${f.added?` · added ${esc(f.added.added)}${f.added.original!==f.filename?" from "+esc(f.added.original):""}`:""}</span></p>
+  <dl class="fmeta"><dt>Where</dt><dd>${esc(f.where)}</dd><dt>Used for</dt><dd>${esc(f.used_for)}</dd><dt>Without it</dt><dd>${esc(f.without)}</dd></dl>
+  <div class="fdrop" data-k="${f.key}">Drop <b>${esc(f.filename)}</b> here, or click to choose</div>
+  <div class="row" style="margin-top:10px">${f.path?`<button class="b s" onclick="location.href='api/files/download?key=${f.key}'">Download</button>`:""}${f.source==="dropped"?`<button class="b s" onclick="removeFile('${f.key}')">Remove</button>`:""}</div></div>`).join("");
+ document.querySelectorAll(".fdrop").forEach(d=>{const k=d.dataset.k;
+  d.onclick=()=>{const i=document.createElement("input");i.type="file";i.accept=".json,.yaml,.yml";i.onchange=()=>i.files[0]&&sendFile(k,i.files[0]);i.click();};
+  d.ondragover=e=>{e.preventDefault();d.classList.add("over");};d.ondragleave=()=>d.classList.remove("over");
+  d.ondrop=e=>{e.preventDefault();d.classList.remove("over");if(e.dataTransfer.files[0])sendFile(k,e.dataTransfer.files[0]);};});}
+async function sendFile(key,file){flash("fmsg",`checking ${file.name}…`);try{const r=await fetch(`api/files/upload?key=${key}&filename=${encodeURIComponent(file.name)}`,{method:"POST",body:file});const j=await r.json();if(r.status===401)showLogin(false);if(!r.ok)throw new Error(j.error||r.status);renderFiles(j.slots);flash("fmsg",`${file.name}: kept and in use`);}catch(e){flash("fmsg",e.message,1);}}
+async function removeFile(key){if(!confirm("Remove the dropped copy?"))return;try{renderFiles((await api("api/files/remove",{key})).slots);flash("fmsg","removed");}catch(e){flash("fmsg",e.message,1);}}
+
 // ---------------------------------------------------------------- models
-const ROLE={stage1:"finds parts",stage2:"measures length",classifier:"re-checks classes"};
+const ROLE={stage1:"finds parts",stage2:"measures length",classifier:"re-checks classes",head:"finds parts, head camera"};
 let M={models:[],active:{},loaded:{}};
 async function loadModels(){try{M=await api("api/models");renderModels();}catch(e){flash("mmsg",e.message,1);}}
 function renderModels(){
@@ -419,10 +461,11 @@ function renderModels(){
   const fmts=m.formats.length>1?`<select onchange="chooseWeights('${m.id}',this.value)">${m.formats.map(f=>`<option value="${esc(f.path)}"${f.path===m.weights?" selected":""}>${esc(f.format)}: ${esc(f.path)}</option>`).join("")}</select>`:esc(m.weights||"–");
   const notes=[...m.problems.map(p=>`<span class="bad">${esc(p)}</span>`),...m.warnings.map(w=>esc(w))].map(x=>`<small>${x}</small>`).join("");
   const btn=m.role&&!m.problems.length?(on?(m.role==="stage1"?"":`<button class="b s" onclick="activate('${m.role}',null)">Stop using</button>`):`<button class="b p s" onclick="activate('${m.role}','${m.id}')">Use</button>`):"";
-  return `<tr><td><b>${esc(m.name)}</b> ${on?'<span class="tag on">in use</span>':""}<small>${esc(m.uploaded)} · ${esc(m.source)}</small>${notes}</td>`+
+  const headOn=act.head===m.id,headBtn=m.role==="stage1"&&!m.problems.length?(headOn?`<button class="b s" onclick="activate('head',null)">Stop on head camera</button>`:`<button class="b s" onclick="activate('head','${m.id}')" title="the model for a camera on the tool head (camera.source: head), trained at its scale">Use on head camera</button>`):"";
+  return `<tr><td><b>${esc(m.name)}</b> ${on?'<span class="tag on">in use</span>':""}${headOn?' <span class="tag on">head camera</span>':""}<small>${esc(m.uploaded)} · ${esc(m.source)}</small>${notes}</td>`+
    `<td>${esc(m.task)}<small>${esc(ROLE[m.role]||"not usable")} · ${m.classes.length} classes${m.imgsz?` · ${m.imgsz} px`:""}</small></td>`+
    `<td>${m.metric_value!=null?(+m.metric_value).toFixed(3):"–"}<small>${esc(m.metric||"")}</small></td><td>${fmts}</td>`+
-   `<td style="text-align:right;white-space:nowrap">${btn} ${m.role&&!m.problems.length?`<button class="b s" onclick="testModel('${m.id}')">Test</button>`:""} <button class="b s" onclick="renameModel('${m.id}')">Rename</button> ${on?"":`<button class="b s" onclick="deleteModel('${m.id}')">Delete</button>`}</td></tr>`;}).join("")||"<tr><td class='note'>No models yet: drop one above.</td></tr>";}
+   `<td style="text-align:right;white-space:nowrap">${btn} ${headBtn} ${m.role&&!m.problems.length?`<button class="b s" onclick="testModel('${m.id}')">Test</button>`:""} <button class="b s" onclick="renameModel('${m.id}')">Rename</button> ${on?"":`<button class="b s" onclick="deleteModel('${m.id}')">Delete</button>`}</td></tr>`;}).join("")||"<tr><td class='note'>No models yet: drop one above.</td></tr>";}
 async function activate(role,id){flash("mmsg","loading the model…");try{M=await api("api/models/activate",{role,id});renderModels();flash("mmsg","switched");}catch(e){flash("mmsg",e.message,1);}}
 async function chooseWeights(id,path){try{M=await api("api/models/weights",{id,path});renderModels();flash("mmsg","weights chosen (press Use again if it is in use, to reload)");}catch(e){flash("mmsg",e.message,1);}}
 async function renameModel(id){const n=prompt("New name");if(!n)return;try{M=await api("api/models/rename",{id,name:n});renderModels();}catch(e){flash("mmsg",e.message,1);}}

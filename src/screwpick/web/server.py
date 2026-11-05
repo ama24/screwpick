@@ -17,6 +17,9 @@ POST /api/models/activate   {"role": stage1|stage2|classifier, "id": … or null
 POST /api/models/weights    {"id", "path"};  /rename {"id", "name"};  /delete {"id"}
 POST /api/models/test       {"id"}: run it on the last photo, nothing is switched
 POST /api/bins/emptied      {"marker": id or null}: a bin was emptied (null: all ready ones)
+GET  /api/files              the Files tab: each file, where it lives, which copy is in use
+POST /api/files/upload?key=… (raw file) keep a file; /api/files/remove {"key"}; GET /api/files/download?key=…
+POST /api/bins/full         {"marker": id}: this bin is full (learns the packing, asks to empty it)
 GET  /api/session           who is logged in; POST /api/login, /api/setup (first account),
 POST /api/logout;  GET /api/users, POST /api/users/add, /api/users/remove, /api/users/password
 GET  /api/setup; POST /api/setup/printer|home|goto|machine|picker|confirm|reset   the Setup tab
@@ -144,7 +147,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self._raw = b""
         n = int(self.headers.get("Content-Length") or 0)
         if url.path != "/api/models/upload":
-            if n > 1 << 20:
+            if n > (16 << 20 if url.path == "/api/files/upload" else 1 << 20):
                 self.close_connection = True
                 self._json({"error": "request too large"}, 413)
                 return
@@ -260,6 +263,21 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json(r.models_state())
         elif method == "POST" and path == "/api/models/test":
             self._json(r.test_model(str(self._body()["id"])))
+        elif method == "GET" and path == "/api/files":
+            self._json(r.files_state())
+        elif method == "POST" and path == "/api/files/upload":
+            self._json(r.add_file(q["key"], self._raw, q.get("filename", "")))
+        elif method == "POST" and path == "/api/files/remove":
+            self._json(r.remove_file(self._body()["key"]))
+        elif method == "GET" and path == "/api/files/download":
+            from ..files import find
+
+            p, _ = find(r.m, q["key"])
+            if p is None:
+                raise FileNotFoundError(f"no {q['key']} file")
+            self._send(200, p.read_bytes(), "application/octet-stream", p.name)
+        elif method == "POST" and path == "/api/bins/full":
+            self._json(r.bin_full(int(self._body()["marker"])))
         elif method == "POST" and path == "/api/bins/emptied":
             m = self._body().get("marker")
             self._json(r.bin_emptied(None if m in (None, "") else int(m)))

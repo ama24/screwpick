@@ -61,6 +61,10 @@ def _build(m: Machine):  # noqa: ANN202 - (runner, world)
 
         vision = SimVision(world, lambda: Layout.load(layout_path), transform, runs)
         printer = make_printer(m, world)
+        if m.camera.source == "head":
+            vision.head_tip = printer._tip  # noqa: SLF001 - the simulated tip
+            vision.head = m.camera.head
+            vision.head_ref = tuple(m.printer.photo_position[:2])
         return Runner(m, printer, vision, store), world
     from .vision import CameraVision
 

@@ -155,50 +155,60 @@ class CameraVision:
 
     def __init__(self, m: Machine, out_dir: Path, store: ModelStore | None = None) -> None:
         import cv2  # noqa: F401 - fail early when OpenCV is missing
-        from screwsynth.calibration.geometry import Camera, nominal_from_config
-        from screwsynth.common.config import load_config
         from screwsynth.common.io import read_json
-        from screwsynth.common.paths import resolve
-        from screwsynth.measure.geometry import Geometry
-        from screwsynth.measure.infer import Settings
 
         self.m = m
         self.out = out_dir
         self.out.mkdir(parents=True, exist_ok=True)
         self.store = store
-        cfg = load_config(m.path(m.paths.screwsynth_config))
-        calib_path = m.path(m.paths.calibration) or resolve(
-            Path(cfg.get("paths.calibration_dir", "data/calibration")) / "calibration.json"
-        )
-        self.calibration = read_json(calib_path) if calib_path.is_file() else None
-        if self.calibration is None:
-            log.warning("no camera calibration (%s): using the nominal camera", calib_path)
-        self.nominal = nominal_from_config(cfg)
-        self.cam_full = (
-            Camera.from_calibration(self.calibration) if self.calibration else self.nominal
-        )
-        self.geometry = Geometry.from_config(cfg)
-        self.settings = Settings.from_config(cfg.to_dict())
-        self.classes_yaml = resolve(cfg.get("paths.classes", "configs/classes.yaml"))
-        self._head_r = {name: g.head_radius for name, g in self.geometry.classes.items()}
-        try:
-            self._shapes = shapes_from_catalogue(cfg, self.geometry)
-        except Exception as exc:  # noqa: BLE001 - grip falls back to the outline
-            log.warning("no head sizes for the centre of mass: %s", exc)
-            self._shapes = {}
         self.analyzer: Analyzer | None = None
         self.model_error: str | None = None
-        try:
-            self.use_models(active_choice(m, store))
-        except (FileNotFoundError, ValueError) as exc:
-            self.model_error = str(exc)
-            log.error("no usable model: %s", exc)
+        self.reload_setup()
         cam_settings = m.path(m.camera.settings)
         self.cam = None
         if cam_settings:
             from screwrig.camera import Camera as RigCamera
 
             self.cam = RigCamera(read_json(cam_settings))
+
+    def reload_setup(self) -> None:
+        """Settings, camera calibration and class list (the Files tab's copies first, see
+        files.py), then the models again with them."""
+        from screwsynth.calibration.geometry import Camera, nominal_from_config
+        from screwsynth.common.config import load_config
+        from screwsynth.common.io import read_json
+        from screwsynth.measure.geometry import Geometry
+        from screwsynth.measure.infer import Settings
+
+        from .files import find
+
+        m = self.m
+        cfg = load_config(find(m, "settings")[0])
+        key = "head_calibration" if m.camera.source == "head" else "calibration"
+        calib_path, source = find(m, key)
+        self.calibration = read_json(calib_path) if calib_path is not None else None
+        if self.calibration is None:
+            log.warning("no camera calibration (Files tab): using the nominal camera")
+        else:
+            log.info("camera calibration: %s (%s)", calib_path, source)
+        self.nominal = nominal_from_config(cfg)
+        self.cam_full = (
+            Camera.from_calibration(self.calibration) if self.calibration else self.nominal
+        )
+        self.geometry = Geometry.from_config(cfg)
+        self.settings = Settings.from_config(cfg.to_dict())
+        self.classes_yaml = find(m, "classes")[0]
+        self._head_r = {name: g.head_radius for name, g in self.geometry.classes.items()}
+        try:
+            self._shapes = shapes_from_catalogue(cfg, self.geometry)
+        except Exception as exc:  # noqa: BLE001 - grip falls back to the outline
+            log.warning("no head sizes for the centre of mass: %s", exc)
+            self._shapes = {}
+        try:
+            self.use_models(active_choice(m, self.store))
+        except (FileNotFoundError, ValueError) as exc:
+            self.model_error = str(exc)
+            log.error("no usable model: %s", exc)
 
     def load(self, choice: ModelChoice) -> Analyzer:
         return Analyzer(
@@ -304,6 +314,11 @@ def active_choice(m: Machine, store: ModelStore | None) -> ModelChoice:
     """The models to use: the active ones in the store; without one, paths.model in machine.yaml
     or the newest model in screwsynth's models/ folder."""
     s1 = store.active_model("stage1") if store else None
+    if m.camera.source == "head" and store is not None:  # its own model, trained at its scale
+        head = store.active_model("head")
+        if head is None:
+            log.warning("head camera: no head camera model chosen, using the stage-1 model")
+        s1 = head or s1
     if s1 is not None and store is not None:
         choice = ModelChoice(
             store.weights_path(s1),

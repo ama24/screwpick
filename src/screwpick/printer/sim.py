@@ -207,6 +207,10 @@ class SimVision:
         self.transform = transform
         self.out = out_dir
         self.snaps: list[SimPart | None] = []
+        # a head camera: () -> the tip X/Y now; it sees fov_mm around tip + offset
+        self.head_tip: Callable[[], list[float]] | None = None
+        self.head = None  # config.HeadCamera
+        self.head_ref: tuple[float, float] = (0.0, 0.0)  # tip X/Y of the calibration photo
 
     delay_s: float = 0.0  # pretend the analysis takes this long (tests of the pipeline)
 
@@ -226,15 +230,28 @@ class SimVision:
         T = self.transform()
         Ti = T.inverse()
         lay = self.layout()
+        d = np.zeros(2)  # the head moved by d from the calibration photo: the view shifts
+        seen = lambda x, y: True  # noqa: E731
+
+        if self.head_tip is not None and self.head is not None:
+            tip = np.asarray(self.head_tip()[:2], dtype=float)
+            d = tip - np.asarray(self.head_ref, dtype=float)
+            cx, cy = tip + np.asarray(self.head.offset, dtype=float)
+            hw, hh = self.head.fov_mm[0] / 2, self.head.fov_mm[1] / 2
+
+            def seen(x: float, y: float) -> bool:
+                return abs(x - cx) <= hw and abs(y - cy) <= hh
+
+        plate = [sp for sp in plate if seen(sp.x, sp.y)]
         parts = []
         for i, sp in enumerate(plate, start=1):
-            bed_poly = _rect(sp.x, sp.y, sp.size[0], sp.size[1], sp.angle)
+            bed_poly = _rect(sp.x - d[0], sp.y - d[1], sp.size[0], sp.size[1], sp.angle)
             parts.append(
                 Part(
                     id=i,
                     cls=sp.cls,
                     score=sp.score,
-                    plate_xy=tuple(float(v) for v in Ti.apply([sp.x, sp.y])),
+                    plate_xy=tuple(float(v) for v in Ti.apply([sp.x - d[0], sp.y - d[1]])),
                     plate_angle=(sp.angle - T.angle_deg) % 180.0,
                     polygon=Ti.apply(bed_poly),
                     top_mm=sp.top,
@@ -247,10 +264,12 @@ class SimVision:
         markers = []
         for b in lay.bins:  # each code on its bin's shelf or post, its top edge to the back
             mx, my = lay.marker_centre(b)
+            if not seen(mx, my):
+                continue
             markers.append(
                 MarkerPose(
                     b.marker,
-                    tuple(float(v) for v in Ti.apply([mx, my])),
+                    tuple(float(v) for v in Ti.apply([mx - d[0], my - d[1]])),
                     (90.0 + b.rot - T.angle_deg) % 360.0,
                 )
             )

@@ -33,7 +33,7 @@ TASK_ROLE = {
     "pose": "stage2",
     "classify": "classifier",
 }
-ROLES = ("stage1", "stage2", "classifier")
+ROLES = ("stage1", "stage2", "classifier", "head")  # head: stage 1 for the head camera
 WEIGHT_SUFFIXES = (".pt", ".onnx")
 MAX_UNZIPPED = 4 * 1024**3
 META = "screwpick.json"
@@ -181,7 +181,7 @@ class ModelStore:
             raise ModelError(f"unknown role {role!r}")
         if model_id is not None:
             m = self.get(model_id)
-            if m.role != role:
+            if m.role != role and not (role == "head" and m.role == "stage1"):
                 raise ModelError(f"{m.name} is a {m.task} model: it cannot be the {role} model")
             if m.problems:
                 raise ModelError(f"{m.name} cannot be used: {'; '.join(m.problems)}")
@@ -345,15 +345,11 @@ def make_store(m: Any) -> ModelStore | None:
     root = m.path(m.paths.models)
     if root is None:
         return None
-    classes_yaml = None
-    try:
-        from screwsynth.common.config import load_config
-        from screwsynth.common.paths import resolve
+    from .files import find
 
-        cfg = load_config(m.path(m.paths.screwsynth_config))
-        classes_yaml = resolve(cfg.get("paths.classes", "configs/classes.yaml"))
-    except Exception as exc:  # noqa: BLE001 - screwsynth missing or not set up: no class check
-        log.info("no class check for uploaded models: %s", exc)
+    classes_yaml, _ = find(m, "classes")  # the Files tab's copy first
+    if classes_yaml is None:
+        log.info("no class list (Files tab): uploaded models are not checked")
     return ModelStore(root, classes_yaml, tuple(m.models.prefer))
 
 

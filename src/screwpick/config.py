@@ -16,6 +16,9 @@ from typing import Any
 
 import yaml
 
+from .fill import Fill
+from .headcam import HeadCamera
+
 PICKER_MODES = ("vacuum", "gripper", "tweezers", "both")
 PRINTER_DRIVERS = ("moonraker", "sim")
 
@@ -28,6 +31,7 @@ class ConfigError(ValueError):
 class Paths:
     screwsynth_config: str | None = None  # screwsynth's configs/config.yaml (classes, geometry)
     calibration: str | None = None  # calibration.json of the camera; None = nominal camera
+    head_calibration: str | None = None  # the same for the head camera (camera.source: head)
     models: str = "../models"  # models uploaded in the web page (Models tab)
     model: str | None = None  # fallback when no model is active: weights or NCNN folder
     stage2: str | None = None  # keypoint model; None = classical measurement only
@@ -40,6 +44,7 @@ class Paths:
     tool: str = "../data/tool.json"  # tip height measured in the Calibrate tab
     setup: str = "../data/setup.json"  # the Setup tab's checklist
     machine: str = "../data/machine.json"  # limits/positions set in the Setup tab (over this file)
+    files: str = "../data/files"  # files dropped in the Files tab (calibration, items.json, ...)
 
 
 @dataclass
@@ -47,6 +52,10 @@ class Camera:
     settings: str | None = (
         None  # screwrig lock settings (locked focus/exposure); None = rpicam-still
     )
+    # overview: fixed above the bed, one photo sees everything | head: on the tool head, moved
+    # over the tray (sorting) or the whole grid (Resync, bin changes); see headcam.py
+    source: str = "overview"
+    head: HeadCamera = field(default_factory=HeadCamera)
 
 
 @dataclass
@@ -119,11 +128,17 @@ class Run:
     keep_photos: int = 300  # keep this many photos in the runs folder (0 = keep all)
     scan_bins_on_start: bool = True  # find the bins with the camera when a run starts
     only_seen_bins: bool = True  # use only the bins the camera sees (covered ones are skipped)
-    order: str = "largest_group"  # largest_group (the most numerous kind first) | nearest
+    # census: the most numerous kind first, finished before the next, and back to a kind
+    # done earlier when more of it turns up | largest_group: the biggest on each photo | nearest
+    order: str = "census"
     # photo right after the pick (the part in the picker), analysed while it is carried to
     # its bin: the Pi's thinking time hides behind the move
     pipeline: bool = True
     shake: Shake = field(default_factory=Shake)
+    fill: Fill = field(default_factory=Fill)  # how full the bins are (estimated, see fill.py)
+    # a new kind and no free wild bin: ask (a bin change, chosen by binswap.py) | overflow
+    when_no_bin: str = "ask"
+    check_emptied: bool = True  # after a bin change: parts still seen in a bin are counted
 
 
 @dataclass
@@ -186,8 +201,12 @@ class Machine:
                 raise ConfigError(f"printer.{name}: wrong number of values {v}")
         if len(self.tool.offset) != 3:
             raise ConfigError("tool.offset needs X Y Z")
-        if self.run.order not in ("largest_group", "nearest"):
-            raise ConfigError("run.order must be largest_group or nearest")
+        if self.camera.source not in ("overview", "head"):
+            raise ConfigError("camera.source must be overview or head")
+        if self.run.when_no_bin not in ("ask", "overflow"):
+            raise ConfigError("run.when_no_bin must be ask or overflow")
+        if self.run.order not in ("census", "largest_group", "nearest"):
+            raise ConfigError("run.order must be census, largest_group or nearest")
         if self.run.shake.axis.upper() not in ("X", "Y"):
             raise ConfigError("run.shake.axis must be X or Y")
 

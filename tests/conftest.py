@@ -21,6 +21,7 @@ def machine(tmp_path: Path) -> Machine:
     m.paths.models = "models"
     m.paths.state = "state.json"
     m.paths.tool = "tool.json"
+    m.paths.files = "files"
     m.printer.driver = "sim"
     m.printer.photo_position = [0.0, 200.0, 60.0]
     return m
