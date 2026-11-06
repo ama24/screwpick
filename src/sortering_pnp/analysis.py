@@ -82,9 +82,8 @@ class Analyzer:
         classes_yaml: Path | None = None,
         classifier_conf: float = 0.6,
     ) -> None:
-        from ultralytics import YOLO
-
         from sortering_pnp.measure.modelcard import check_classes
+        from sortering_pnp.yolo import YOLO
 
         self.choice = choice
         self.stage1 = YOLO(str(choice.stage1))
