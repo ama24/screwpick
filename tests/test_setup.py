@@ -34,7 +34,9 @@ def make(machine, n: int = 3):
 def test_nothing_sorts_before_the_setup(machine):
     runner, world, printer = make(machine)
     for cmd in ("start", "step", "auto"):
-        assert runner.command(cmd).startswith("finish the Setup tab first: Printer, Picker, Homing")
+        assert runner.command(cmd).startswith(
+            "finish the Setup tab first: Printer, Homing, Machine, Picker, Tip height"
+        )
     assert printer.log == []  # not a single command reached the printer
     with pytest.raises(PrinterError, match="home first"):
         runner.jog(0, 0, 1)  # setup moves never home by themselves
@@ -43,47 +45,52 @@ def test_nothing_sorts_before_the_setup(machine):
 def test_the_whole_setup_then_sorting(machine):
     machine.run.shake.enabled = False
     runner, world, printer = make(machine)
+    printer.gcode("TOOL_HOTEND")  # the picker is not on yet: the setup moves need no picker
+    printer.log.clear()
     # 1 printer: questions only
     res = runner.setup_check_printer()
     assert res["ok"] and all(c["ok"] for c in res["checks"])
-    # 2 picker: on the printer (a button, not Mainsail), then both tried
-    printer.gcode("TOOL_HOTEND")
-    with pytest.raises(PrinterError, match="Grab and Release"):
-        runner.setup_confirm("picker")
-    runner.setup_picker("grab")
-    runner.setup_picker("release")
-    with pytest.raises(PrinterError, match="'hotend' mounted"):
-        runner.setup_confirm("picker")
-    assert runner.setup_tool("picker")["tool"] == "picker"
-    assert "TOOL_PICKER" in printer.log
-    runner.setup_confirm("picker")
-    # 3 homing: watched, then confirmed
+    # 2 homing: watched, then confirmed
     with pytest.raises(PrinterError, match="Home now"):
         runner.setup_confirm("homing")
     runner.setup_home()
     assert "G28" in printer.log
     runner.setup_confirm("homing")
-    # 4 machine: values checked, shown, confirmed
+    # 3 machine: values checked, shown, confirmed; then the head waits for the picker
     with pytest.raises(ValueError, match="minimum"):
         runner.save_machine({"limits_x": [220, 0]})
     with pytest.raises(PrinterError, match="limits"):
         runner.save_machine({"photo_position": [0, 300, 60]})
+    with pytest.raises(PrinterError, match="limits"):
+        runner.save_machine({"change_position": [110, 210, 500]})
     assert runner.m.printer.photo_position == [0.0, 200.0, 60.0]  # unchanged after a refusal
-    runner.save_machine({"photo_position": [0, 210, 60], "travel_z": 55})
+    runner.save_machine(
+        {"photo_position": [0, 210, 60], "change_position": [110, 200, 90], "travel_z": 55}
+    )
     assert runner.setup_goto("photo")[:2] == [0.0, 210.0]
+    assert runner.setup_goto("change") == [110.0, 200.0, 90.0]
     runner.setup_goto("centre")
     runner.setup_confirm("machine")
+    assert runner.motion.current_tip() == [110.0, 200.0, 90.0]  # easy to put the picker on
+    # 4 picker: one OK, which tells Klipper the picker is on
+    assert runner.setup_state()["picker"]["pins"]["ok"]
+    runner.setup_confirm("picker")
+    assert printer.log[-1] == "TOOL_PICKER" and runner.setup.is_done("picker")
     # 5 tip height: checks itself
     printer.gcode("G1 X100 Y100 Z3")
     runner.tip_touches_plate()
-    # 6 camera: the calibration checks itself
+    # 6 camera: the codes are read without any model, the calibration checks itself
     with pytest.raises(PrinterError, match="checked by the machine"):
         runner.setup_confirm("camera")
     markers = runner.calib_photo()
+    assert markers and all(m["what"] for m in markers)
+    cam = runner.setup_state()["camera"]
+    assert cam["markers"] == markers  # the page lists them under the photo
     for m in markers[:3]:
         runner.motion.travel(*m["plate"])
         runner.calib_record(m["marker"])
     runner.calib_fit()
+    assert runner.setup_state()["camera"]["fit"]["worst_mm"] < 1.0
     # 7 layout: bins found
     assert runner.scan_bins()["problems"] == []
     state = runner.setup_state()
@@ -93,18 +100,38 @@ def test_the_whole_setup_then_sorting(machine):
     assert runner.state.status == "done" and not world.parts
 
 
-def test_the_tool_buttons_switch_klippers_tool(machine):
+def test_setup_moves_need_no_picker_but_sorting_does(machine):
     runner, _, printer = make(machine)
     runner.setup_check_printer()
     runner.setup_home()
     assert runner.setup_tool("hotend")["tool"] == "hotend"
-    with pytest.raises(PrinterError, match="The picker is on the printer"):
-        runner.jog(0, 0, 1)  # the hotend is on: nothing moves
+    runner.jog(0, 0, 1)  # someone watches the Setup tab's moves: allowed
+    with pytest.raises(PrinterError, match="Picker: OK"):
+        runner.motion.preflight()  # sorting: not with the hotend
     with pytest.raises(ValueError, match="picker or hotend"):
         runner.setup_tool("nozzle")
-    runner.setup_tool("picker")
-    runner.jog(0, 0, 1)
+    runner.setup_picker_ok()
+    runner.motion.preflight()
     assert printer.log.count("TOOL_HOTEND") == printer.log.count("TOOL_PICKER") == 1
+
+
+def test_the_picker_ok_needs_working_pins(machine):
+    runner, _, _ = make(machine)
+    runner.pins.ok, runner.pins.why = False, "gpiozero is missing"
+    with pytest.raises(PrinterError, match="gpiozero is missing"):
+        runner.setup_confirm("picker")
+    assert not runner.setup.is_done("picker")
+
+
+def test_no_model_sorting_refused_but_photos_work(machine):
+    runner, _, _ = make(machine)
+    runner.require_setup = False
+    runner.vision.model_missing = lambda: "no model: upload one in the Models tab"
+    runner.setup_home()
+    assert runner.calib_photo()  # the codes are read without a model
+    runner.command("start")
+    runner.wait(10)
+    assert runner.state.status == "error" and "no model" in runner.state.message
 
 
 def test_machine_values_are_kept_and_reset_the_step(machine):
@@ -155,11 +182,12 @@ def test_setup_web_api(machine):
             state = json.loads(r.read())
         assert state["required"] and not state["complete"] and len(state["steps"]) == 7
         assert post("/api/setup/printer", {})["ok"] is True
-        assert [s["key"] for s in state["steps"]][:3] == ["printer", "picker", "homing"]
-        assert post("/api/setup/tool", {"tool": "picker"})["tool"] == "picker"
+        keys = [s["key"] for s in state["steps"]]
+        assert keys == ["printer", "homing", "machine", "picker", "tip", "camera", "layout"]
         assert post("/api/setup/home", {})["homed_now"] is True
-        assert post("/api/setup/confirm", {"step": "homing"})["steps"][2]["done"] is True
-        assert post("/api/setup/reset", {"step": "homing"})["steps"][2]["done"] is False
+        assert post("/api/setup/confirm", {"step": "homing"})["steps"][1]["done"] is True
+        assert post("/api/setup/reset", {"step": "homing"})["steps"][1]["done"] is False
+        assert post("/api/setup/confirm", {"step": "picker"})["tool"] == "picker"
         assert post("/api/command", {"command": "start"})["result"].startswith("finish the Setup")
     finally:
         srv.shutdown()

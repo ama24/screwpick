@@ -154,10 +154,8 @@ def test_setup_rotation_test(machine):
     runner.setup_picker("grab")
     runner.setup_picker("release")
     assert printer.log[-2:] == ["; pins grab", "; pins release"]  # on the Pi's pins
-    with pytest.raises(Exception, match="0° and 90°"):
-        runner.setup_confirm("picker")
     runner.setup_picker_offset(12)
     runner.setup_rotate(90)
     assert printer.jaw_angle == 102.0  # the trim is added
-    runner.setup_confirm("picker")
-    assert runner.setup.is_done("picker")
+    runner.setup_confirm("picker")  # OK: the picker is on (Klipper is told)
+    assert runner.setup.is_done("picker") and printer.log[-1] == "TOOL_PICKER"

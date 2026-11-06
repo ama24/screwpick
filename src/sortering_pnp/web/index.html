@@ -55,6 +55,8 @@ input[type=radio]{accent-color:var(--acc)}
 
 /* content */
 img.shot{width:100%;display:block;border-radius:var(--r2);background:var(--line2)}
+.camview{position:relative;margin-top:10px}.camview img{width:100%;display:block;border-radius:var(--r2);background:var(--line2)}.camview svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.step .row label.note select{margin:0 4px}
 table{border-collapse:collapse;width:100%}
 td,th{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line2);font-variant-numeric:tabular-nums;vertical-align:top}
 th{font-weight:500;color:var(--mut);font-size:12.5px}tr:last-child td{border-bottom:0}
@@ -292,35 +294,13 @@ button.p{font-weight:600}button.big{padding:11px 18px}
    <li><b>Position</b>: lay the board flat in the tray, on the TPU sheet where the parts lie, away from the corner post. <button class="b p s" onclick="calCall('api/calibration/flat','photo and solving…')">Board is in the tray</button> <span class="note" id="calflat"></span></li>
   </ol>
   <div class="row"><span id="calmsg2" class="note"></span><button class="b s" style="margin-left:auto" onclick="if(confirm('Delete the lens photos and start again?'))calCall('api/calibration/reset')">Start again</button></div>
-  <p class="note" style="margin:10px 0 0">After step 4: redo <b>Camera to printer</b> below (the new calibration starts its millimetres at the board).</p></div>
+  <p class="note" style="margin:10px 0 0">After step 4: redo <b>Camera to printer</b> (Setup tab, step 6): the new calibration starts its millimetres at the board.</p></div>
  <div class="card"><h2>What the model sees</h2>
   <p class="note" style="margin:0 0 12px">Only the tray's inside goes to the model: the bins, their codes and the tray's walls are painted over with the floor's colour, the photo keeping its size (the parts stay as large as the model learnt them). Take a photo and look: the painted edge should sit just at the foot of the tray's walls. <b>Margin</b>: + keeps a strip of the wall's foot (parts lying right against it stay whole), − paints more of the floor's edge (if the wall still shows).</p>
   <div class="row"><label>margin<input id="mmargin" type="number" step="0.5" value="0" style="width:72px">mm</label>
    <button class="b s" onclick="maskPreview()">Take a photo</button><button class="b p s" onclick="maskSave()">Save</button><span id="maskmsg" class="note"></span></div>
   <img id="maskshot" class="shot" alt="" style="margin-top:12px" hidden></div>
- <div class="card"><h2>Camera to printer</h2>
-  <ol class="note" style="padding-left:18px;margin:0 0 14px"><li>Put at least 3 bins far apart on the bed, then <b>Take photo</b>.</li>
-  <li>Jog the picker tip onto the centre of a marker, then <b>Tip is here</b> on its row.</li>
-  <li>Repeat for 3 or more markers, then <b>Fit</b>. Errors under 0.5 mm are good.</li>
-  <li><b>Check</b> moves the tip 2 mm above a marker with the fitted calibration.</li></ol>
-  <div class="row"><button class="b p" onclick="calibPhoto()">Take photo</button><button class="b" onclick="calibFit()">Fit</button><button class="b" onclick="calibClear()">Forget points</button><span id="calmsg" class="note"></span></div>
- </div>
- <div class="cols">
-  <div class="card"><h2>Markers seen</h2><table id="markers"></table><h2 style="margin-top:18px">Recorded points</h2><table id="pairs"></table></div>
-  <div class="card"><h2>Jog the tip</h2>
-   <div class="row" style="margin-bottom:12px"><label>step<select id="step"><option>0.1</option><option selected>1</option><option>10</option></select>mm</label></div>
-   <div class="row" style="gap:22px;align-items:flex-start">
-    <div class="jog"><span></span><button class="b" onclick="jog(0,1,0)">Y+</button><span></span><button class="b" onclick="jog(-1,0,0)">X−</button><span></span><button class="b" onclick="jog(1,0,0)">X+</button><span></span><button class="b" onclick="jog(0,-1,0)">Y−</button><span></span></div>
-    <div class="jog" style="grid-template-columns:54px"><button class="b" onclick="jog(0,0,1)">Z+</button><button class="b" onclick="jog(0,0,-1)">Z−</button></div>
-   </div>
-   <p style="margin-top:14px">tip <b id="tip">–</b> <button class="b s" onclick="getTip()">read</button></p>
-   <p class="note">On a bed-slinger the Y buttons move the bed.</p>
-  </div>
- </div>
- <div class="card"><h2>Tip height</h2>
-  <p class="note">Do this after homing, whenever the picker or the Z switch was moved. Jog the tip down over the TPU plate (0.1 mm steps at the end) until a sheet of paper just drags under it, then press the button. Everything sortering-pnp does in Z counts from this.</p>
-  <div class="row"><button class="b p" onclick="tipTouch()">Tip touches the plate</button><span class="note">tip offset <b id="tipz">–</b></span><span id="tipmsg" class="note"></span></div></div>
- <div class="card"><h2>Photo</h2><img id="calshot" class="shot" alt=""></div>
+ <div class="card"><h2>Tip height and camera to printer</h2><p class="note" style="margin:0">They are steps of the <b>Setup</b> tab now (5 and 6), with the jog buttons, the photo and its codes right there. <button class="b s" onclick="go('setup')">Open Setup</button></p></div>
 </section>
 
 <section id="print">
@@ -427,10 +407,9 @@ let shownView="";
 async function poll(){try{S=await api("api/state");}catch(e){$("status").innerHTML='<span class="dot bad"></span>no connection';return;}
  const cls={running:"ok",done:"ok",standby:"ok",error:"bad",stuck:"warn",waiting:"warn",parked:"warn",paused:"warn",stopping:"warn"}[S.status]||"";
  $("status").innerHTML=`<span class="dot ${cls}"></span><b>${esc(S.status)}</b>${S.auto?" · automatic":""}${S.driver==="sim"?" · simulation":""}`;
- $("tipz").textContent=(S.tip_offset_z>=0?"+":"")+(+S.tip_offset_z).toFixed(2)+" mm";
  $("msg").textContent=S.message;
  const st=$("strategy");if(!st.options.length){for(const[k,v]of Object.entries(S.strategies)){const o=document.createElement("option");o.value=k;o.textContent=v;st.appendChild(o);}st.value=S.strategy;}
- const img=S.view||S.shot;if(img&&img!==shownView){shownView=img;$("view").src="runs/"+encodeURIComponent(img);$("calshot").src="runs/"+encodeURIComponent(S.shot||img);}
+ const img=S.view||S.shot;if(img&&img!==shownView){shownView=img;$("view").src="runs/"+encodeURIComponent(img);}
  $("camempty").hidden=!!img;drawOverlay();renderStats();renderActivity();
  const su=S.setup||{},left=(su.missing||[]).length;$("setupbadge").hidden=!(su.required&&left);$("setupbadge").textContent=left;
 
@@ -616,9 +595,9 @@ function binIso(w,d,hu,style){const P=42,W=w*P-0.5,D=d*P-0.5,Hh=hu*7,t=1.6,f=6,c
 function go(t){document.querySelector(`nav button[data-t="${t}"]`).click();}
 let SU={steps:[]},CHECKS=null;
 async function loadSetup(){try{SU=await api("api/setup");renderSetup();loadTodo();}catch(e){flash("setupsum",e.message,1);}}
-async function setupCall(path,body,msg){try{if(msg)flash("setupsum",msg);const j=await api(path,body||{});if(j.checks)CHECKS=j.checks;SU=j.steps?j:await api("api/setup");renderSetup();if(j.tip)flash("setupsum",`tip at ${j.tip.join(", ")}`);poll();}catch(e){flash("setupsum",e.message,1);}}
+async function setupCall(path,body,msg,key){const box=()=>key&&$("msg_"+key)?"msg_"+key:"setupsum";try{if(msg)flash(box(),msg);const j=await api(path,body||{});if(j.checks)CHECKS=j.checks;SU=j.steps?j:await api("api/setup");renderSetup();flash(box(),j.tip?`tip at ${j.tip.map(v=>(+v).toFixed(2)).join(", ")}`:"");poll();}catch(e){flash(box(),e.message,1);}}
 function mval(id){return +$(id).value;}
-function saveMachine(){setupCall("api/setup/machine",{values:{limits_x:[mval("mx0"),mval("mx1")],limits_y:[mval("my0"),mval("my1")],limits_z:[mval("mz0"),mval("mz1")],travel_z:mval("mtz"),photo_position:[mval("mpx"),mval("mpy"),mval("mpz")]}},"saving…");}
+function saveMachine(){setupCall("api/setup/machine",{values:{limits_x:[mval("mx0"),mval("mx1")],limits_y:[mval("my0"),mval("my1")],limits_z:[mval("mz0"),mval("mz1")],travel_z:mval("mtz"),photo_position:[mval("mpx"),mval("mpy"),mval("mpz")],change_position:[mval("mcx"),mval("mcy"),mval("mcz")]}},"saving…","machine");}
 const WC={sig:"#e8590c",sig2:"#7048e8",v5:"#d6336c",v24:"#a61e1e",gnd:"#343a40"};
 function wiring(t){let s="";
  const ln=(pts,c,w=2.6)=>`<polyline points="${pts.map(p=>p.join(",")).join(" ")}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"/>`;
@@ -682,29 +661,53 @@ function pickerBody(st,redo){const PK=SU.picker||{types:[]},t=PK.types.find(x=>x
   <div><h4>The Pi drives it</h4><p class="note" style="margin:0 0 6px">sortering-pnp switches GPIO${PK.action_pin}${t.rotates?` and GPIO${PK.turn_pin}`:""} itself: nothing to set up in Klipper.${t.servos?" Servos use the Pi's hardware PWM: install-pi.sh turns it on (reboot once).":""}</p>
   ${PK.pins?(PK.pins.ok?`<p class="ok" style="margin:0">✓ ${esc(PK.pins.message)}</p>`:`<p class="bad" style="margin:0">✗ ${esc(PK.pins.message)}</p>`):""}
  </div></div></div>
- <h4 style="margin:14px 0 6px;font-size:13px">On the printer</h4><p class="note" style="margin:0 0 8px">Take the hotend off, mount the picker, then press the button: Klipper remembers it and switches the heaters off. Nothing moves until the picker is on. To print again, put the hotend back and press <b>The hotend is back on</b>.</p><div class="row"><button class="b ${SU.tool==="picker"?"":"p"} s" onclick="setupCall('api/setup/tool',{tool:'picker'})">The picker is on the printer</button> <button class="b s" onclick="setupCall('api/setup/tool',{tool:'hotend'})">The hotend is back on</button> <span class="note">${SU.tool==="picker"?'<span class="ok">✓ picker on the printer</span>':SU.tool?`Klipper has the <b>${esc(SU.tool)}</b> on`:""}</span></div>
- <h4 style="margin:14px 0 6px;font-size:13px">Test it</h4><p class="note" style="margin:0 0 8px">Grab and Release run where the tool is now; nothing moves. Hold a screw ${t.holds==="jaws"?"between the jaws":t.holds==="cup"?"against the cup":"against the rod's tip"}.</p><button class="b s" onclick="setupCall('api/setup/picker',{action:'grab'})">Grab</button> <button class="b s" onclick="setupCall('api/setup/picker',{action:'release'})">Release</button>`+
-  (SU.rotation?`<p class="note" style="margin-top:10px">Turning: at <b>0°</b> the jaws must close along the printer's X axis (left–right). If they don't, change the offset until they do.</p><div class="row"><button class="b s" onclick="setupCall('api/setup/rotate',{angle:0})">Turn to 0°</button> <button class="b s" onclick="setupCall('api/setup/rotate',{angle:90})">Turn to 90°</button> <span class="note">offset</span> <input id="pkoff" type="number" step="1" value="${PK.offset_deg||0}" style="width:76px"> <span class="note">°</span> <button class="b s" onclick="setupCall('api/setup/picker/offset',{deg:+$('pkoff').value||0})">Save offset</button></div>`:"")+
-  (["grab","release"].every(x=>(SU.picker_tried||[]).includes(x))&&(!SU.rotation||(SU.picker_tried||[]).includes("rotate"))&&!st.done?` <p><button class="b p s" onclick="setupCall('api/setup/confirm',{step:'picker'})">It holds and lets go</button></p>`:"")+redo;}
-function stepBody(st){const m=SU.machine||{},redo=st.done?` <button class="b s" onclick="setupCall('api/setup/reset',{step:'${st.key}'})">Redo</button>`:"";
- switch(st.key){
- case "printer":return `<p class="note">Asks Klipper a few questions; nothing moves.</p><button class="b p s" onclick="setupCall('api/setup/printer',{},'asking Klipper…')">Check</button>`+
+ <h4 style="margin:14px 0 6px;font-size:13px">Try it (optional)</h4><p class="note" style="margin:0 0 8px">Nothing moves. Hold a screw ${t.holds==="jaws"?"between the jaws":t.holds==="cup"?"against the cup":"against the rod's tip"} and press Grab, then Release.</p><button class="b s" onclick="setupCall('api/setup/picker',{action:'grab'},'','picker')">Grab</button> <button class="b s" onclick="setupCall('api/setup/picker',{action:'release'},'','picker')">Release</button>`+
+  (SU.rotation?`<p class="note" style="margin-top:10px">Turning: at <b>0°</b> the jaws must close along the printer's X axis (left–right). If they don't, change the offset until they do.</p><div class="row"><button class="b s" onclick="setupCall('api/setup/rotate',{angle:0},'','picker')">Turn to 0°</button> <button class="b s" onclick="setupCall('api/setup/rotate',{angle:90},'','picker')">Turn to 90°</button> <span class="note">offset</span> <input id="pkoff" type="number" step="1" value="${PK.offset_deg||0}" style="width:76px"> <span class="note">°</span> <button class="b s" onclick="setupCall('api/setup/picker/offset',{deg:+$('pkoff').value||0},'','picker')">Save offset</button></div>`:"")+
+  `<h4 style="margin:14px 0 6px;font-size:13px">Put it on</h4><p class="note" style="margin:0 0 8px">The head waits at the picker-change position (step 3). Put the picker on the head, connect it, then press <b>OK</b>.</p><div class="row"><button class="b ${st.done?"":"p"} s" onclick="setupCall('api/setup/confirm',{step:'picker'},'','picker')">OK</button> <button class="b s" onclick="setupCall('api/setup/goto',{target:'change'},'moving…','picker')">Back to the picker-change position</button></div>`+redo;}
+function stepBody(st){const m=SU.machine||{},k=st.key,redo=st.done?` <button class="b s" onclick="setupCall('api/setup/reset',{step:'${k}'},'','${k}')">Redo</button>`:"";
+ switch(k){
+ case "printer":return `<p class="note">Asks Klipper a few questions; nothing moves.</p><button class="b p s" onclick="setupCall('api/setup/printer',{},'asking Klipper…','printer')">Check</button>`+
   (CHECKS?`<ul class="checks">${CHECKS.map(c=>`<li><span class="${c.ok?"ok":"bad"}">${c.ok?"✓":"✗"}</span> ${esc(c.what)} <span class="note">${esc(c.detail||"")}</span></li>`).join("")}</ul>`:"");
- case "homing":return `<p class="note">Watch the printer. It lifts first, homes X and Y, moves the tip over the <b>middle of the working area</b> and homes Z there. If it heads for a bin, press <b>STOP</b>.</p><button class="b p s" onclick="setupCall('api/setup/home',{},'homing…')">Home now</button>`+
-  (SU.homed_now&&!st.done?` <button class="b s" onclick="setupCall('api/setup/confirm',{step:'homing'})">Yes, Z came down over the plate</button>`:"")+redo;
- case "machine":return `<p class="note">Toolhead limits (mm) as in printer.cfg, the travel height (above the tallest bins), and the photo position: bed all the way out, head out of the working area.</p>
-  <div class="row mfield"><label>X<input id="mx0" type="number" value="${m.limits_x[0]}">–<input id="mx1" type="number" value="${m.limits_x[1]}"></label><label>Y<input id="my0" type="number" value="${m.limits_y[0]}">–<input id="my1" type="number" value="${m.limits_y[1]}"></label><label>Z<input id="mz0" type="number" value="${m.limits_z[0]}">–<input id="mz1" type="number" value="${m.limits_z[1]}"></label></div>
-  <div class="row mfield" style="margin-top:8px"><label>travel height<input id="mtz" type="number" value="${m.travel_z}"></label><label>photo X/Y/Z<input id="mpx" type="number" value="${m.photo_position[0]}"><input id="mpy" type="number" value="${m.photo_position[1]}"><input id="mpz" type="number" value="${m.photo_position[2]}"></label><button class="b s" onclick="saveMachine()">Save</button></div>
-  <div class="row" style="margin-top:10px"><span class="note">show me:</span>${["photo","front_left","back_right","centre"].map(t=>`<button class="b s" onclick="setupCall('api/setup/goto',{target:'${t}'},'moving…')">${{photo:"photo position",front_left:"front-left limit",back_right:"back-right limit",centre:"plate centre"}[t]}</button>`).join("")}</div>
-  <p style="margin-top:10px">${st.done?"":`<button class="b p s" onclick="setupCall('api/setup/confirm',{step:'machine'})">All positions are right</button>`}${redo}</p>`;
- case "tip":return `<p class="note">In <b>Calibrate → Tip height</b>: jog the tip down onto the plate until a sheet of paper just drags, then press the button. This step checks itself.</p><button class="b s" onclick="go('calib')">Open Calibrate</button>`;
+ case "homing":return `<p class="note">Watch the printer. It lifts first, homes X and Y, moves over the <b>middle of the working area</b> and homes Z there. If it heads for a bin, press <b>STOP</b>.</p><button class="b p s" onclick="setupCall('api/setup/home',{},'homing…','homing')">Home now</button>`+
+  (SU.homed_now&&!st.done?` <button class="b s" onclick="setupCall('api/setup/confirm',{step:'homing'},'','homing')">Yes, Z came down over the plate</button>`:"")+redo;
+ case "machine":{const pp=m.photo_position||[0,0,0],cp=m.change_position||[0,0,0];return `<p class="note">The toolhead limits (mm, as in printer.cfg), the travel height (above the tallest bins), the <b>photo position</b> (bed all the way out, head out of the picture) and the <b>picker-change position</b> (head high and in the middle: easy to put the picker on). <b>Show me</b> drives to each one.</p>
+  <div class="row mfield"><label>X<input id="mx0" type="number" value="${m.limits_x[0]}">–<input id="mx1" type="number" value="${m.limits_x[1]}"></label><label>Y<input id="my0" type="number" value="${m.limits_y[0]}">–<input id="my1" type="number" value="${m.limits_y[1]}"></label><label>Z<input id="mz0" type="number" value="${m.limits_z[0]}">–<input id="mz1" type="number" value="${m.limits_z[1]}"></label><label>travel height<input id="mtz" type="number" value="${m.travel_z}"></label></div>
+  <div class="row mfield" style="margin-top:8px"><label>photo X/Y/Z<input id="mpx" type="number" value="${pp[0]}"><input id="mpy" type="number" value="${pp[1]}"><input id="mpz" type="number" value="${pp[2]}"></label><label>picker change X/Y/Z<input id="mcx" type="number" value="${cp[0]}"><input id="mcy" type="number" value="${cp[1]}"><input id="mcz" type="number" value="${cp[2]}"></label><button class="b s" onclick="saveMachine()">Save</button></div>
+  <div class="row" style="margin-top:10px"><span class="note">show me:</span>${[["front_left","front-left limit"],["back_right","back-right limit"],["centre","plate centre"],["photo","photo position"],["change","picker change"]].map(([t,l])=>`<button class="b s" onclick="setupCall('api/setup/goto',{target:'${t}'},'moving…','machine')">${l}</button>`).join("")}</div>
+  <p style="margin-top:10px">${st.done?"":`<button class="b p s" onclick="setupCall('api/setup/confirm',{step:'machine'},'moving to the picker-change position…','machine')">All positions are right</button> <span class="note">then the head goes to the picker-change position for the next step</span>`}${redo}</p>`;}
  case "picker":return pickerBody(st,redo);
- case "camera":return `<p class="note">In <b>Calibrate</b>: photo, the tip onto 3 or more markers, Fit. Checks itself when the worst error is below 1 mm.</p><button class="b s" onclick="go('calib')">Open Calibrate</button>`;
- case "layout":return `<p class="note">In <b>Device</b>, next to the bed: <b>Resync</b>. Checks itself when the bins and a plate are found without problems.</p><button class="b s" onclick="go('device')">Open Device</button>`;
+ case "tip":return `<p class="note">Over the TPU sheet in the tray, jog the tip down until a sheet of paper just drags under it (0.1 mm steps at the end), then press <b>The tip touches the plate</b>. Every height counts from here; redo it when the picker or the Z switch moved.</p>
+  <div class="row"><button class="b s" onclick="setupCall('api/setup/goto',{target:'centre'},'moving above the plate…','tip')">Above the plate</button>${jogPad("tip",false)}<button class="b p s" onclick="setupCall('api/calib/tip',{},'saving…','tip')">The tip touches the plate</button></div>
+  <p class="note" style="margin:6px 0 0">tip offset now ${(SU.tip_offset_z>=0?"+":"")+(+SU.tip_offset_z||0).toFixed(2)} mm</p>`+redo;
+ case "camera":return cameraBody(st,redo);
+ case "layout":return `<p class="note">Put the baseplate, the tray and the bins on the bed (any place, turned any way), then <b>Find the bins</b>: one photo finds the grid, every bin and which way it faces, and makes the biggest bin the tray. The step ticks itself when nothing is wrong. Check the bed on <b>Device</b>.</p>
+  <div class="row"><button class="b p s" onclick="stepScan()">Find the bins</button> <button class="b s" onclick="go('device')">Open Device</button></div>`+
+  (LASTSCAN?`<p class="note" style="margin:6px 0 0">${LASTSCAN.found.length} bin(s) found${(LASTSCAN.problems||[]).length?`: <span class="bad">${LASTSCAN.problems.map(esc).join("; ")}</span>`:""}</p>`:"")+redo;
  }return "";}
 function renderSetup(){const left=SU.steps.filter(x=>!x.done).length;
  $("setupsum").innerHTML=SU.required?(left?`<b>${left}</b> step${left===1?"":"s"} to go.`:'<span class="ok">All done: the machine may sort.</span>'):"(Simulation: not required.)";
- $("steps").innerHTML=SU.steps.map((st,i)=>`<div class="card step"><span class="num ${st.done?"ok":""}">${st.done?"✓":i+1}</span><div><h3>${esc(st.title)}</h3><span class="note">${esc(st.goal)}${st.done?` · done ${esc(st.at||"")} ${esc(st.note||"")}`:""}</span></div><div class="body" style="margin-top:8px">${stepBody(st)}</div></div>`).join("");}
+ $("steps").innerHTML=SU.steps.map((st,i)=>`<div class="card step"><span class="num ${st.done?"ok":""}">${st.done?"✓":i+1}</span><div><h3>${esc(st.title)}</h3><span class="note">${esc(st.goal)}${st.done?` · done ${esc(st.at||"")} ${esc(st.note||"")}`:""}</span></div><div class="body" style="margin-top:8px">${stepBody(st)}<p id="msg_${st.key}" class="note" style="margin:6px 0 0"></p></div></div>`).join("");}
+
+// ---------------------------------------------------------------- setup: jog, camera to printer, bins
+let LASTSCAN=null;
+function jogPad(key,xy){const b=(x,y,z,l)=>`<button class="b s" onclick="stepJog(${x},${y},${z},'${key}')">${l}</button>`;
+ return ` <label class="note">step<select id="jstep_${key}"><option>0.1</option><option selected>1</option><option>10</option></select>mm</label>`+
+  (xy?b(-1,0,0,"X−")+b(1,0,0,"X+")+b(0,-1,0,"Y−")+b(0,1,0,"Y+"):"")+b(0,0,1,"Z+")+b(0,0,-1,"Z−")+` <span class="note">tip <b id="tip_${key}">–</b></span> `;}
+async function stepJog(x,y,z,key){const s=+$("jstep_"+key).value;try{const j=await api("api/jog",{dx:x*s,dy:y*s,dz:z*s});$("tip_"+key).textContent=j.tip.map(v=>(+v).toFixed(2)).join(", ");}catch(e){flash("msg_"+key,e.message,1);}}
+async function stepScan(){flash("msg_layout","taking a photo, finding the bins…");try{LASTSCAN=await api("api/scan",{});SU=await api("api/setup");renderSetup();loadLayout(true);poll();}catch(e){flash("msg_layout",e.message,1);}}
+function cameraBody(st,redo){const C=SU.camera||{},mk=C.markers||[],pairs=C.pairs||[],done=new Set(pairs.map(x=>x.marker));
+ const cal=C.calibrated?`<p class="note" style="margin:0 0 8px"><span class="ok">✓ camera calibration</span> (${esc(C.calibrated)}): the photo's millimetres are measured.</p>`:`<p class="note" style="margin:0 0 8px"><span class="bad">No camera calibration yet.</span> First <b>Calibrate → Camera calibration</b> (the printed tray board): without it the millimetres are rough. <button class="b s" onclick="go('calib')">Open Calibrate</button></p>`;
+ const rows=mk.length?`<table style="margin-top:10px"><tr><th>code</th><th>bin</th><th>camera mm</th><th></th></tr>${mk.map(m=>`<tr><td><b>${m.marker}</b></td><td>${esc(m.what||"")}</td><td class="note">${m.plate.join(", ")}</td><td style="text-align:right">${done.has(m.marker)?'<span class="ok">✓ point</span> ':""}<button class="b s" onclick="setupCall('api/calib/record',{marker:${m.marker}},'','camera')">Tip is here</button>${C.fit?` <button class="b s" onclick="setupCall('api/calib/goto',{marker:${m.marker}},'moving…','camera')">Check</button>`:""}</td></tr>`).join("")}</table>`:(C.view?'<p class="bad" style="margin:8px 0 0">No codes seen: are bins in the picture, with even light?</p>':"");
+ const fit=C.fit?`<p class="${C.fit.worst_mm<1?"ok":"bad"}" style="margin:8px 0 0">Fit: worst error ${C.fit.worst_mm} mm${C.fit.worst_mm<1?"":" (needs under 1 mm: record the points again, carefully)"} · rotation ${C.fit.angle_deg}° · scale ${C.fit.scale}</p>`:"";
+ return cal+`<ol class="note" style="padding-left:18px;margin:0 0 10px"><li>Put 3 or more bins far apart on the bed, then <b>Take photo</b>: it shows what the camera sees and which codes it reads (no model needed).</li><li>Jog the tip onto the centre of a code, then <b>Tip is here</b> on its row. Do this for 3 or more codes, far apart.</li><li><b>Fit</b>. The step ticks itself when the worst error is under 1 mm.</li></ol>
+  <div class="row"><button class="b p s" onclick="setupCall('api/calib/photo',{},'taking a photo…','camera')">Take photo</button> <button class="b s" ${pairs.length<3?"disabled":""} onclick="setupCall('api/calib/fit',{},'fitting…','camera')">Fit (${pairs.length} point${pairs.length===1?"":"s"})</button> <button class="b s" onclick="setupCall('api/calib/clear',{},'','camera')">Forget points</button></div>`+
+  (C.view?`<div class="camview"><img src="runs/${encodeURIComponent(C.view)}" alt="" onload="camMarks(this)"><svg></svg></div>`:"")+rows+
+  `<div class="row" style="margin-top:10px">${jogPad("camera",true)}</div>`+fit+redo;}
+function camMarks(img){const C=SU.camera||{},H=C.view_h,svg=img.nextElementSibling;if(!svg)return;const w=img.naturalWidth,h=img.naturalHeight,r=Math.max(w,h)/90;
+ svg.setAttribute("viewBox",`0 0 ${w} ${h}`);
+ svg.innerHTML=(C.markers||[]).map(m=>{let u,v;if(m.view_px){[u,v]=m.view_px;}else if(H){const [x,y]=m.plate,d=H[2][0]*x+H[2][1]*y+H[2][2];u=(H[0][0]*x+H[0][1]*y+H[0][2])/d;v=(H[1][0]*x+H[1][1]*y+H[1][2])/d;}else return "";
+  return `<circle cx="${u}" cy="${v}" r="${r}" fill="none" stroke="#00e676" stroke-width="${r/3}"/><text x="${u+r*1.4}" y="${v-r*1.2}" font-size="${r*2.4}" font-weight="700" fill="#00e676" stroke="#000" stroke-width="${r/5}" paint-order="stroke">${m.marker}</text>`;}).join("");}
+
 
 // ---------------------------------------------------------------- camera calibration, real photos
 async function loadCal(){try{renderCal(await api("api/calibration"));}catch(e){flash("calmsg2",e.message,1);}}
@@ -736,16 +739,6 @@ function renderTodo(items){$("todo").innerHTML=items.map(t=>`<div class="step" s
 async function todoTick(key,done){try{renderTodo((await api("api/todo",{key,done})).items);}catch(e){}}
 
 // ---------------------------------------------------------------- calibration
-async function calibPhoto(){flash("calmsg","taking a photo…");try{const j=await api("api/calib/photo",{});markers=j.markers;renderMarkers();flash("calmsg",`${markers.length} marker(s) seen`);poll();}catch(e){flash("calmsg",e.message,1);}}
-function renderMarkers(){$("markers").innerHTML="<tr><th>marker</th><th>camera mm</th><th>printer</th><th></th></tr>"+markers.map(m=>`<tr><td>${m.marker}</td><td>${m.plate.join(", ")}</td><td>${m.bed?m.bed.join(", "):"–"}</td><td style="text-align:right"><button class="b s" onclick="record(${m.marker})">Tip is here</button> <button class="b s" onclick="goto_(${m.marker})">Check</button></td></tr>`).join("");}
-function renderPairs(p){$("pairs").innerHTML=p.length?"<tr><th>marker</th><th>camera mm</th><th>printer mm</th></tr>"+p.map(x=>`<tr><td>${x.marker}</td><td>${x.plate.join(", ")}</td><td>${x.bed.join(", ")}</td></tr>`).join(""):'<tr><td class="note">none yet</td></tr>';}
-async function record(m){try{const j=await api("api/calib/record",{marker:m});renderPairs(j.pairs);flash("calmsg",`recorded marker ${m}`);}catch(e){flash("calmsg",e.message,1);}}
-async function calibFit(){try{const j=await api("api/calib/fit",{});flash("calmsg",`saved · errors ${j.residuals_mm.join(", ")} mm · rotation ${j.angle_deg}° · scale ${j.scale}`);}catch(e){flash("calmsg",e.message,1);}}
-async function calibClear(){await api("api/calib/clear",{});renderPairs([]);}
-async function goto_(m){try{const j=await api("api/calib/goto",{marker:m});$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
-async function jog(x,y,z){const s=+$("step").value;try{const j=await api("api/jog",{dx:x*s,dy:y*s,dz:z*s});$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
-async function tipTouch(){try{const j=await api("api/calib/tip",{});flash("tipmsg",`saved: the plate is at toolhead Z ${j.toolhead_z}`);poll();}catch(e){flash("tipmsg",e.message,1);}}
-async function getTip(){try{const j=await api("api/tip");$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
 
 // ---------------------------------------------------------------- files
 const SRC={model:"from the active model",dropped:"dropped here",["machine.yaml"]:"from machine.yaml",["sortering-pnp"]:"built in",none:"not there"};

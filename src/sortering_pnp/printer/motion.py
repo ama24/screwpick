@@ -30,10 +30,13 @@ class Motion:
         self.z_home_xy: tuple[float, float] | None = None  # tip X/Y for homing Z (set by runner)
 
     # ------------------------------------------------------------------ checks
-    def preflight(self, home: bool = True) -> PrinterStatus:
+    def preflight(self, home: bool = True, tool: bool | None = None) -> PrinterStatus:
         """Refuse to move unless the printer is idle, cold, homed and carries the picker.
-        `home` False: never home here (setup moves): an unhomed printer is an error."""
+        `home` False: never home here (setup moves): an unhomed printer is an error.
+        `tool`: check that the picker is on (default: only for sorting, i.e. when `home`; the
+        moves of the Setup tab come before the picker is put on, and someone watches them)."""
         pc = self.m.printer
+        tool = home if tool is None else tool
         st = self.p.status(pc.tool_macro)
         if not st.ready:
             raise PrinterError(f"Klipper is not ready ({st.state}): {st.message}".strip(": "))
@@ -41,15 +44,15 @@ class Motion:
             raise PrinterError("the printer is printing")
         if st.hotend_c is not None and st.hotend_c > pc.max_hotend_c:
             raise PrinterError(f"the hotend is {st.hotend_c:.0f} C (limit {pc.max_hotend_c:.0f} C)")
-        if pc.tool_macro:
+        if pc.tool_macro and tool:
             if st.tool is None:
                 raise PrinterError(
                     f"Klipper has no macro {pc.tool_macro}: add [include sortering_pnp.cfg] to printer.cfg"
                 )
             if st.tool != "picker":
                 raise PrinterError(
-                    f"the active tool is {st.tool!r}: mount the picker, then Setup tab, Picker: "
-                    f"The picker is on the printer (or {pc.tool_picker} in Klipper)"
+                    f"the active tool is {st.tool!r}: put the picker on, then Setup tab, Picker: "
+                    f"OK (or {pc.tool_picker} in Klipper)"
                 )
         if not all(a in st.homed for a in "xyz"):
             if not home or not pc.auto_home:
@@ -136,6 +139,13 @@ class Motion:
 
     def photo_position(self) -> None:
         x, y, z = self.m.printer.photo_position
+        self.travel(x, y)
+        self.move(z=z)
+        self.p.gcode("M400")
+
+    def change_position(self) -> None:
+        """Where the head waits while the picker is put on (printer.change_position)."""
+        x, y, z = self.m.printer.change_position
         self.travel(x, y)
         self.move(z=z)
         self.p.gcode("M400")

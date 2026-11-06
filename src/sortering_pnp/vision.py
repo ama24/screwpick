@@ -243,8 +243,9 @@ class CameraVision:
             return {"error": self.model_error or "no model loaded"}
         return self.analyzer.describe()
 
-    def _view(self, scene: Any, name: str, max_side: int = 1600) -> tuple[Path, list]:
-        """The photo for the page, scaled down, and the homography plate mm -> its pixels."""
+    def _view(self, scene: Any, name: str, max_side: int = 1600) -> tuple[Path, list, float]:
+        """The photo for the page, scaled down, the homography plate mm -> its pixels, and the
+        scale (its pixels per photo pixel)."""
         import cv2
 
         h, w = scene.image.shape[:2]
@@ -257,7 +258,7 @@ class CameraVision:
         px = scene.cam.project(np.c_[plate, np.zeros(len(plate))])
         ok = (px[:, 0] > -w) & (px[:, 0] < 2 * w) & (px[:, 1] > -h) & (px[:, 1] < 2 * h)
         H, _ = cv2.findHomography(plate[ok], px[ok])
-        return path, (np.diag([k, k, 1.0]) @ H).tolist()
+        return path, (np.diag([k, k, 1.0]) @ H).tolist(), k
 
     def _painted(self, scene: Any, work: WorkArea) -> Any:
         import dataclasses
@@ -330,10 +331,7 @@ class CameraVision:
         return self.analyse(self.snap(name), name, marker_height, work)
 
     def snap(self, name: str) -> Path:
-        if self.analyzer is None:
-            raise FileNotFoundError(
-                f"no model: upload one in the Models tab ({self.model_error or 'none loaded'})"
-            )
+        """Only the photo: no model needed (calibration and Resync read only the codes)."""
         photo = self.out / f"{name}.jpg"
         self._snap(photo)
         return photo
@@ -347,34 +345,53 @@ class CameraVision:
     ) -> Shot:
         """`work`: the tray's inside (plate frame): the rest is painted over for the model
         (trayview.py); None: the whole photo (e.g. to look into the bins)."""
+        import dataclasses
+
         import cv2
 
         from sortering_pnp.measure.infer import draw
 
-        assert self.analyzer is not None
         scene = self._scene(photo)
         seen = scene  # unpainted: what the page shows
         if work is not None and self.m.camera.mask:
             scene = self._painted(scene, work)
-        result = self.analyzer.analyse(scene, str(photo))
-        parts = parts_from_result(
-            result,
-            lambda px, h: scene.cam.pixel_to_plate(px, h),
-            self._head_r.get,
-            self._shapes.get,
-            self.m.picker.kind.aim,
-        )
+        if self.analyzer is None:  # no model yet: the codes are still read, no parts
+            result: dict[str, Any] = {}
+            parts: list[Part] = []
+        else:
+            result = self.analyzer.analyse(scene, str(photo))
+            parts = parts_from_result(
+                result,
+                lambda px, h: scene.cam.pixel_to_plate(px, h),
+                self._head_r.get,
+                self._shapes.get,
+                self.m.picker.kind.aim,
+            )
         full = cv2.imread(str(photo), cv2.IMREAD_GRAYSCALE)
-        markers = [
-            marker_pose(
+        found = detect(full)
+        view, view_h, k = self._view(seen, name)
+        # the view is the ROI (cropped from a full frame, or the photo itself), scaled by k
+        cropped = full.shape[:2] != seen.image.shape[:2]
+        ox, oy = (seen.roi["x0"], seen.roi["y0"]) if cropped else (0, 0)
+        markers = []
+        for s in found:
+            cx, cy = np.asarray(s.corners_px).mean(axis=0)
+            pose = marker_pose(
                 s, lambda px, mid=s.marker: self.cam_full.pixel_to_plate(px, marker_height(mid))
             )
-            for s in detect(full)
-        ]
-        vis = self.out / f"{name}_vis.jpg"
-        cv2.imwrite(str(vis), draw(scene, result, max_side=1600), [cv2.IMWRITE_JPEG_QUALITY, 85])
-        view, view_h = self._view(seen, name)
+            markers.append(dataclasses.replace(pose, view_px=((cx - ox) * k, (cy - oy) * k)))
+        vis = view
+        if self.analyzer is not None:
+            vis = self.out / f"{name}_vis.jpg"
+            img = draw(scene, result, max_side=1600)
+            cv2.imwrite(str(vis), img, [cv2.IMWRITE_JPEG_QUALITY, 85])
         return Shot(name, parts, markers, photo, vis, result, view, view_h)
+
+    def model_missing(self) -> str | None:
+        """Why the parts cannot be found (no model), or None."""
+        if self.analyzer is not None:
+            return None
+        return f"no model: upload one in the Models tab ({self.model_error or 'none loaded'})"
 
     def test_models(self, choice: ModelChoice, photo: Path, out_name: str) -> dict[str, Any]:
         """Run other models on an existing photo, without switching to them."""

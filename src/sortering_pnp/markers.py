@@ -116,6 +116,7 @@ class MarkerPose:
     marker: int
     centre: tuple[float, float]  # plate mm (at the marker's height)
     up_deg: float  # direction of the marker's top edge, plate frame
+    view_px: tuple[float, float] | None = None  # its centre in the page's photo (Shot.view)
 
 
 def marker_pose(seen: SeenMarker, to_plate: Callable[[np.ndarray], np.ndarray]) -> MarkerPose:
