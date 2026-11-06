@@ -68,7 +68,7 @@ class Camera:
     mask: bool = True
     mask_colour: str = "auto"  # auto: the tray floor's own colour | #RRGGBB, e.g. #FFFFFF
     # + keeps this much of the wall's foot, - paints this much more of the floor's edge
-    # (Calibrate tab: What the model sees)
+    # (Calibrate tab: Camera cropping)
     mask_margin_mm: float = 0.0
 
 

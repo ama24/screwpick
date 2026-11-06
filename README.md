@@ -324,13 +324,18 @@ Changes are **queued**: they show dashed, a bar lists them, and **Apply** saves 
 
 In the **Calibrate** tab:
 
-1. **Camera calibration** teaches the program how the camera sees. Download the small tray board,
-   print it, then follow the four steps: measure a square, lock the camera, take 25 to 40 photos
-   of the board held at different places and angles, and finally lay it flat in the tray. The
-   result is saved by itself.
-2. **What the model sees:** take a photo and check that only the tray's inside is left; adjust the
-   margin if a bit of the tray's wall shows.
-3. **Camera to printer** is step 6 of the Setup tab: take a photo, jog the tip onto the centre
+1. **Camera:** the live picture from the camera, at the top.
+2. **Camera calibration** teaches the program how the camera sees. Download and print the small
+   tray board, home the printer, empty the tray, then press **Calibrate**: one button. It parks
+   the bed, locks the camera (measures the light and focus once and freezes them), then asks you
+   to move the board slowly under the camera. Each time it holds still somewhere new, a photo is
+   taken by itself, and the covered part of the live picture turns green. Then it asks you to
+   lay the board flat in the tray, measures where the camera stands, and saves the result.
+3. **Camera cropping:** the live picture next to what the model gets. Only the tray's inside goes
+   to the model (YOLO); the rest is painted over with one colour (the tray floor's own, or one you
+   pick). The bins and codes are always read from the whole photo. Set it once Camera to printer
+   and the bins are done, and trim the edge with − / + until no wall is left.
+4. **Camera to printer** is step 6 of the Setup tab: take a photo, jog the tip onto the centre
    of three codes, press *Tip is here* on each, then *Fit*. Now the program knows where every
    pixel is on the printer.
 

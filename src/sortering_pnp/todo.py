@@ -58,15 +58,15 @@ TODOS: tuple[Todo, ...] = (
     Todo(
         "calibration",
         "Camera calibration with the board in the tray",
-        "Calibrate tab, Camera calibration: print the tray board, lock the camera, take the "
-        "lens photos, then the board flat in the tray (it lands in the Files tab by itself).",
+        "Calibrate tab, Camera calibration: print the tray board, then Calibrate and do what "
+        "it says (it lands in the Files tab by itself).",
         _calibrated,
     ),
     Todo(
         "trayview",
-        "What the model sees",
-        "Calibrate tab, 'What the model sees': take a photo and check that only the tray's "
-        "inside is left (adjust the margin), then Save.",
+        "Camera cropping",
+        "Calibrate tab, Camera cropping (after Camera to printer and the bins): check that only "
+        "the tray's inside is left (trim the edge), then Save.",
         _tray_view,
     ),
     Todo(

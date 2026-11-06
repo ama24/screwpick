@@ -55,6 +55,9 @@ input[type=radio]{accent-color:var(--acc)}
 
 /* content */
 img.shot{width:100%;display:block;border-radius:var(--r2);background:var(--line2)}
+.live img,.pair img{width:100%;display:block;border-radius:var(--r2);background:#262626;min-height:120px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pair figure{margin:0}.pair figcaption{margin-bottom:4px}@media (max-width:860px){.pair{grid-template-columns:1fr}}
+.calrun{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:var(--r2)}.calrun .bar{height:8px;background:var(--line2);border-radius:4px;overflow:hidden;margin:6px 0 2px}.calrun .bar span{display:block;height:100%;background:var(--ok,#2e7d32)}
 .camview{position:relative;margin-top:10px}.camview img{width:100%;display:block;border-radius:var(--r2);background:var(--line2)}.camview svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .step .row label.note select{margin:0 4px}
 table{border-collapse:collapse;width:100%}
@@ -282,25 +285,38 @@ button.p{font-weight:600}button.big{padding:11px 18px}
 </section>
 
 <section id="calib">
- <div class="phead"><div class="pt"><h1>Calibrate</h1><p>The camera, the camera to the printer, and the picker tip</p></div></div>
+ <div class="phead"><div class="pt"><h1>Calibrate</h1><p>What the camera sees, how it sees it, and what the model gets</p></div></div>
+ <div class="card"><h2>Camera</h2>
+  <p class="note" style="margin:0 0 10px">The live picture from the camera, as it is now. <button class="b s" onclick="calPark()">Bed to the photo position</button> <span id="parkmsg" class="note"></span></p>
+  <div class="live"><img id="live1" alt="the camera's live picture"></div>
+ </div>
  <div class="card"><h2>Camera calibration</h2>
-  <p class="note" style="margin:0 0 12px">Tells the program how the camera sees: the lens, and where it stands over the tray. sortering-pnp parks the bed and works the camera itself. Do it once, and again whenever the camera or the tray moved. The result lands in the Files tab by itself.</p>
-  <ol class="calsteps">
-   <li><b>The board</b>: <button class="b s" onclick="location.href='api/calibration/board.pdf'">Download the tray board (PDF)</button> <span class="note" id="calboard"></span><br>
-    <span class="note">Print at 100 % (no scaling), glue it flat on stiff card, measure one square with a caliper.</span>
-    <div class="row" style="margin-top:6px"><label>measured square<input id="calsq" type="number" step="0.01" style="width:84px">mm</label><label>board thickness<input id="calth" type="number" step="0.1" value="0" style="width:72px">mm</label><button class="b s" onclick="calSettings()">Save</button></div></li>
-   <li><b>Lock the camera</b> (empty tray, lights as when sorting): exposure, colours and focus are frozen for every photo. <button class="b s" onclick="calCall('api/calibration/lock','locking: about a minute…')">Lock</button> <span class="note" id="callock"></span></li>
-   <li><b>Lens</b>: hold the board under the camera, in a different place and a little tilted (up to 10°) each time, until the whole picture is covered, corners too: 25 to 40 photos. <button class="b p s" onclick="calCall('api/calibration/view','photo…')">Take a lens photo</button> <button class="b s" onclick="calCall('api/calibration/lens','solving the lens…')">Solve the lens</button> <span class="note" id="callens"></span></li>
-   <li><b>Position</b>: lay the board flat in the tray, on the TPU sheet where the parts lie, away from the corner post. <button class="b p s" onclick="calCall('api/calibration/flat','photo and solving…')">Board is in the tray</button> <span class="note" id="calflat"></span></li>
+  <p class="note" style="margin:0 0 10px">Teaches the program how the camera sees: the lens, and where the camera stands over the tray, so every pixel becomes millimetres. Do it once, and again when the camera or the tray has moved. <span id="calnow"></span></p>
+  <h4 style="margin:8px 0 6px;font-size:13px">Before you start</h4>
+  <ol class="note calsteps" style="margin:0 0 10px">
+   <li>The board: <button class="b s" onclick="location.href='api/calibration/board.pdf'">Download the board (PDF)</button> <span id="calboard"></span>. Print it at 100 % (no scaling) and glue it flat on stiff card.
+    <details style="margin-top:4px"><summary>Measured a square with a caliper? (more exact)</summary><div class="row" style="margin-top:6px"><label>square<input id="calsq" type="number" step="0.01" style="width:84px">mm</label><label>board thickness<input id="calth" type="number" step="0.1" value="0" style="width:72px">mm</label><button class="b s" onclick="calSettings()">Save</button></div></details></li>
+   <li>The printer is homed (Setup tab, step 2), the tray is empty, the lights are on as when sorting.</li>
   </ol>
-  <div class="row"><span id="calmsg2" class="note"></span><button class="b s" style="margin-left:auto" onclick="if(confirm('Delete the lens photos and start again?'))calCall('api/calibration/reset')">Start again</button></div>
-  <p class="note" style="margin:10px 0 0">After step 4: redo <b>Camera to printer</b> (Setup tab, step 6): the new calibration starts its millimetres at the board.</p></div>
- <div class="card"><h2>What the model sees</h2>
-  <p class="note" style="margin:0 0 12px">Only the tray's inside goes to the model: the bins, their codes and the tray's walls are painted over with the floor's colour, the photo keeping its size (the parts stay as large as the model learnt them). Take a photo and look: the painted edge should sit just at the foot of the tray's walls. <b>Margin</b>: + keeps a strip of the wall's foot (parts lying right against it stay whole), − paints more of the floor's edge (if the wall still shows).</p>
-  <div class="row"><label>margin<input id="mmargin" type="number" step="0.5" value="0" style="width:72px">mm</label>
-   <button class="b s" onclick="maskPreview()">Take a photo</button><button class="b p s" onclick="maskSave()">Save</button><span id="maskmsg" class="note"></span></div>
-  <img id="maskshot" class="shot" alt="" style="margin-top:12px" hidden></div>
- <div class="card"><h2>Tip height and camera to printer</h2><p class="note" style="margin:0">They are steps of the <b>Setup</b> tab now (5 and 6), with the jog buttons, the photo and its codes right there. <button class="b s" onclick="go('setup')">Open Setup</button></p></div>
+  <div class="row"><button id="calgo" class="b p" onclick="calStart()">Calibrate</button><span id="calmsg2" class="note"></span></div>
+  <div id="calrun" class="calrun" hidden><b id="calphase"></b><p id="caltext" style="margin:4px 0 8px"></p><div id="calbars"></div></div>
+  <details style="margin-top:10px"><summary class="note">What Calibrate does, step by step</summary><ol class="note" style="margin:6px 0 0">
+   <li><b>Parks the bed</b> at the photo position, so the camera looks into the tray.</li>
+   <li><b>Locks the camera</b> (about a minute): it measures the light and the focus once and freezes them (exposure, gain, white balance, lens position). Every photo after that looks the same, which the lens maths and the model both need. That is why the tray must be empty and the light as when sorting.</li>
+   <li><b>Lens</b>: you hold the board under the camera and move it slowly over the whole picture, corners too, sometimes a little tilted. Whenever it holds still somewhere new, a photo is taken by itself, and that part of the live picture turns green. When enough is covered, the lens (its distortion) is solved.</li>
+   <li><b>Position</b>: you lay the board flat in the tray and let go. When it lies still and flat, one photo shows where the camera stands over the tray. The result is saved in the Files tab and used at once.</li>
+   <li>Afterwards redo <b>Camera to printer</b> (Setup tab, step 6): the millimetres now start at the board.</li></ol></details>
+ </div>
+ <div class="card"><h2>Camera cropping</h2>
+  <p class="note" style="margin:0 0 10px">Only for the model that finds the parts (YOLO). Everything outside the tray's inside (its walls, the bins, their codes) is painted over with one colour; the picture keeps its size, so the parts stay as large as the model learnt them. The bins and their codes are always read from the whole, unpainted photo. The cropping follows the tray from the layout, so it can only be set once the camera calibration, Camera to printer and the bins are done; then trim its edge here until no wall is left.</p>
+  <p id="cropwait" class="bad" hidden></p>
+  <div class="pair"><figure><figcaption class="note">the camera</figcaption><img id="live2" alt=""></figure><figure><figcaption class="note">what the model gets</figcaption><img id="livecrop" alt=""></figure></div>
+  <div class="row" style="margin-top:10px"><span class="note">edge</span><button class="b s" onclick="cropStep(-1)">−1</button><button class="b s" onclick="cropStep(-0.5)">−0.5</button><b id="cropm">0</b><span class="note">mm</span><button class="b s" onclick="cropStep(0.5)">+0.5</button><button class="b s" onclick="cropStep(1)">+1</button>
+   <span class="note" style="margin-left:14px">colour</span><label class="note"><input type="radio" name="cropc" value="auto" onchange="cropColour()"> the tray floor's own</label><label class="note"><input type="radio" name="cropc" value="pick" onchange="cropColour()"> <input id="cropcol" type="color" value="#ffffff" oninput="cropColour()"></label>
+   <button class="b p s" style="margin-left:auto" onclick="cropSave()">Save</button><span id="cropmsg" class="note"></span></div>
+  <p class="note" style="margin:6px 0 0">Edge: <b>+</b> keeps more of the wall's foot (parts lying against the wall stay in), <b>−</b> paints more of the floor's edge (cuts the walls away). The colour: the tray floor's own works for most; pick one if the floor's edge looks patchy.</p>
+ </div>
+ <div class="card"><h2>Tip height and camera to printer</h2><p class="note" style="margin:0">They are steps of the <b>Setup</b> tab (5 and 6), with the jog buttons, the photo and its codes right there. <button class="b s" onclick="go('setup')">Open Setup</button></p></div>
 </section>
 
 <section id="print">
@@ -377,7 +393,7 @@ button.p{font-weight:600}button.big{padding:11px 18px}
 <script>
 const $=id=>document.getElementById(id);
 let S={},lay=null,sel=null,workStart=null,markers=[];
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");history.replaceState(null,"","#"+b.dataset.t);if(b.dataset.t==="setup")loadSetup();else if(b.dataset.t==="models")loadModels();else if(b.dataset.t==="files")loadFiles();else if(b.dataset.t==="photos")loadSessions();else if(b.dataset.t==="print")loadLayout(true);else if(b.dataset.t==="users")loadUsers();else if(b.dataset.t==="calib"){loadLayout(true);loadCal();}else if(b.dataset.t==="device")loadLayout(true);});
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{liveTab(b.dataset.t==="calib");document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");history.replaceState(null,"","#"+b.dataset.t);if(b.dataset.t==="setup")loadSetup();else if(b.dataset.t==="models")loadModels();else if(b.dataset.t==="files")loadFiles();else if(b.dataset.t==="photos")loadSessions();else if(b.dataset.t==="print")loadLayout(true);else if(b.dataset.t==="users")loadUsers();else if(b.dataset.t==="calib"){loadLayout(true);loadCal();}else if(b.dataset.t==="device")loadLayout(true);});
 setTimeout(()=>{const t=location.hash.slice(1),b=t&&document.querySelector(`nav button[data-t="${t}"]`);if(b)b.click();window.scrollTo(0,0);});
 if("scrollRestoration" in history)history.scrollRestoration="manual";
 async function api(path,body){const r=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json();if(r.status===401){session();}if(!r.ok)throw new Error(j.error||r.status);return j;}
@@ -417,7 +433,6 @@ async function poll(){try{S=await api("api/state");}catch(e){$("status").innerHT
  $("machname").textContent=S.driver==="sim"?"simulated printer":"Klipper printer";
  $("nowline").textContent=(["running","waiting","parked","standby","stopping"].includes(S.status)?S.phase||S.message:S.message)||"";
  renderAttention();
- renderPairs(S.calib_pairs||[]);if(!maskSet&&S.mask_margin_mm!=null){$("mmargin").value=S.mask_margin_mm;maskSet=true;}
  if(!pending.length&&++layTick%3===0)loadLayout(true);else renderBed();}
 let layTick=0;
 setInterval(()=>{if(!$("login").classList.contains("on"))poll();},1500);session();loadLayout(true);
@@ -709,30 +724,39 @@ function camMarks(img){const C=SU.camera||{},H=C.view_h,svg=img.nextElementSibli
   return `<circle cx="${u}" cy="${v}" r="${r}" fill="none" stroke="#00e676" stroke-width="${r/3}"/><text x="${u+r*1.4}" y="${v-r*1.2}" font-size="${r*2.4}" font-weight="700" fill="#00e676" stroke="#000" stroke-width="${r/5}" paint-order="stroke">${m.marker}</text>`;}).join("");}
 
 
-// ---------------------------------------------------------------- camera calibration, real photos
+// ---------------------------------------------------------------- camera calibration
+let CAL=null,calTimer=null,CROP=null;
+function liveTab(on){for(const[id,v]of[["live1","live"],["live2","live"],["livecrop","crop"]]){const el=$(id);if(!el)continue;if(on){if(!el.src.includes("live.mjpg"))el.src=`api/camera/live.mjpg?view=${v}&t=${Date.now()}`;}else el.removeAttribute("src");}
+ clearInterval(calTimer);calTimer=on?setInterval(()=>{if(CAL&&CAL.job&&CAL.job.running)loadCal();},1000):null;if(on)loadCrop();}
 async function loadCal(){try{renderCal(await api("api/calibration"));}catch(e){flash("calmsg2",e.message,1);}}
-function renderCal(c){const b=c.board;
+function renderCal(c){CAL=c;const b=c.board,j=c.job;
  $("calboard").textContent=`${b.squares_x}×${b.squares_y} squares, ${b.size_mm[0].toFixed(0)} × ${b.size_mm[1].toFixed(0)} mm`;
  if(c.measured_square_mm&&!$("calsq").value)$("calsq").value=c.measured_square_mm;$("calth").value=c.board_thickness_mm;
- $("callock").innerHTML=c.locked?'<span class="ok">locked</span>':"not locked yet";
- $("callens").innerHTML=`${c.views} photo${c.views===1?"":"s"} (${c.views_with_board} with the board)`+(c.coverage!=null?` · ${Math.round(c.coverage*100)} % of the picture covered`:"")+(c.lens?` · <span class="ok">solved, error ${(+c.lens.rms_px).toFixed(2)} px</span>`:"");
- if(c.result)$("calflat").innerHTML=`<span class="ok">done: ${c.result.camera_height_mm.toFixed(1)} mm above the plate, ${c.result.px_per_mm.toFixed(2)} px/mm</span>`;
- if(c.last)flash("calmsg2",`photo ${c.last.view}: ${c.last.corners} board corners found`+(c.last.corners<12?" (too few: move the board into the light, keep it still)":""));
- if(c.rejected&&c.rejected.length)flash("calmsg2","left out: "+c.rejected.join("; "));}
-async function calCall(path,msg){if(msg)flash("calmsg2",msg);try{const c=await api(path,{});renderCal(c);if(!c.last&&!(c.rejected&&c.rejected.length))flash("calmsg2","");poll();}catch(e){flash("calmsg2",e.message,1);}}
+ $("calnow").innerHTML=c.calibrated?`<span class="ok">✓ calibrated (${esc(c.calibrated)})</span>`:'<span class="bad">not calibrated yet</span>';
+ const running=!!(j&&j.running);$("calgo").textContent=running?"Stop":c.calibrated?"Calibrate again":"Calibrate";$("calgo").className=running?"b":"b p";
+ $("calrun").hidden=!j;if(!j)return;
+ const names={starting:"Starting",lock:"1 · Locking the camera",lens:"2 · Lens photos",solve:"2 · Solving the lens",flat:"3 · The board flat in the tray",position:"3 · Measuring the position",done:"Done",error:"Stopped: a problem",cancelled:"Stopped"};
+ $("calphase").textContent=names[j.phase]||j.phase;$("calphase").className=j.phase==="error"?"bad":j.phase==="done"?"ok":"";$("caltext").textContent=j.message;
+ $("calbars").innerHTML=["lens","solve","flat","position","done"].includes(j.phase)?`<div class="bar"><span style="width:${Math.min(100,100*j.views/j.min_views)}%"></span></div><span class="note">${j.views} of at least ${j.min_views} photos</span> <div class="bar"><span style="width:${Math.min(100,100*j.coverage/j.want_coverage)}%"></span></div><span class="note">${Math.round(j.coverage*100)} % of the picture covered (${Math.round(j.want_coverage*100)} % needed)</span>`:"";}
+async function calStart(){const j=CAL&&CAL.job;try{if(j&&j.running){renderCal(await api("api/calibration/cancel",{}));return;}flash("calmsg2","parking the bed…");renderCal(await api("api/calibration/start",{}));flash("calmsg2","");}catch(e){flash("calmsg2",e.message,1);}}
 async function calSettings(){try{renderCal(await api("api/calibration/settings",{square_mm:+$("calsq").value||null,thickness_mm:+$("calth").value||0}));flash("calmsg2","saved");}catch(e){flash("calmsg2",e.message,1);}}
+async function calPark(){flash("parkmsg","moving…");try{await api("api/setup/goto",{target:"photo"});flash("parkmsg","");}catch(e){flash("parkmsg",e.message,1);}}
+async function loadCrop(){try{renderCrop(await api("api/crop"));}catch(e){flash("cropmsg",e.message,1);}}
+function renderCrop(c){CROP=c;$("cropwait").hidden=c.ready;$("cropwait").textContent=c.ready?"":"Needs first: "+c.missing.join(", ")+".";
+ $("cropm").textContent=(c.margin_mm>0?"+":"")+c.margin_mm;const auto=c.colour==="auto";
+ document.querySelectorAll('input[name="cropc"]').forEach(r=>r.checked=(r.value==="auto")===auto);if(!auto)$("cropcol").value=c.colour.toLowerCase();
+ flash("cropmsg",c.changed?"not saved yet":"");}
+async function cropTry(margin,colour){try{renderCrop(await api("api/crop/preview",{margin,colour}));}catch(e){flash("cropmsg",e.message,1);}}
+function cropColourValue(){const r=document.querySelector('input[name="cropc"]:checked');return r&&r.value==="pick"?$("cropcol").value:"auto";}
+function cropStep(d){if(!CROP)return;cropTry(Math.round((CROP.margin_mm+d)*10)/10,cropColourValue());}
+function cropColour(){if(!CROP)return;if(document.activeElement===$("cropcol"))document.querySelector('input[name="cropc"][value="pick"]').checked=true;cropTry(CROP.margin_mm,cropColourValue());}
+async function cropSave(){if(!CROP)return;try{renderCrop(await api("api/crop/save",{margin:CROP.margin_mm,colour:cropColourValue()}));flash("cropmsg","saved");}catch(e){flash("cropmsg",e.message,1);}}
 async function loadSessions(){try{renderSessions((await api("api/photos")).sessions);}catch(e){flash("smsg",e.message,1);}}
 function renderSessions(list){$("slist").innerHTML="<tr><th>session</th><th>photos</th><th>by</th><th>notes</th><th></th></tr>"+(list.map(x=>`<tr><td><b>${esc(x.id)}</b><small>${esc(x.created)}</small></td><td>${x.photos}</td><td>${esc(x.operator)}</td><td class="note">${esc(x.notes)}</td>`+
  `<td style="text-align:right;white-space:nowrap"><input id="pn_${esc(x.id)}" placeholder="note for the next photo" style="width:190px"> <button class="b p s" onclick="sessionPhoto('${esc(x.id)}')">Take photo</button> <button class="b s" onclick="location.href='api/photos/zip?name=${encodeURIComponent(x.id)}'">Download</button></td></tr>`).join("")||"<tr><td class='note'>No session yet.</td></tr>");}
 async function newSession(){try{renderSessions((await api("api/photos/new",{name:$("sname").value,operator:$("sop").value,notes:$("snotes").value})).sessions);flash("smsg","session made");}catch(e){flash("smsg",e.message,1);}}
 async function sessionPhoto(id){flash("smsg","parking and taking the photo…");try{const j=await api("api/photos/take",{name:id,note:($("pn_"+id)||{}).value||""});renderSessions(j.sessions);flash("smsg",`${id}: ${j.last} saved`);}catch(e){flash("smsg",e.message,1);}}
 
-// ---------------------------------------------------------------- what the model sees, on the machine
-let maskSet=false;
-async function maskPreview(){flash("maskmsg","taking a photo…");try{const j=await api("api/mask/preview",{margin:+$("mmargin").value});
- if(j.image){$("maskshot").src="runs/"+encodeURIComponent(j.image)+"?"+Date.now();$("maskshot").hidden=false;}
- flash("maskmsg",`margin ${j.margin_mm} mm · ${j.parts} part(s) in the tray (not saved yet)`);}catch(e){flash("maskmsg",e.message,1);}}
-async function maskSave(){try{const j=await api("api/mask/save",{margin:+$("mmargin").value});flash("maskmsg",`saved: margin ${j.margin_mm} mm`);}catch(e){flash("maskmsg",e.message,1);}}
 async function loadTodo(){try{renderTodo((await api("api/todo")).items);}catch(e){}}
 function renderTodo(items){$("todo").innerHTML=items.map(t=>`<div class="step" style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line2)"><span class="num ${t.done?"ok":""}" style="flex:none">${t.done?"✓":"·"}</span><div style="flex:1"><b>${esc(t.title)}</b><br><span class="note">${esc(t.how)}${t.why?` <span class="ok">· ${esc(t.why)}</span>`:""}</span></div>`+
  (t.done&&!t.why.startsWith("ticked")?"":`<button class="b s" onclick="todoTick('${t.key}',${!t.done})">${t.done?"Undo":"Done"}</button>`)+`</div>`).join("");}
