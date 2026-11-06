@@ -77,6 +77,10 @@ def fit_similarity(
     return T, np.linalg.norm(T.apply(s) - d, axis=1)
 
 
+MIN_SPREAD_MM = 20.0  # the tip positions of a camera-to-printer fit: at least this far apart
+MIN_SCALE, MAX_SCALE = 0.5, 2.0  # camera mm per printer mm (about 1; off when the height is)
+
+
 @dataclass
 class BedCalibration:
     """The fitted transform plus the pairs it came from (kept so points can be added later)."""
@@ -87,7 +91,22 @@ class BedCalibration:
 
     @classmethod
     def fit(cls, pairs: list[dict[str, Any]], allow_scale: bool = True) -> BedCalibration:
+        """ValueError when the points cannot give a fit: the tip at (nearly) the same place for
+        every code, or a scale no camera gives (camera mm and printer mm are close to 1:1)."""
+        bed = np.asarray([p["bed"] for p in pairs], dtype=float).reshape(-1, 2)
+        spread = float(np.ptp(bed, axis=0).max()) if len(bed) else 0.0
+        if spread < MIN_SPREAD_MM:
+            raise ValueError(
+                f"the tip was within {spread:.0f} mm for every code: jog it onto each code "
+                "before its 'Tip is here' (Forget points, then again)"
+            )
         T, res = fit_similarity([p["plate"] for p in pairs], [p["bed"] for p in pairs], allow_scale)
+        if not MIN_SCALE <= T.scale <= MAX_SCALE:
+            raise ValueError(
+                f"the camera's millimetres are {T.scale:.2f} x the printer's: the tip was not on "
+                "the codes it was recorded for, or the camera's height is far off "
+                "(Forget points, then again)"
+            )
         return cls(T, pairs, [round(float(r), 3) for r in res])
 
     def save(self, path: Path) -> None:
@@ -107,6 +126,7 @@ class BedCalibration:
         if not path.is_file():
             return None
         d = read_json(path)
-        return cls(
+        cal = cls(
             Transform2D.from_dict(d["transform"]), d.get("pairs", []), d.get("residuals_mm", [])
         )
+        return cal if MIN_SCALE <= cal.transform.scale <= MAX_SCALE else None  # unusable: none

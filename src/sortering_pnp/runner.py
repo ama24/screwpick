@@ -40,7 +40,7 @@ from .setup import KEYS as SETUP_KEYS
 from .setup import Setup
 from .strategies import STRATEGIES, Plan, Planner
 from .todo import TodoList
-from .transform import BedCalibration, Transform2D
+from .transform import MIN_SPREAD_MM, BedCalibration, Transform2D
 from .trayview import WorkArea, paint_outside, parse_colour
 from .trayview import rect as tray_rect
 from .vision import Shot, Vision
@@ -168,7 +168,13 @@ class Runner:
         if cal is not None:
             return cal.transform
         if self.m.printer.driver != "sim":
-            raise PrinterError("the camera is not calibrated to the printer yet: Calibrate tab")
+            if self.transform_path.is_file():  # saved, but unusable (e.g. one tip position)
+                self.setup.reset("camera")
+                raise PrinterError(
+                    "Camera to printer is not usable (the tip was at the same place for every "
+                    "code): do Setup step 6 again"
+                )
+            raise PrinterError("the camera is not calibrated to the printer yet: Setup step 6")
         return Transform2D.identity()
 
     # ------------------------------------------------------------------ status
@@ -1128,6 +1134,13 @@ class Runner:
         if mk is None:
             raise PrinterError(f"marker {marker} was not in the last photo")
         tip = self.tip()
+        for p in self.calib_pairs:
+            far = math.dist(p["plate"], mk.centre) > MIN_SPREAD_MM
+            if p["marker"] != marker and far and math.dist(p["bed"], tip[:2]) < 5.0:
+                raise PrinterError(
+                    f"the tip is where it was for code {p['marker']}: jog it onto the centre of "
+                    f"code {marker} first"
+                )
         self.calib_pairs = [p for p in self.calib_pairs if p["marker"] != marker]
         pair = {"marker": marker, "plate": [round(v, 3) for v in mk.centre], "bed": tip[:2]}
         self.calib_pairs.append(pair)
@@ -1139,7 +1152,11 @@ class Runner:
     def calib_fit(self) -> dict[str, Any]:
         if len(self.calib_pairs) < 3:
             raise PrinterError("record at least 3 markers (spread over the bed)")
-        cal = BedCalibration.fit(self.calib_pairs)
+        try:
+            cal = BedCalibration.fit(self.calib_pairs)
+        except ValueError as exc:
+            self.setup.reset("camera")
+            raise PrinterError(str(exc)) from exc
         cal.save(self.transform_path)
         worst = max(cal.residuals_mm)
         self.note(f"calibrated: {len(self.calib_pairs)} points, worst error {worst:.2f} mm")

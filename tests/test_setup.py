@@ -191,3 +191,44 @@ def test_setup_web_api(machine):
         assert post("/api/command", {"command": "start"})["result"].startswith("finish the Setup")
     finally:
         srv.shutdown()
+
+
+def test_the_tip_not_moved_between_codes_is_refused(machine):
+    """Every 'Tip is here' at the same tip position gave a zero-size fit (error 0 mm, step
+    ticked) and later 'singular matrix' in Find bins."""
+    runner, _, _ = make(machine)
+    runner.printer.gcode("G28")
+    markers = runner.calib_photo()
+    first, second = (
+        markers[0],
+        next(m for m in markers if abs(m["plate"][0] - markers[0]["plate"][0]) > 30),
+    )
+    runner.motion.travel(*first["plate"])
+    runner.calib_record(first["marker"])
+    with pytest.raises(PrinterError, match="jog it onto the centre"):
+        runner.calib_record(second["marker"])  # the tip did not move
+    # points like that from before (or edited) are refused by Fit as well
+    runner.calib_pairs = [
+        {"marker": 100 + i, "plate": [x, y], "bed": [50.0, 50.0]}
+        for i, (x, y) in enumerate([(0, 0), (100, 0), (0, 100)])
+    ]
+    with pytest.raises(PrinterError, match="within 0 mm"):
+        runner.calib_fit()
+    assert not runner.setup.is_done("camera")
+
+
+def test_a_saved_zero_size_fit_is_not_used(machine):
+    """A bed_transform.json saved before the checks: Find bins says to redo step 6."""
+    from sortering_pnp.io import write_json
+
+    runner, _, _ = make(machine)
+    runner.m.printer.driver = "moonraker"  # the message a real printer gets
+    runner.setup.mark("camera")
+    write_json(
+        runner.transform_path,
+        {"transform": {"A": [[0.0, 0.0], [0.0, 0.0]], "t": [50.0, 50.0]}, "pairs": []},
+    )
+    assert runner.calibration() is None
+    with pytest.raises(PrinterError, match="do Setup step 6 again"):
+        runner.transform()
+    assert not runner.setup.is_done("camera")
