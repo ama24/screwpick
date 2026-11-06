@@ -133,3 +133,48 @@ def test_screen_screws_have_a_full_seat_for_their_heads():
             want = _m.pi * (2.6**2 - 1.4**2) * (t - 0.2)
             assert (body ^ ring).volume() == pytest.approx(want, rel=0.03), (x, z)
     assert p.head_d >= 4.8 + 0.5
+
+
+@pytest.mark.parametrize("reach", [135.0, 100.0])
+def test_camera_arm_screws_go_in_from_the_front(reach):
+    """M4 x 7 with a 7 mm head: a through hole, nothing in front of the head (it goes in and the
+    screwdriver reaches it straight on), a full seat under it, and enough left for the T-nut."""
+    from manifold3d import Manifold
+
+    from sortering_pnp.printables.mounts import screw_seat
+
+    p = CameraArm(reach=reach)
+    body = _camera_arm_installed(p)
+    seat = screw_seat(p)
+    assert p.screw_len - seat >= 4.0  # into the slot: its lip and the T-nut's thread
+
+    def along_y(r: float, y0: float, y1: float, x: float) -> Manifold:
+        return Manifold.cylinder(y1 - y0, r, r, 48).rotate([-90, 0, 0]).translate([x, y0, -10.0])
+
+    for x in (-p.screw_dx / 2, p.screw_dx / 2):
+        shank = along_y(2.0, -seat - 0.1, 0.5, x)  # M4
+        head_and_driver = along_y(3.5, -reach - 40.0, -seat - 0.05, x)  # 7 mm, straight on
+        assert (body ^ shank).volume() < 1e-3, x
+        assert (body ^ head_and_driver).volume() < 1e-3, x
+        seat_ring = along_y(3.5, -seat + 0.05, -0.05, x) - along_y(2.4, -seat, 0.0, x)
+        assert (body ^ seat_ring).volume() == pytest.approx(seat_ring.volume(), rel=0.02), x
+
+
+def test_camera_arm_screw_length_is_checked():
+    with pytest.raises(ValueError, match="mm long"):
+        build_camera_arm(CameraArm(screw_len=16.0))
+
+
+def test_camera_arm_is_straight_by_default():
+    """No post: nothing goes lower than the camera's bosses under the arm, so the camera is as
+    high as it can be and sees the most of the bed; one solid that prints flat."""
+    p = CameraArm()
+    v, _ = _to_mesh(_camera_arm_installed(p))
+    assert v[:, 2].min() == pytest.approx(-p.bar - p.boss_h, abs=0.01)
+    assert lens_position(p) == (0.0, -p.reach, -p.bar - p.boss_h)
+    low = v[v[:, 2] < v[:, 2].min() + 0.01]
+    assert low[:, 0].mean() == pytest.approx(0.0, abs=0.05)
+    m = trimesh.Trimesh(*build_camera_arm(p))
+    assert m.is_watertight and m.body_count == 1
+    assert m.bounds[1][2] == pytest.approx(p.bar + p.boss_h, abs=0.01)  # lies flat, low
+    assert b"straight" in dict(mount_files())["MOUNTS.txt"]

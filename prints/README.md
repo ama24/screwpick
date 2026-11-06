@@ -86,7 +86,7 @@ board lying in the tray, at the height the parts will lie.
   tape, and the sheet snaps onto the magnetic bed in the same place every time. Binder clips also
   work, but their jaws under the sheet keep it from lying flat. Measure your bed if it isn't
   stock: the sizes are in `src/sortering_pnp/printables/beds.py`.
-- **Holders for the printer's top bar** ([mounts/](mounts/)), both fixed with M5 screws and
+- **Holders for the printer's top bar** ([mounts/](mounts/)), both fixed with screws and
   T-nuts in the 2020 top bar of an Ender 3:
   - [screen_holder.stl](mounts/screen_holder.stl): an open frame for the 7" Waveshare HDMI
     LCD (H) (M2 holes 155 × 92 mm, M2 screws with heads up to 5.6 mm), leaning back 20° towards
@@ -95,12 +95,13 @@ board lying in the tray, at the height the parts will lie.
     back where it is (it isn't centred) and sits free in the 148 × 85 mm opening, with 45 mm of
     room for it and its cables. A leg at each end stands on the bar, with one M5 in each foot
     (180 mm apart). Put it on one side of the bar.
-  - [camera_arm.stl](mounts/camera_arm.stl): at the bar's centre, reaching 135 mm forward and
-    60 mm down, so the Camera Module 3 looks straight down at the bed's centre with the bed
-    all the way out (where a print ends).
+  - [camera_arm.stl](mounts/camera_arm.stl): a straight arm at the bar's centre, reaching
+    135 mm forward, with the Camera Module 3 right under its end, as high as it goes, looking
+    straight down at the bed's centre with the bed all the way out (where a print ends). 2 x M4 x 7 (heads up to 7 mm) from the front into
+    T-nuts, 40 mm apart, in counterbored holes the screwdriver reaches straight on.
 
-  Your printer's sizes differ? Measure the reach and the bar's height above the plate and
-  make your own in the web page (Print bins → Holders for the top bar) or with
+  Your printer's sizes differ? Measure the reach (and, only for a lower camera on a post, the
+  bar's height above the plate) and make your own in the web page (Print bins → Holders for the top bar) or with
   `sortering-pnp print mounts --reach … --bar-height …`. See [mounts/MOUNTS.txt](mounts/MOUNTS.txt).
 - **Labels** ([labels/](labels/)): paper codes for plain bins. Print at 100 % and glue them on
   the shelf.

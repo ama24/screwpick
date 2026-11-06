@@ -1,14 +1,16 @@
-"""Holders on the printer's top bar (Ender 3: a 2020 aluminium profile), fixed with M5 screws
-and T-nuts:
+"""Holders on the printer's top bar (Ender 3: a 2020 aluminium profile), fixed with screws
+and T-nuts (the screen holder M5, the camera arm M4 x 7):
 
 - screen holder: an open frame that holds the 7" display (Waveshare 7inch HDMI LCD (H): case
   191 x 115 mm, M2 holes 155 x 92 mm, measured on the screen) by its four holes, leaning back
   so it faces the user. The frame is sized to the holes, not to the case: the display overhangs it. The Raspberry Pi 4 is screwed to the display's back, off centre; it sits
   free inside the frame. A leg at each end stands on the bar (1 screw each in the top slot).
-- camera arm: a plate on the bar's front face (2 screws in the front slot, at the bar's centre),
-  an arm reaching forward over the bed and a post down to the Camera Module 3 (M2 holes 21 x
-  12.5 mm, as on the Camera Module 2), lens straight down at the bed's centre when the bed is
-  all the way out (where a print ends: the photo position).
+- camera arm: a plate on the bar's front face (2 x M4 x 7 from the front into T-nuts in the
+  front slot, at the bar's centre; counterbored, the gussets leave room for the screwdriver),
+  a straight arm reaching forward over the bed with the Camera Module 3 (M2 holes 21 x 12.5 mm,
+  as on the Camera Module 2) under its end, lens straight down at the bed's centre when the bed
+  is all the way out (where a print ends: the photo position). The camera is as high as it can
+  be, so it sees the most of the bed; `drop` adds a post down for a lower camera.
 
 Every size is a parameter: measure your printer and set them (prints/mounts/README.md).
 Both are built where they sit on the printer: x along the bar, y towards the back (the bar's
@@ -193,12 +195,15 @@ def _screen_holder_installed(p: ScreenHolder) -> Manifold:
 @dataclass
 class CameraArm:
     reach: float = 135.0  # bar front face -> lens, horizontally (measure with the bed out)
-    drop: float = 60.0  # the camera plate this far below the bar's underside (lens ~300 mm up)
+    drop: float = 0.0  # 0: the camera right under the arm (sees the most); > 0: a post down
     bar: float = 20.0  # 2020 profile: front face height
-    plate_w: float = 50.0
+    plate_w: float = 60.0
     plate_t: float = 6.0
-    screw_dx: float = 30.0  # 2 x M5 in the front slot, at the bar's centre, this far apart
-    screw_d: float = 5.4
+    screw_dx: float = 40.0  # 2 screws in the front slot, at the bar's centre, this far apart
+    screw_d: float = 4.5  # M4 clearance
+    head_d: float = 7.6  # counterbore and screwdriver room: M4 head of 7 mm
+    screw_len: float = 7.0  # under the head
+    screw_beyond: float = 4.5  # past the plate's back: the slot's lip and the T-nut's thread
     arm_w: float = 16.0
     cam_w: float = 25.0  # Camera Module 3 board (same as Camera Module 2)
     cam_h: float = 23.86
@@ -213,15 +218,33 @@ class CameraArm:
 
 def build_camera_arm(p: CameraArm | None = None) -> Mesh:
     """Print orientation: upside down (the top of the arm and of the mounting plate on the
-    bed); the post and the camera plate grow upwards, no supports."""
+    bed); the camera's end (and the post, if any) grows upwards, no supports."""
     return _to_bed(_camera_arm_installed(p or CameraArm()).rotate([180, 0, 0]))
+
+
+def screw_seat(p: CameraArm) -> float:
+    """Plate left under each screw head, so `screw_len` reaches `screw_beyond` past the back."""
+    seat = p.screw_len - p.screw_beyond
+    if not 1.5 <= seat <= p.plate_t:
+        raise ValueError(
+            f"a {p.screw_len:g} mm screw leaves {seat:g} mm under its head: use one "
+            f"{p.screw_beyond + 1.5:g} to {p.screw_beyond + p.plate_t:g} mm long"
+        )
+    return seat
 
 
 def _camera_arm_installed(p: CameraArm) -> Manifold:
     b = p.bar
-    mount = _box(-p.plate_w / 2, p.plate_w / 2, -p.plate_t, 0.0, -b, 0.0) - _union(
-        [_cyl_y(p.screw_d / 2, -p.plate_t - 1, 1, sx * p.screw_dx / 2, -b / 2) for sx in (-1, 1)]
-    )
+    seat = screw_seat(p)
+    screws = [sx * p.screw_dx / 2 for sx in (-1, 1)]
+    if min(screws[1] - p.head_d / 2 - p.arm_w / 2, p.plate_w / 2 - screws[1] - p.head_d / 2) < 2:
+        raise ValueError("the screws must lie between the arm and the plate's ends")
+    mount = _box(-p.plate_w / 2, p.plate_w / 2, -p.plate_t, 0.0, -b, 0.0)
+    # through holes, and in front of each a free channel (counterbore, head, screwdriver)
+    holes = [_cyl_y(p.screw_d / 2, -p.plate_t - 1, 1, x, -b / 2) for x in screws] + [
+        _cyl_y(p.head_d / 2, -p.reach - 60.0, -seat, x, -b / 2) for x in screws
+    ]
+    gusset_x = screws[1] - p.head_d / 2 - 1.0  # the gussets stop short of the screw heads
     edge_y = -p.reach + p.lens_from_cable_edge  # the board's cable edge (towards the bar)
     post_y0 = edge_y + p.cable_gap
     post_y1 = post_y0 + p.arm_w
@@ -230,7 +253,7 @@ def _camera_arm_installed(p: CameraArm) -> Manifold:
         Manifold.hull_points(
             np.array(
                 [(sx * p.arm_w / 2, -p.plate_t + 0.01, z) for z in (-b, 0.0)]
-                + [(sx * p.plate_w * 0.4, -p.plate_t + 0.01, z) for z in (-b, 0.0)]
+                + [(sx * gusset_x, -p.plate_t + 0.01, z) for z in (-b, 0.0)]
                 + [(sx * p.arm_w / 2, -p.plate_t - 22.0, z) for z in (-b, 0.0)]
             )
         )
@@ -239,6 +262,11 @@ def _camera_arm_installed(p: CameraArm) -> Manifold:
     z_cam = -b - p.drop  # underside of the camera plate (the bosses hang below it)
     cam_plate_w = p.cam_w + 8.0
     cam_y0, cam_y1 = edge_y - p.cam_h - 3.0, post_y1
+    if p.drop < FLAT_DROP:  # no post: the arm's end is a block as wide as the camera
+        head = _box(-cam_plate_w / 2, cam_plate_w / 2, cam_y0, cam_y1, z_cam, 0.0)
+        return _union([mount, arm, *gussets, head, *_camera_bosses(p, edge_y, z_cam)]) - _union(
+            [*_camera_pilots(p, edge_y, z_cam), *holes]
+        )
     rise = max((cam_plate_w - p.arm_w) / 2, (post_y0 - cam_y0)) + 1.0  # flare at <= 45 deg
     post = _box(-p.arm_w / 2, p.arm_w / 2, post_y0, post_y1, z_cam + 3.0, -b + 0.01)
     flare = Manifold.hull_points(
@@ -256,13 +284,30 @@ def _camera_arm_installed(p: CameraArm) -> Manifold:
         )
     )
     cam_plate = _box(-cam_plate_w / 2, cam_plate_w / 2, cam_y0, cam_y1, z_cam, z_cam + 3.0)
-    bosses, pilots = [], []
-    for sx in (-1, 1):
-        for row in p.cam_hole_rows:
-            x, y = sx * p.cam_hole_dx / 2, edge_y - row
-            bosses.append(_cyl_z(p.boss_d / 2, z_cam - p.boss_h, z_cam + 0.01, x, y))
-            pilots.append(_cyl_z(p.pilot_d / 2, z_cam - p.boss_h - 1, z_cam + 2.0, x, y))
-    return _union([mount, arm, *gussets, post, flare, cam_plate, *bosses]) - _union(pilots)
+    bosses = _camera_bosses(p, edge_y, z_cam)
+    body = _union([mount, arm, *gussets, post, flare, cam_plate, *bosses])
+    return body - _union(_camera_pilots(p, edge_y, z_cam)) - _union(holes)
+
+
+FLAT_DROP = 8.0  # below this no post fits: the camera goes right under the arm
+
+
+def _camera_spots(p: CameraArm, edge_y: float) -> list[tuple[float, float]]:
+    return [(sx * p.cam_hole_dx / 2, edge_y - row) for sx in (-1, 1) for row in p.cam_hole_rows]
+
+
+def _camera_bosses(p: CameraArm, edge_y: float, z_cam: float) -> list[Manifold]:
+    return [
+        _cyl_z(p.boss_d / 2, z_cam - p.boss_h, z_cam + 0.01, x, y)
+        for x, y in _camera_spots(p, edge_y)
+    ]
+
+
+def _camera_pilots(p: CameraArm, edge_y: float, z_cam: float) -> list[Manifold]:
+    return [
+        _cyl_z(p.pilot_d / 2, z_cam - p.boss_h - 1, z_cam + 6.0, x, y)
+        for x, y in _camera_spots(p, edge_y)
+    ]
 
 
 def lens_position(p: CameraArm | None = None) -> tuple[float, float, float]:
@@ -274,8 +319,9 @@ def lens_position(p: CameraArm | None = None) -> tuple[float, float, float]:
 def drop_for(
     bar_underside_above_plate: float, lens_height: float = 300.0, p: CameraArm | None = None
 ) -> float:
-    """The `drop` that puts the lens `lens_height` above the plate (the scale the model was
-    trained at: about 300 mm), given the measured height of the bar's underside."""
+    """The `drop` that puts the lens `lens_height` above the plate, given the measured height
+    of the bar's underside. (Without it the camera sits right under the arm, as high as it goes;
+    the calibration measures the real height either way.)"""
     p = p or CameraArm()
     drop = bar_underside_above_plate - lens_height - p.boss_h
     if drop < 0:
@@ -303,18 +349,20 @@ screen_holder.stl: an open frame for the Waveshare 7inch HDMI LCD (H) (case 191 
   foot, {dx:g} mm apart. The screen leans back {tilt:g} degrees, so it faces you. Put it on one
   side of the bar; the camera is in the middle.
 
-camera_arm.stl: the plate goes on the bar's front face, at the bar's centre: 2 x M5 x 10 into
-  the front slot. The arm reaches {reach:g} mm forward and the post goes {drop:g} mm down: the
-  lens is then over the bed's centre with the bed all the way out (where a print ends, the
-  photo position), {lens:g} mm below the bar's top. The Camera Module 3 screws on with
-  4 x M2 x 6 (they cut their own thread), lens down, the flat cable towards the post.
+camera_arm.stl: the plate goes on the bar's front face, at the bar's centre: 2 x M{screw:g} x
+  {screw_len:g} (heads up to {head:g} mm) from the front into T-nuts in the front slot,
+  {screw_dx:g} mm apart; the holes are counterbored and open to the front for the screwdriver.
+  The arm reaches {reach:g} mm forward{post}: the lens is then over the bed's centre with
+  the bed all the way out (where a print ends, the photo position), {lens:g} mm below the
+  bar's top. The Camera Module 3 screws on under its end with 4 x M2 x 6 (they cut their own
+  thread), lens down, the flat cable towards the bar.
 
 Your printer differs? Measure and make your own (web page: Print bins; or
 sortering_pnp print mounts --help):
   reach:      with the bed all the way out, from the front face of the top bar straight
               forward to the centre of the plate (where the parts lie).
-  bar height: from the underside of the top bar down to the plate. The camera is placed
-              300 mm above the plate, the height the model was trained for (about 11.7 px/mm).
+  bar height: only if you want the camera lower: from the underside of the top bar down
+              to the plate; a post then puts the lens 300 mm above the plate.
   tilt:       how far the screen leans back.
 """
 
@@ -337,8 +385,16 @@ def mount_files(
         lift=round(screen.bottom_z, 1),
         dx=screen.foot_hole_dx,
         reach=arm.reach,
-        drop=arm.drop,
+        post=(
+            f" and a post goes {arm.drop:g} mm down"
+            if arm.drop >= FLAT_DROP
+            else ", straight: the camera right under it, as high as it goes (it sees the most)"
+        ),
         lens=lens,
+        screw=round(arm.screw_d - 0.5),
+        screw_len=arm.screw_len,
+        head=round(arm.head_d - 0.6, 1),
+        screw_dx=arm.screw_dx,
     )
     return [
         (
