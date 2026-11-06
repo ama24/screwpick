@@ -2,8 +2,8 @@
 and T-nuts:
 
 - screen holder: an open frame that holds the 7" display (Waveshare 7inch HDMI LCD (H): case
-  191 x 115 mm, M2 holes 155 x 92 mm, measured on the screen) by its edge, leaning back so
-  it faces the user. The Raspberry Pi 4 is screwed to the display's back, off centre; it sits
+  191 x 115 mm, M2 holes 155 x 92 mm, measured on the screen) by its four holes, leaning back
+  so it faces the user. The frame is sized to the holes, not to the case: the display overhangs it. The Raspberry Pi 4 is screwed to the display's back, off centre; it sits
   free inside the frame. A leg at each end stands on the bar (1 screw each in the top slot).
 - camera arm: a plate on the bar's front face (2 screws in the front slot, at the bar's centre),
   an arm reaching forward over the bed and a post down to the Camera Module 3 (M2 holes 21 x
@@ -46,9 +46,10 @@ def _to_bed(body: Manifold) -> Mesh:
 # ---------------------------------------------------------------------- screen holder
 @dataclass
 class ScreenHolder:
-    """An open frame behind the display that holds it only by its edge (the four M2 holes), so
-    the Raspberry Pi, screwed to the back of the display, sits free inside the frame wherever it
-    is (it is not centred on the 7" (H)), and two legs at the ends down to the bar."""
+    """An open frame behind the display, just big enough for its four M2 holes, so the Raspberry
+    Pi, screwed to the back of the display, sits free inside the frame wherever it is (it is not
+    centred on the 7" (H)), and two legs at the ends down to the bar. The display (`screen_w` x
+    `screen_h`) overhangs the frame all round."""
 
     screen_w: float = 191.0  # display case outline
     screen_h: float = 115.0
@@ -60,7 +61,8 @@ class ScreenHolder:
     pad_wall: float = 2.5  # the round pad around each screw: head room + this all round
     tilt_deg: float = 20.0  # the screen leans back this much: it faces the user, a little up
     thickness: float = 3.0
-    border: float = 12.0  # the frame: only this band along the display's edge is touched
+    edge: float = 6.5  # the frame's outer edge this far outside the hole centres
+    border: float = 10.0  # width of the frame's band (holes inside it); the rest is open for the Pi
     rim: float = 8.0  # stiffening wall along the outer edge, backwards
     rim_t: float = 2.4
     open_depth: float = 45.0  # free room behind the display inside the frame: Pi + cables
@@ -76,12 +78,25 @@ class ScreenHolder:
         """Height of the display's bottom edge above the bar: `lift`, or more when the screen
         leans back so far that the Pi's room would reach down to the bar."""
         s, c = math.sin(math.radians(self.tilt_deg)), math.cos(math.radians(self.tilt_deg))
-        return max(self.lift, self.open_depth * s - (self.border + 0.5) * c + 3.0)
+        return max(self.lift, self.open_depth * s - (self.frame_y0 + self.border + 0.5) * c + 3.0)
+
+    @property
+    def frame_w(self) -> float:
+        return self.hole_dx + 2 * self.edge
+
+    @property
+    def frame_h(self) -> float:
+        return self.hole_dy + 2 * self.edge
+
+    @property
+    def frame_y0(self) -> float:
+        """The frame's bottom edge, up from the display's bottom edge (both centred)."""
+        return (self.screen_h - self.frame_h) / 2
 
     @property
     def foot_hole_dx(self) -> float:
         """Distance between the two M5 screws (one in each foot)."""
-        return self.screen_w + self.foot_out
+        return self.frame_w + self.foot_out
 
 
 def build_screen_holder(p: ScreenHolder | None = None) -> Mesh:
@@ -103,8 +118,10 @@ def _to_installed(m: Manifold, p: ScreenHolder) -> Manifold:
 def screen_open_space(p: ScreenHolder | None = None) -> Manifold:
     """Installed: the room behind the display inside the frame, kept free for the Pi."""
     p = p or ScreenHolder()
-    b = p.border + 0.5
-    room = _box(-p.screen_w / 2 + b, p.screen_w / 2 - b, b, p.screen_h - b, -p.open_depth, -0.01)
+    b, y0 = p.border + 0.5, p.frame_y0
+    room = _box(
+        -p.frame_w / 2 + b, p.frame_w / 2 - b, y0 + b, y0 + p.frame_h - b, -p.open_depth, -0.01
+    )
     pads = [  # the screw pads reach in from the frame: a little room around each stays taken
         _cyl_z(_pad_r(p) + 0.5, -p.open_depth - 1, 1.0, x, y) for x, y in _screw_spots(p)
     ]
@@ -126,26 +143,25 @@ def _screw_spots(p: ScreenHolder) -> list[tuple[float, float]]:
 
 
 def _screen_holder_installed(p: ScreenHolder) -> Manifold:
-    t, w, h = p.thickness, p.screen_w, p.screen_h
-    outline = _frustum([(w, h, p.screen_r, -t), (w, h, p.screen_r, 0.0)], 0.0, h / 2)
+    t, w, h, y0 = p.thickness, p.frame_w, p.frame_h, p.frame_y0
+    yc = y0 + h / 2  # the frame's centre: the display's centre, the holes are centred on it
+    outline = _frustum([(w, h, p.screen_r, -t), (w, h, p.screen_r, 0.0)], 0.0, yc)
     inner = _frustum(
         [
             (w - 2 * p.border, h - 2 * p.border, 0.5, -t - 1),
             (w - 2 * p.border, h - 2 * p.border, 0.5, 1),
         ],
         0.0,
-        h / 2,
+        yc,
     )
-    rim_outline = _frustum(
-        [(w, h, p.screen_r, -t - p.rim), (w, h, p.screen_r, -t + 0.01)], 0.0, h / 2
-    )
+    rim_outline = _frustum([(w, h, p.screen_r, -t - p.rim), (w, h, p.screen_r, -t + 0.01)], 0.0, yc)
     rim_inner = _frustum(
         [
             (w - 2 * p.rim_t, h - 2 * p.rim_t, max(p.screen_r - p.rim_t, 0.5), -t - p.rim - 1),
             (w - 2 * p.rim_t, h - 2 * p.rim_t, max(p.screen_r - p.rim_t, 0.5), 0.0),
         ],
         0.0,
-        h / 2,
+        yc,
     )
     # a round pad at each screw, joined to the frame's band: the holes lie a little inside it
     pads = [_cyl_z(_pad_r(p), -t, 0.0, x, y) for x, y in _screw_spots(p)]
@@ -155,7 +171,7 @@ def _screen_holder_installed(p: ScreenHolder) -> Manifold:
     legs = []
     for sx in (-1, 1):
         x0, x1 = sorted((sx * w / 2, sx * (w / 2 - p.border)))
-        block = _to_installed(_box(x0, x1, 0.0, p.leg_reach, -t - p.rim, 0.0), p)
+        block = _to_installed(_box(x0, x1, y0, y0 + p.leg_reach, -t - p.rim, 0.0), p)
         root = _box(x0, x1, 0.0, p.foot_depth, 0.0, p.foot_t)
         legs.append(Manifold.batch_hull([block, root]))
         fx0, fx1 = sorted((sx * (w / 2 - p.border), sx * (w / 2 + p.foot_out)))
@@ -279,8 +295,9 @@ T-nuts go in without taking the printer apart). Print in PETG or PLA, 0.2 mm lay
 
 screen_holder.stl: an open frame for the Waveshare 7inch HDMI LCD (H) (case 191 x 115 mm,
   four M2 holes 155 x 92 mm): M2 x 6-8 screws (heads up to 5.6 mm) through the frame into the
-  case. It touches only a {border:g} mm band along the display's edge: the Raspberry Pi stays
-  screwed to the display's back where it is (off centre) and sits free inside the frame, with
+  case. The frame ({fw:g} x {fh:g} mm) is just big enough for the holes, so the display
+  overhangs it; it is a {border:g} mm band: the Raspberry Pi stays screwed to the display's back
+  where it is (off centre) and sits free in the {ow:g} x {oh:g} mm opening, with
   {depth:g} mm of room behind the display for it and its cables. A leg at each end stands on
   the bar, the display's bottom {lift:g} mm above it: 2 x M5 x 8 into the top slot, one in each
   foot, {dx:g} mm apart. The screen leans back {tilt:g} degrees, so it faces you. Put it on one
@@ -312,6 +329,10 @@ def mount_files(
     notes = MOUNT_NOTES.format(
         tilt=screen.tilt_deg,
         border=screen.border,
+        fw=screen.frame_w,
+        fh=screen.frame_h,
+        ow=screen.frame_w - 2 * screen.border,
+        oh=screen.frame_h - 2 * screen.border,
         depth=screen.open_depth,
         lift=round(screen.bottom_z, 1),
         dx=screen.foot_hole_dx,

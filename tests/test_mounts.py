@@ -28,9 +28,10 @@ def test_screen_holder_leans_back_and_prints_flat():
     p = ScreenHolder()
     v, _ = _to_mesh(_screen_holder_installed(p))
     lo, hi = v.min(axis=0), v.max(axis=0)
-    assert hi[0] - lo[0] == pytest.approx(191.0 + 2 * p.foot_out, abs=0.1)  # feet outside
+    assert (p.frame_w, p.frame_h) == (168.0, 105.0)  # sized to the 155 x 92 holes, not the case
+    assert hi[0] - lo[0] == pytest.approx(p.frame_w + 2 * p.foot_out, abs=0.1)  # feet outside
     assert lo[2] == pytest.approx(0.0, abs=0.05)  # stands on the bar's top
-    top = p.bottom_z + 115 * math.cos(math.radians(20))  # leans back 20 deg
+    top = p.bottom_z + (p.frame_y0 + p.frame_h) * math.cos(math.radians(20))  # leans back 20 deg
     assert hi[2] == pytest.approx(top, abs=0.1)
     m = trimesh.Trimesh(*build_screen_holder(p))
     assert m.is_watertight and m.body_count == 1
@@ -66,8 +67,18 @@ def test_the_pi_behind_the_display_has_room(tilt):
     p = ScreenHolder(tilt_deg=tilt)
     clash = _screen_holder_installed(p) ^ screen_open_space(p)
     assert clash.volume() < 1e-3
-    assert screen_open_space(p).volume() > 160 * 85 * 40  # most of the back is free
+    assert screen_open_space(p).volume() > 140 * 80 * 40  # the frame's opening is free
     assert screen_open_space(p).bounding_box()[2] > 2.9  # the Pi stays above the bar
+
+
+@pytest.mark.parametrize("tilt", [0.0, 20.0, 35.0])
+def test_the_display_overhangs_the_frame_without_touching_it(tilt):
+    from screwpick.printables.gridfinity import _box
+    from screwpick.printables.mounts import _to_installed
+
+    p = ScreenHolder(tilt_deg=tilt)
+    display = _box(-p.screen_w / 2, p.screen_w / 2, 0.0, p.screen_h, 0.01, 12.0)
+    assert (_screen_holder_installed(p) ^ _to_installed(display, p)).volume() < 1e-3
 
 
 def test_camera_lens_over_the_bed_centre():
