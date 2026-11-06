@@ -400,7 +400,7 @@ let S={},lay=null,sel=null,workStart=null,markers=[];
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");history.replaceState(null,"","#"+b.dataset.t);if(b.dataset.t==="setup")loadSetup();else if(b.dataset.t==="models")loadModels();else if(b.dataset.t==="files")loadFiles();else if(b.dataset.t==="photos")loadSessions();else if(b.dataset.t==="print")loadLayout(true);else if(b.dataset.t==="users")loadUsers();else if(b.dataset.t==="calib"){loadLayout(true);loadCal();}else if(b.dataset.t==="device")loadLayout(true);});
 setTimeout(()=>{const t=location.hash.slice(1),b=t&&document.querySelector(`nav button[data-t="${t}"]`);if(b)b.click();window.scrollTo(0,0);});
 if("scrollRestoration" in history)history.scrollRestoration="manual";
-async function api(path,body){const r=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json();if(r.status===401){showLogin(false);}if(!r.ok)throw new Error(j.error||r.status);return j;}
+async function api(path,body){const r=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json();if(r.status===401){session();}if(!r.ok)throw new Error(j.error||r.status);return j;}
 function flash(id,text,bad){$(id).textContent=text;$(id).className=bad?"note bad":"note";}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 
@@ -769,7 +769,7 @@ function renderFiles(slots){
   d.onclick=()=>{const i=document.createElement("input");i.type="file";i.accept=".json,.yaml,.yml";i.onchange=()=>i.files[0]&&sendFile(k,i.files[0]);i.click();};
   d.ondragover=e=>{e.preventDefault();d.classList.add("over");};d.ondragleave=()=>d.classList.remove("over");
   d.ondrop=e=>{e.preventDefault();d.classList.remove("over");if(e.dataTransfer.files[0])sendFile(k,e.dataTransfer.files[0]);};});}
-async function sendFile(key,file){flash("fmsg",`checking ${file.name}…`);try{const r=await fetch(`api/files/upload?key=${key}&filename=${encodeURIComponent(file.name)}`,{method:"POST",body:file});const j=await r.json();if(r.status===401)showLogin(false);if(!r.ok)throw new Error(j.error||r.status);renderFiles(j.slots);flash("fmsg",`${file.name}: kept and in use`);}catch(e){flash("fmsg",e.message,1);}}
+async function sendFile(key,file){flash("fmsg",`checking ${file.name}…`);try{const r=await fetch(`api/files/upload?key=${key}&filename=${encodeURIComponent(file.name)}`,{method:"POST",body:file});const j=await r.json();if(r.status===401)session();if(!r.ok)throw new Error(j.error||r.status);renderFiles(j.slots);flash("fmsg",`${file.name}: kept and in use`);}catch(e){flash("fmsg",e.message,1);}}
 async function removeFile(key){if(!confirm("Remove the dropped copy?"))return;try{renderFiles((await api("api/files/remove",{key})).slots);flash("fmsg","removed");}catch(e){flash("fmsg",e.message,1);}}
 
 // ---------------------------------------------------------------- models
@@ -805,7 +805,7 @@ function upload(file){
  xhr.upload.onprogress=e=>{if(e.lengthComputable){bar.value=e.loaded/e.total;flash("upmsg",`uploading ${(e.loaded/1e6).toFixed(1)} / ${(e.total/1e6).toFixed(1)} MB`);}};
  xhr.upload.onload=()=>flash("upmsg","uploaded, checking the model…");
  xhr.onload=()=>{bar.hidden=true;let j={};try{j=JSON.parse(xhr.responseText);}catch(e){}
-  if(xhr.status===401)showLogin(false);
+  if(xhr.status===401)session();
   if(xhr.status>=400){flash("upmsg",j.error||("upload failed: "+xhr.status),1);return;}
   M=j;renderModels();$("mname").value="";flash("upmsg",`stored: ${j.model.name} (${j.model.task})`);};
  xhr.onerror=()=>{bar.hidden=true;flash("upmsg","upload failed (connection lost?)",1);};
