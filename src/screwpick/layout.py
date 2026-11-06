@@ -372,7 +372,7 @@ class Layout:
         write_yaml(
             path,
             self.to_dict(),
-            "# screwpick bed layout (edit it in the web page's Layout tab, or Resync there).\n"
+            "# screwpick bed layout (edit it on the web page's Device tab, or Resync there).\n"
             "# Cells are Gridfinity units; origin = printer X/Y of the grid's front-left corner.\n",
         )
 

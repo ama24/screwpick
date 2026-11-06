@@ -29,7 +29,7 @@ from .layout import Bin, Layout
 class BinRequest:
     marker: int
     cell: str  # where it stands, e.g. E1
-    why: str  # full | new_kind
+    why: str  # full | new_kind | asked (from the page)
     what: str  # what it holds
     count: int  # parts in it
     for_kind: str | None = None  # new_kind: the kind that needs the room
@@ -38,6 +38,8 @@ class BinRequest:
         holds = f"{self.what}, {self.count} part{'s' if self.count != 1 else ''}"
         if self.why == "full":
             return f"bin {self.cell} ({holds}) is full: empty it or put an empty bin there"
+        if self.why == "asked":
+            return f"bin {self.cell} ({holds}) to be changed"
         return (
             f"{self.for_kind} needs a bin: empty bin {self.cell} ({holds}) "
             "or put an empty bin there"
@@ -45,7 +47,7 @@ class BinRequest:
 
     def short(self) -> str:
         """For the printer's display (about 20 characters)."""
-        return f"Bin {self.cell}: OK=park"
+        return f"Change bin {self.cell}"
 
     def to_dict(self) -> dict[str, Any]:
         return {**asdict(self), "text": self.text()}

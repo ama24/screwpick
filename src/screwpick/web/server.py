@@ -212,11 +212,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             lay = r.layout()
             self._json({"layout": lay.to_dict(), "problems": lay.problems(), "sizes": _sizes()})
         elif method == "POST" and path == "/api/layout":
-            lay = Layout.from_dict(self._body().get("layout") or {})
-            lay.save(r.layout_path)
-            if lay.problems():
-                r.setup.reset("layout")
-            self._json({"layout": lay.to_dict(), "problems": lay.problems()})
+            self._json(r.save_layout(Layout.from_dict(self._body().get("layout") or {})))
+        elif method == "POST" and path == "/api/bins/change":
+            self._json(r.ask_change(int(self._body()["marker"])))
         elif method == "GET" and path == "/api/setup":
             self._json(r.setup_state())
         elif method == "POST" and path == "/api/setup/printer":

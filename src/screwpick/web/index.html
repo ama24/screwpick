@@ -100,14 +100,71 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 .num.ok{background:var(--ok);color:#fff}.step h3{margin:3px 0 2px;font-size:15px;font-weight:600}.step .body{grid-column:2}
 .checks{list-style:none;padding:0;margin:8px 0}.checks li{padding:2px 0}.mfield input{width:84px}
 .jog{display:grid;grid-template-columns:repeat(3,54px);gap:6px}.jog button{height:44px;padding:0}
+
+/* device tab */
+.bar,main{max-width:1380px}
+.ctl{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;padding:12px 16px}
+.vsep{width:1px;height:24px;background:var(--line);margin:0 4px}.grow{flex:1}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer}
+.warnc{background:var(--warn-soft);border-color:#ecdcbc;color:var(--warn)}
+.dgrid{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:16px}
+@media (max-width:980px){.dgrid{grid-template-columns:1fr}}
+.dcard{margin:0;display:flex;flex-direction:column;min-width:0}
+.chead{display:flex;align-items:center;gap:10px;min-height:32px;margin-bottom:12px}.chead h2{margin:0}.chead .row,.chead .seg{margin-left:auto}
+.chead .note{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg.sm label{padding:3px 10px;font-size:12.5px;gap:5px}.seg.sm input{display:inline;accent-color:var(--acc);margin:0}
+.camwrap{position:relative;border-radius:var(--r2);overflow:hidden;background:#eceeec;aspect-ratio:1/1}
+.camwrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.camwrap svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--mut);font-size:13.5px;text-align:center;padding:20px}
+.tline{margin-top:10px;font-size:13.5px;color:var(--mut);min-height:22px}.tline b{color:var(--ink)}
+.bedsvg{width:100%;height:auto;display:block}
+#bedbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+#bedbar .req{display:flex;align-items:center;gap:8px;border-radius:999px;padding:4px 5px 4px 12px;font-size:13px;border:1px solid}
+#bedbar .req.chg{background:var(--warn-soft);border-color:#ecdcbc}#bedbar .req.fin{background:var(--ok-soft);border-color:#d3e6d7}
+#bedbar .req button{border:0;border-radius:999px;padding:4px 12px;font:inherit;font-weight:600;cursor:pointer;color:#fff}
+#bedbar .chg button{background:var(--warn)}#bedbar .fin button{background:var(--ok)}
+.pending{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:var(--r2);background:var(--acc-soft);font-size:13px;color:var(--acc)}
+.scrolly{height:290px;overflow:auto}
+.brow{display:grid;grid-template-columns:minmax(120px,38%) 1fr 34px;gap:10px;align-items:center;padding:4px 0;font-size:13px}
+.brow .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.brow.sub .nm{padding-left:18px;color:var(--mut)}
+.brow .track{height:10px;border-radius:5px;background:var(--line2);overflow:hidden}.brow .fillb{height:100%;border-radius:5px}
+.brow.sub .track{height:7px}.brow .n{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}.brow.sub .n{font-weight:400;color:var(--mut)}
+#now{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r2);background:var(--cell);border:1px solid var(--line2);margin-bottom:10px;font-weight:600}
+#now .dot{flex:none}
+#console{font:12.5px/1.75 ui-monospace,Menlo,Consolas,monospace;color:var(--ink);white-space:pre-wrap}
+#console .t{color:var(--soft);margin-right:8px}
+/* menus and dialogs */
+.menu{position:fixed;z-index:20;min-width:230px;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:6px;font-size:13.5px}
+.menu .mh{padding:8px 10px 6px;color:var(--mut);font-size:12.5px;border-bottom:1px solid var(--line2);margin-bottom:4px}.menu .mh b{color:var(--ink);font-size:13.5px}
+.menu button,.menu a{display:block;width:100%;text-align:left;background:none;border:0;border-radius:7px;padding:7px 10px;font:inherit;color:var(--ink);cursor:pointer}
+.menu button:hover,.menu a:hover{background:var(--acc-soft);color:var(--acc);text-decoration:none}
+.menu .sep{height:1px;background:var(--line2);margin:4px 0}.menu .warnb{color:var(--warn)}.menu .opt{display:flex;gap:8px;align-items:center;padding:6px 10px;color:var(--mut);font-size:12.5px}
+.modal{position:fixed;inset:0;z-index:30;background:rgba(40,42,44,.25);display:grid;place-items:center;padding:16px}
+.mbox{background:var(--card);border-radius:14px;padding:22px;width:min(440px,100%);box-shadow:0 20px 50px rgba(0,0,0,.18)}
+.mbox h3{margin:0 0 14px;font-size:16px}.mbox .fields{display:grid;gap:10px}.mbox .fields label{justify-content:space-between}
+.mbox .fields input:not([type=number]),.mbox .fields select{width:230px}
+.mbox .end{justify-content:flex-end;margin-top:18px}
+/* files as rows */
+.frows{padding:0}
+.frow{display:grid;grid-template-columns:240px minmax(0,1fr) 230px;gap:24px;padding:20px 22px;border-top:1px solid var(--line2);align-items:stretch}
+.frow:first-child{border-top:0}
+.fname{display:flex;flex-direction:column;gap:6px}.fname .t{font-weight:600}.fname code{align-self:flex-start}
+.fmeta3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;font-size:13px;margin:0}
+.fmeta3 dt{color:var(--soft);font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}.fmeta3 dd{margin:0;color:var(--mut)}
+.fside{display:flex;flex-direction:column;gap:8px}
+.frow .fdrop{flex:1;margin:0;min-height:96px;display:grid;place-items:center;border:1.5px dashed var(--soft);border-radius:var(--r2);padding:10px}
+.frow .fbtns{display:flex;gap:6px;min-height:30px}
+@media (max-width:980px){.frow{grid-template-columns:1fr}.fmeta3{grid-template-columns:1fr}}
+/* print bins */
+.sizes td{vertical-align:middle}.sizes .plates{display:flex;flex-wrap:wrap;gap:4px 10px;max-width:420px}
+.sizes .thumb{width:150px;text-align:center}.sizes .thumb svg{width:132px;height:96px}
 </style></head><body>
 <header><div class="bar">
  <div class="brand"><span class="logo"><i></i><i></i><i></i><i></i></span>screwpick</div>
- <nav><button data-t="setup">Setup<span id="setupbadge" class="badge" hidden></span></button><button data-t="run" class="on">Run</button><button data-t="layout">Layout</button><button data-t="calib">Calibrate</button><button data-t="print">Print bins</button><button data-t="models">Models</button><button data-t="files">Files</button><button data-t="photos">Photos</button><button data-t="users">Users</button></nav>
+ <nav><button data-t="device" class="on">Device<span id="devbadge" class="badge" hidden></span></button><button data-t="setup">Setup<span id="setupbadge" class="badge" hidden></span></button><button data-t="calib">Calibrate</button><button data-t="print">Print bins</button><button data-t="models">Models</button><button data-t="files">Files</button><button data-t="photos">Photos</button><button data-t="users">Users</button></nav>
  <div class="right"><span id="status"><span class="dot"></span>…</span><span id="me"></span><button class="estop" onclick="cmd('estop')">STOP</button></div>
 </div></header>
-<div id="swap"><div class="notice"><span class="check">!</span><div><b>Bin change</b><span class="note" id="swapnote"></span><ul id="swaplist"></ul><button class="ok" id="swapok" onclick="cmd('ok')">OK</button></div></div></div>
-<div id="ready"><div class="notice"><span class="check">✓</span><div><b>Ready to take out</b><span class="note"> · nothing on the plate goes into these bins any more. Empty them, then press Emptied.</span><ul id="readylist"></ul></div></div></div>
 
 <div id="login"><form onsubmit="doLogin(event)">
  <div class="brand"><span class="logo"><i></i><i></i><i></i><i></i></span>screwpick</div>
@@ -128,50 +185,36 @@ ul.plain{margin:8px 0 0;padding-left:18px}
   <div id="todo"></div></div>
 </section>
 
-<section id="run" class="on">
- <div class="card notice" id="setupnote" hidden style="background:var(--warn-soft);border-color:#eedfc0"><span class="check" style="background:var(--warn)">!</span><div><b>Setup not finished</b><br><span class="note" id="setupmissing"></span> <button class="b s" onclick="go('setup')">Open Setup</button></div></div>
- <div class="card row" style="gap:10px">
-  <select id="strategy"></select>
-  <button class="b p" onclick="cmd('auto')" title="Standby: looks for parts every minute and sorts them, until Stop. Stays on after a restart.">Automatic</button><button class="b" onclick="cmd('start')">Sort once</button><button class="b" onclick="cmd('step')">One pick</button>
-  <button class="b" onclick="cmd('pause')">Pause</button><button class="b" onclick="cmd('resume')">Resume</button><button class="b" onclick="cmd('stop')">Stop</button>
-  <span id="msg" class="note" style="margin-left:6px"></span>
+<section id="device" class="on">
+ <div class="card ctl">
+  <div class="row"><button class="b p" onclick="cmd('auto')" title="Standby: looks for parts every minute and sorts them, until Stop. Stays on after a restart.">Automatic</button><button class="b" onclick="cmd('start')">Sort once</button><button class="b" onclick="cmd('step')">One pick</button><span class="vsep"></span><button class="b" onclick="cmd('pause')">Pause</button><button class="b" onclick="cmd('resume')">Resume</button><button class="b" onclick="cmd('stop')">Stop</button></div>
+  <span id="msg" class="note grow"></span>
+  <button id="setupchip" class="chip warnc" hidden onclick="go('setup')"></button>
  </div>
- <div class="cols">
-  <div class="card"><h2>Last photo</h2><img id="shot" class="shot" alt=""><p id="plan" class="note" style="margin:10px 0 0"></p></div>
-  <div>
-   <div class="card"><h2>Console</h2><div id="console"></div></div>
-   <div class="card"><h2>This run</h2><div id="counts" class="note">nothing sorted yet</div></div>
-   <div class="card"><h2>Bins in use</h2><div id="binsuse" class="note">no bin filled yet</div></div>
-   <div class="card"><h2>On the plate</h2><table id="parts"></table></div>
+ <div class="dgrid">
+  <div class="card dcard">
+   <div class="chead"><h2>Camera</h2><span class="note" id="camnote"></span>
+    <span class="seg sm"><label><input type="checkbox" id="showlab" checked onchange="drawOverlay()">names</label><label><input type="checkbox" id="showout" checked onchange="drawOverlay()">outlines</label></span></div>
+   <div class="camwrap"><img id="view" alt="" onload="drawOverlay()"><svg id="ov"></svg><div id="camempty" class="empty">No photo yet: press <b>One pick</b> or <b>Sort once</b>.</div></div>
+   <div id="target" class="tline"></div>
   </div>
- </div>
- <div class="card"><h2>Log</h2><div id="events"></div></div>
-</section>
-
-<section id="layout">
- <div class="card row" style="gap:14px">
-  <span class="seg"><label><input type="radio" name="mode" value="select" checked>Select</label><label><input type="radio" name="mode" value="add">Add bin</label><label id="workmode"><input type="radio" name="mode" value="work">Working area</label></span>
-  <span class="note" id="modehelp">Click a bin to see and edit it.</span>
-  <span class="row" style="margin-left:auto"><label>size<input id="nw" type="number" min="1" value="1" style="width:56px">×<input id="nd" type="number" min="1" value="1" style="width:56px"></label><label>height<input id="nu" type="number" min="3" value="3" style="width:56px">u</label><label>code<select id="ns"><option value="shelf">on the shelf</option><option value="corner">on a corner post</option></select></label></span>
- </div>
- <div class="cols">
-  <div class="card"><svg id="grid" style="width:100%;height:auto;display:block"></svg>
-   <div class="legend"><span><i class="sw" style="border-style:dashed"></i>free wild bin</span><span><i class="sw"></i>collecting</span><span><i class="sw" style="background:var(--ok-soft);border-color:var(--ok)"></i>ready to take out</span><span><i class="sw" style="background:var(--cell)"></i>special</span><span><i class="sw" style="background:var(--work);border-color:#c9d6db"></i>plate (parts are thrown in here)</span></div>
-   <div class="row" style="margin-top:16px"><button class="b p" onclick="saveLayout()">Save layout</button><button class="b" onclick="scan()" title="Photo: where the baseplate lies, which bins stand where and which way round; the biggest bin becomes the plate unless you chose one">Resync with the camera</button><span id="laymsg" class="note"></span></div>
-   <ul id="problems" class="plain bad"></ul></div>
-  <div>
-   <div class="card" id="binpanel"><h2>Bin</h2><p class="note">Click a bin in the grid.</p></div>
-   <div class="card"><h2>Sorting</h2>
-    <label style="display:grid;gap:6px">Each wild bin collects one
-     <select id="wildby"><option value="part">part number: class and length (DIN912_M4x16)</option><option value="class">class, any length (DIN912_M4)</option><option value="family">family (DIN912)</option></select></label>
-    <p class="note" style="margin-top:12px">Wild bins have no rules: the first part of a new kind takes a free one, and it collects that kind until it is emptied. Bins with rules come first: <b>DIN912_M4x16</b>, <b>DIN912_M4</b>, <b>DIN912</b>, or wildcards like <b>DIN912_M*</b>.</p>
-   </div>
-   <div class="card"><h2>Baseplate</h2>
-    <div class="row"><label>size<input id="cols" type="number" min="1" style="width:56px">×<input id="rows" type="number" min="1" style="width:56px">cells</label></div>
-    <div class="row" style="margin-top:8px"><label>front-left corner X<input id="ox" type="number" step="0.1"></label><label>Y<input id="oy" type="number" step="0.1"></label></div>
-    <div class="row" style="margin-top:8px"><label>TPU sheet in the plate<input id="pt" type="number" step="0.05">mm</label></div>
-    <p class="note" style="margin-top:10px">Lay the baseplate anywhere on the bed and put the bins where you like: <b>Resync</b> finds all of it and makes the biggest bin the plate. To choose another plate, give a bin the role <b>work</b>; Resync then keeps your choice. The baseplate for this size is in Print bins.</p>
-   </div>
+  <div class="card dcard">
+   <div class="chead"><h2>Bed</h2>
+    <div class="row"><select id="strategy" title="How the parts are sorted"></select><button class="b s" onclick="scan()" title="Photo: where the baseplate lies, which bins stand where and which way round; the biggest bin becomes the tray unless you chose one">Resync</button><button class="b s" onclick="openSettings()" title="Grid size, where it lies, what a wild bin collects">Settings</button></div></div>
+   <svg id="grid" class="bedsvg"></svg>
+   <div id="bedbar"></div>
+   <div id="pending" class="pending" hidden><span id="pendtext"></span><span class="grow"></span><button class="b s" onclick="discard()">Discard</button><button class="b p s" onclick="applyChanges()">Apply</button></div>
+   <ul id="problems" class="plain bad"></ul><span id="laymsg" class="note"></span>
+   <div class="legend"><span><i class="sw" style="border-style:dashed"></i>free wild bin</span><span><i class="sw"></i>collecting</span><span><i class="sw" style="background:var(--ok-soft);border-color:var(--ok)"></i>finished</span><span><i class="sw" style="background:var(--warn-soft);border-color:var(--warn)"></i>to change</span><span><i class="sw" style="background:var(--work);border-color:#c9d6db"></i>tray</span><span><i class="sw" style="background:var(--cell);border-color:var(--line)"></i>no bin</span><span class="note">⋯ or right-click: options</span></div>
+  </div>
+  <div class="card dcard">
+   <div class="chead"><h2>In the tray</h2><span class="note" id="statnote"></span></div>
+   <div id="bars" class="scrolly"></div>
+  </div>
+  <div class="card dcard">
+   <div class="chead"><h2>Activity</h2><span class="note" id="actnote"></span></div>
+   <div id="now"></div>
+   <div id="console" class="scrolly"></div>
   </div>
  </div>
 </section>
@@ -222,7 +265,7 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 <section id="print">
  <div class="card"><h2>Bin sizes</h2>
   <p class="note">Each size has its own range of codes, so the camera knows a bin's size from its code, and whether the code sits on a shelf along the back or on a post in the back-right corner (codes 50–99). Use a corner tray as the plate: nothing overhangs there, so no part gets trapped. Every plate is a full build plate of one size for a 220 × 220 bed: all the same height, so one colour change at the rim (21 mm for 3u, 42 mm for 6u) makes all the codes black. The same files are in the repository under <code>prints/</code>.</p>
-  <table id="sizelist"></table>
+  <table id="sizelist" class="sizes"></table>
  </div>
  <div class="card"><h2>Baseplate</h2>
   <p>Just the grid, for this layout's size: <a href="api/print/baseplate?kind=slim">slim (2.5 mm)</a> · <a href="api/print/baseplate?kind=standard">standard (4.65 mm)</a></p>
@@ -256,7 +299,7 @@ ul.plain{margin:8px 0 0;padding-left:18px}
  <div class="card"><h2>Files from the other projects</h2>
   <p class="note">screwpick keeps its own copy of every file it uses, so it runs on its own. Fetch each one from where it says, and drop it on its card: it is checked, kept on this Pi and used at once. A file you leave out is not missing: the card says what is done without it. The models are in the Models tab.</p>
   <span id="fmsg" class="note"></span></div>
- <div id="flist" class="fgrid"></div>
+ <div id="flist" class="card frows"></div>
 </section>
 
 <section id="photos">
@@ -281,10 +324,13 @@ ul.plain{margin:8px 0 0;padding-left:18px}
  <div class="card" id="testcard" hidden><h2>Test result</h2><p id="testinfo" class="note"></p><img id="testimg" class="shot" alt=""></div>
 </section>
 </main>
+<div id="menu" class="menu" hidden></div>
+<div id="modal" class="modal" hidden onclick="if(event.target===this)closeModal()"><div class="mbox"><h3 id="mtitle"></h3><div id="mbody"></div>
+ <div class="row end"><button class="b" onclick="closeModal()">Cancel</button><button class="b p" id="mok">Queue the change</button></div></div></div>
 <script>
 const $=id=>document.getElementById(id);
 let S={},lay=null,sel=null,workStart=null,markers=[];
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");history.replaceState(null,"","#"+b.dataset.t);if(b.dataset.t==="setup")loadSetup();else if(b.dataset.t==="models")loadModels();else if(b.dataset.t==="files")loadFiles();else if(b.dataset.t==="photos")loadSessions();else if(b.dataset.t==="print")loadLayout();else if(b.dataset.t==="users")loadUsers();else if(b.dataset.t==="calib"){loadLayout();loadCal();}else if(b.dataset.t!=="run")loadLayout();});
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");history.replaceState(null,"","#"+b.dataset.t);if(b.dataset.t==="setup")loadSetup();else if(b.dataset.t==="models")loadModels();else if(b.dataset.t==="files")loadFiles();else if(b.dataset.t==="photos")loadSessions();else if(b.dataset.t==="print")loadLayout(true);else if(b.dataset.t==="users")loadUsers();else if(b.dataset.t==="calib"){loadLayout(true);loadCal();}else if(b.dataset.t==="device")loadLayout(true);});
 setTimeout(()=>{const t=location.hash.slice(1),b=t&&document.querySelector(`nav button[data-t="${t}"]`);if(b)b.click();window.scrollTo(0,0);});
 if("scrollRestoration" in history)history.scrollRestoration="manual";
 async function api(path,body){const r=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json();if(r.status===401){showLogin(false);}if(!r.ok)throw new Error(j.error||r.status);return j;}
@@ -303,69 +349,94 @@ async function addUser(){try{await api("api/users/add",{user:$("nuser").value,pa
 async function delUser(u){if(!confirm("Remove "+u+"?"))return;try{await api("api/users/remove",{user:u});loadUsers();}catch(e){flash("umsg",e.message,1);}}
 async function changePw(){try{await api("api/users/password",{old:$("oldpw").value,password:$("newpw").value});$("oldpw").value=$("newpw").value="";flash("umsg","password changed");}catch(e){flash("umsg",e.message,1);}}
 
-// ---------------------------------------------------------------- run
+// ---------------------------------------------------------------- device: controls
 async function cmd(c){try{const j=await api("api/command",{command:c,strategy:$("strategy").value});flash("msg",j.result);}catch(e){flash("msg",e.message,1);}poll();}
-async function binFull(m){try{const j=await api("api/bins/full",{marker:m});Object.assign(S,j);poll();if(lay)render();if(sel!==null&&lay)panel();flash("laymsg","noted: it will be asked to be emptied; the next estimates learn from it");}catch(e){flash("laymsg",e.message,1);}}
-async function emptied(m){try{const j=await api("api/bins/emptied",{marker:m});Object.assign(S,j);renderBins();if(lay)render();if(sel!==null&&lay)panel();}catch(e){flash("msg",e.message,1);}}
+async function binFull(m){closeMenu();try{const j=await api("api/bins/full",{marker:m});Object.assign(S,j);flash("laymsg","noted: it is asked to be changed, and the estimates learn from it");poll();}catch(e){flash("laymsg",e.message,1);}}
+async function emptied(m){closeMenu();try{const j=await api("api/bins/emptied",{marker:m});Object.assign(S,j);renderBed();}catch(e){flash("laymsg",e.message,1);}}
+async function askChange(m){closeMenu();try{const j=await api("api/bins/change",{marker:m});Object.assign(S,j);poll();}catch(e){flash("laymsg",e.message,1);}}
 function readyMap(){const r={};for(const x of S.ready||[])r[x.marker]=x;return r;}
 function swapMap(){const r={};for(const x of S.requests||[])r[x.marker]=x;return r;}
-function renderBins(){
- const reqs=S.requests||[],parked=S.swap_phase==="parked";
- $("swap").classList.toggle("on",reqs.length>0||parked);
- $("swapnote").textContent=parked?" · the machine is parked (bed out). Empty these bins or put an empty bin in their place, then press OK: the camera checks what stands there now and sorting goes on.":" · the machine keeps sorting everything else. Press OK when you want to change the bins: it parks first (bed out).";
- $("swapok").textContent=parked?"OK, bins changed":"OK, park for the change";
- $("swaplist").innerHTML=reqs.map(x=>`<li><b>${esc(x.cell)}</b><span>${esc(x.what)}</span><span class="mut">${x.count} · ${x.why==="full"?"full":"for "+esc(x.for_kind||"")}</span></li>`).join("");
- const ready=S.ready||[];
- $("ready").classList.toggle("on",ready.length>0);
- $("readylist").innerHTML=ready.map(x=>`<li><b>${x.marker}</b><span>${esc(x.what)}</span><span class="mut">${x.count}</span><button class="x" onclick="emptied(${x.marker})">Emptied</button></li>`).join("")+(ready.length>1?`<li style="padding-left:5px"><button class="x" onclick="emptied(null)">All emptied</button></li>`:"");
- const claims=S.claims||{},counts=S.bin_counts||{},rm=readyMap();
- const ids=[...new Set([...Object.keys(claims),...Object.keys(counts)])].sort((a,b)=>a-b);
- $("binsuse").innerHTML=ids.length?ids.map(m=>`<div class="stat"><span>Bin ${esc(m)} <span class="mut">${esc(claims[m]||"")}</span> ${rm[m]?'<span class="tag on">ready</span>':""}</span><b>${counts[m]||0}</b></div>`).join(""):"no bin filled yet";}
-let shown="";
+let shownView="";
 async function poll(){try{S=await api("api/state");}catch(e){$("status").innerHTML='<span class="dot bad"></span>no connection';return;}
- const cls={running:"ok",done:"ok",standby:"ok",error:"bad",stuck:"warn",waiting:"warn",paused:"warn",stopping:"warn"}[S.status]||"";
- $("status").innerHTML=`<span class="dot ${cls}"></span><b>${esc(S.status)}</b>${S.auto?" · automatic":""}${S.driver==="sim"?" · simulation":""}`;$("tipz").textContent=(S.tip_offset_z>=0?"+":"")+(+S.tip_offset_z).toFixed(2)+" mm";
- $("msg").textContent=S.message;$("plan").textContent=S.plan||"";
+ const cls={running:"ok",done:"ok",standby:"ok",error:"bad",stuck:"warn",waiting:"warn",parked:"warn",paused:"warn",stopping:"warn"}[S.status]||"";
+ $("status").innerHTML=`<span class="dot ${cls}"></span><b>${esc(S.status)}</b>${S.auto?" · automatic":""}${S.driver==="sim"?" · simulation":""}`;
+ $("tipz").textContent=(S.tip_offset_z>=0?"+":"")+(+S.tip_offset_z).toFixed(2)+" mm";
+ $("msg").textContent=S.message;
  const st=$("strategy");if(!st.options.length){for(const[k,v]of Object.entries(S.strategies)){const o=document.createElement("option");o.value=k;o.textContent=v;st.appendChild(o);}st.value=S.strategy;}
- if(S.shot&&S.shot!==shown){shown=S.shot;$("shot").src="runs/"+encodeURIComponent(S.shot);$("calshot").src=$("shot").src;}
- const T=S.timing||{};$("counts").innerHTML=S.picks?`<div class="stat"><span>sorted</span><b>${S.picks}</b></div><div class="stat"><span>failed picks</span><b>${S.failed_picks}</b></div>`+(T.cycle_s?`<div class="stat"><span>last cycle</span><b>${T.cycle_s} s</b></div><div class="stat"><span title="time the machine waited for the photo analysis after dropping the part">waited for the Pi</span><b>${T.waited_for_analysis_s} s</b></div>`:""):"nothing sorted yet";
- const parts=S.parts.filter(p=>p.in_work!==false);
- $("parts").innerHTML=parts.length?"<tr><th>part</th><th>length</th><th>score</th><th>free</th></tr>"+parts.map(p=>`<tr><td>${esc(p.cls)}</td><td>${p.length!=null?p.length+" mm":"–"}</td><td>${p.score}</td><td>${p.gap!=null?p.gap+" mm":"–"}</td></tr>`).join(""):'<tr><td class="note">empty</td></tr>';
- $("events").textContent=S.events.slice().reverse().join("\n");
+ const img=S.view||S.shot;if(img&&img!==shownView){shownView=img;$("view").src="runs/"+encodeURIComponent(img);$("calshot").src="runs/"+encodeURIComponent(S.shot||img);}
+ $("camempty").hidden=!!img;drawOverlay();renderStats();renderActivity();
+ const su=S.setup||{},left=(su.missing||[]).length;$("setupbadge").hidden=!(su.required&&left);$("setupbadge").textContent=left;
+ $("setupchip").hidden=!(su.required&&left);$("setupchip").textContent=`Setup: ${left} step${left===1?"":"s"} left`;
+ const nreq=(S.requests||[]).length;$("devbadge").hidden=!nreq;$("devbadge").textContent=nreq;
+ renderPairs(S.calib_pairs||[]);if(!maskSet&&S.mask_margin_mm!=null){$("mmargin").value=S.mask_margin_mm;maskSet=true;}
+ if(!pending.length&&++layTick%3===0)loadLayout(true);else renderBed();}
+let layTick=0;
+setInterval(()=>{if(!$("login").classList.contains("on"))poll();},1500);session();loadLayout(true);
+
+// ---------------------------------------------------------------- device: camera
+const PAL=["#5f8f8b","#b0873c","#6f7fb3","#b4553f","#5b8e66","#9a6fa8","#4d8fb0","#a08a5a"];
+function colourOf(cls){let h=0;for(const c of cls)h=(h*31+c.charCodeAt(0))>>>0;return PAL[h%PAL.length];}
+function mapPt(H,x,y){const w=H[2][0]*x+H[2][1]*y+H[2][2];return[(H[0][0]*x+H[0][1]*y+H[0][2])/w,(H[1][0]*x+H[1][1]*y+H[1][2])/w];}
+function partName(p){return p.cls+(p.length!=null?`x${p.length}`:"");}
+function drawOverlay(){const svg=$("ov"),im=$("view"),H=S.view_h;
+ if(!im.naturalWidth||!H||!S.view){svg.innerHTML="";return;}
+ const W=im.naturalWidth,Hh=im.naturalHeight,fs=Math.max(11,W/70),lw=Math.max(1.2,W/600);
+ svg.setAttribute("viewBox",`0 0 ${W} ${Hh}`);svg.setAttribute("preserveAspectRatio","xMidYMid meet");
+ const parts=(S.parts||[]).filter(p=>p.in_work!==false&&p.poly&&p.poly.length>2),T=S.target;let s="";
+ for(const p of parts){const c=colourOf(p.cls),pts=p.poly.map(q=>mapPt(H,q[0],q[1]));
+  if($("showout").checked)s+=`<polygon points="${pts.map(q=>q.join(",")).join(" ")}" fill="${c}" fill-opacity=".22" stroke="${c}" stroke-width="${lw}"/>`;
+  if($("showlab").checked){const xs=pts.map(q=>q[0]),ys=pts.map(q=>q[1]),t=partName(p),w=t.length*fs*0.62+fs*0.6,x=Math.max(0,Math.min(Math.min(...xs),W-w)),y=Math.max(fs*1.1,Math.min(...ys)-fs*0.35);
+   s+=`<g><rect x="${x}" y="${y-fs*1.05}" width="${w}" height="${fs*1.3}" rx="${fs*0.3}" fill="${c}" opacity=".9"/><text x="${x+fs*0.3}" y="${y-fs*0.05}" font-size="${fs}" fill="#fff" font-weight="600">${esc(t)}</text></g>`;}}
+ if(T&&T.poly&&T.poly.length>2){const pts=T.poly.map(q=>mapPt(H,q[0],q[1])),xs=pts.map(q=>q[0]),ys=pts.map(q=>q[1]),m=fs*0.7;
+  const x0=Math.min(...xs)-m,y0=Math.min(...ys)-m,x1=Math.max(...xs)+m,y1=Math.max(...ys)+m,lab=`next: ${T.name}${T.cell?" → "+T.cell:""}`,lw2=lab.length*fs*0.68+fs,lx=Math.max(0,Math.min(x0,W-lw2)),ly=y1+fs*1.9>Hh?y0-fs*1.75:y1+fs*0.3;
+  s+=`<rect x="${x0}" y="${y0}" width="${x1-x0}" height="${y1-y0}" rx="${fs*0.4}" fill="none" stroke="#fff" stroke-width="${lw*4}"/><rect x="${x0}" y="${y0}" width="${x1-x0}" height="${y1-y0}" rx="${fs*0.4}" fill="none" stroke="#c8462c" stroke-width="${lw*2.2}"/>`+
+   `<rect x="${lx}" y="${ly}" width="${lw2}" height="${fs*1.45}" rx="${fs*0.35}" fill="#c8462c"/><text x="${lx+fs*0.5}" y="${ly+fs*1.03}" font-size="${fs*1.05}" font-weight="700" fill="#fff">${esc(lab)}</text>`;}
+ svg.innerHTML=s;
+ const n=parts.length;$("camnote").textContent=S.view?`${n} part${n===1?"":"s"} in the tray · ${S.view.slice(9,11)}:${S.view.slice(11,13)}:${S.view.slice(13,15)}`:"";
+ $("target").innerHTML=T?`Next: <b>${esc(T.name)}</b>${T.cell?` into bin <b>${esc(T.cell)}</b> (${T.bin})`:""}`:(S.plan?esc(S.plan):"");}
+
+// ---------------------------------------------------------------- device: statistics and activity
+function renderStats(){const parts=(S.parts||[]).filter(p=>p.in_work!==false),by={};
+ for(const p of parts){const c=by[p.cls]||(by[p.cls]={n:0,len:{}});c.n++;const k=p.length!=null?p.length+" mm":"not measured yet";c.len[k]=(c.len[k]||0)+1;}
+ const rows=Object.entries(by).sort((a,b)=>b[1].n-a[1].n||a[0].localeCompare(b[0])),max=Math.max(1,...rows.map(r=>r[1].n));
+ $("bars").innerHTML=rows.map(([cls,c])=>{const col=colourOf(cls),lens=Object.entries(c.len).sort((a,b)=>parseFloat(a[0])-parseFloat(b[0]));
+  return `<div class="brow"><span class="nm" title="${esc(cls)}"><b>${esc(cls)}</b></span><span class="track"><span class="fillb" style="display:block;width:${100*c.n/max}%;background:${col}"></span></span><span class="n">${c.n}</span></div>`+
+   (lens.length>1||(lens.length===1&&lens[0][0]!=="not measured yet"&&Object.keys(c.len).length)?lens.map(([l,n])=>`<div class="brow sub"><span class="nm">${esc(l)}</span><span class="track"><span class="fillb" style="display:block;width:${100*n/max}%;background:${col};opacity:.55"></span></span><span class="n">${n}</span></div>`).join(""):"");}).join("")||'<p class="note">The tray is empty.</p>';
+ $("statnote").textContent=`${parts.length} part${parts.length===1?"":"s"}`+(S.picks?` · ${S.picks} sorted this run`:"")+(S.failed_picks?` · ${S.failed_picks} missed`:"");}
+function renderActivity(){const busy=["running","waiting","parked","stopping"].includes(S.status);
+ const cls={running:"ok",standby:"ok",error:"bad",stuck:"warn",waiting:"warn",parked:"warn",paused:"warn"}[S.status]||"";
+ $("now").innerHTML=`<span class="dot ${cls}"></span><span>${esc(busy||S.status==="standby"?(S.phase||S.message):S.message)}</span>`;
+ const T=S.timing||{};$("actnote").textContent=T.cycle_s?`last cycle ${T.cycle_s} s`:"";
  const con=$("console"),atEnd=con.scrollTop+con.clientHeight>=con.scrollHeight-8;
  con.innerHTML=(S.console||[]).map(l=>`<div><span class="t">${esc(l.slice(0,8))}</span>${esc(l.slice(9))}</div>`).join("")||'<span class="note">nothing yet</span>';
- if(atEnd)con.scrollTop=con.scrollHeight;
- const su=S.setup||{};$("setupbadge").hidden=!(su.required&&!su.complete);$("setupbadge").textContent=(su.missing||[]).length;$("setupnote").hidden=!(su.required&&!su.complete);$("setupmissing").textContent="still to do: "+(su.missing||[]).join(", ");
- renderPairs(S.calib_pairs||[]);renderBins();if(!maskSet&&S.mask_margin_mm!=null){$("mmargin").value=S.mask_margin_mm;maskSet=true;}if(lay&&$("layout").classList.contains("on")&&!workStart)render();}
-setInterval(()=>{if(!$("login").classList.contains("on"))poll();},1500);session();
+ if(atEnd)con.scrollTop=con.scrollHeight;}
 
-// ---------------------------------------------------------------- layout
+// ---------------------------------------------------------------- device: the bed (queued changes)
 const CELL=64,ROLE_TEXT={unknown:"unknown parts",unsure:"not sure",overflow:"no bin",all:"everything",kit:"kit"};
-const HELP={select:"Click a bin to see and edit it.",add:"Click an empty cell to place a new bin.",work:"Click two corner cells of the working area."};
-document.querySelectorAll("input[name=mode]").forEach(r=>r.onchange=()=>{$("modehelp").textContent=HELP[mode()];workStart=null;if(lay)render();});
-let SIZES=[];
-async function loadLayout(){try{const j=await api("api/layout");lay=j.layout;SIZES=j.sizes||[];showProblems(j.problems);fillGridInputs();render();renderPrint();renderSizes();}catch(e){flash("laymsg",e.message,1);}}
-function renderSizes(){$("sizelist").innerHTML="<tr><th>size</th><th>codes</th><th>for</th><th>plates</th></tr>"+SIZES.map(s=>{const plates=[];for(let f=s.first;f<=s.last;f+=s.per_plate)plates.push(`<a href="api/print/plate?size=${s.name}&first=${f}">${f}–${Math.min(f+s.per_plate-1,s.last)}</a>`);return `<tr><td><b>${s.w}×${s.d}</b> · ${s.height_u}u${s.style==="corner"?" · corner":""}</td><td>${s.first}–${s.last}</td><td class="note">${esc(s.use)}</td><td>${plates.join(" · ")}</td></tr>`;}).join("")+'<tr><td class="note" colspan="4">240–249: any other size, set by hand in the layout (shelf). 50–99: the code on a post in the back-right corner instead of a shelf: nothing overhangs, so no part gets trapped (best for the plate).</td></tr>';}
-function styleOf(m){return m>=50&&m<100?"corner":"shelf";}
-function fillGridInputs(){$("wildby").value=lay.wild_by||"part";$("cols").value=lay.cols;$("rows").value=lay.rows;$("ox").value=lay.origin[0];$("oy").value=lay.origin[1];$("pt").value=lay.plate_thickness_mm;}
-["cols","rows","ox","oy","pt","wildby"].forEach(id=>$(id).onchange=()=>{lay.wild_by=$("wildby").value;lay.cols=+$("cols").value;lay.rows=+$("rows").value;lay.origin=[+$("ox").value,+$("oy").value];lay.plate_thickness_mm=+$("pt").value;render();});
+let SIZES=[],draft=null,pending=[];
+async function loadLayout(quiet){try{const j=await api("api/layout");lay=j.layout;SIZES=j.sizes||[];if(!pending.length)draft=JSON.parse(JSON.stringify(lay));if(!quiet||!pending.length)showProblems(j.problems);renderBed();renderPrint();renderSizes();}catch(e){if(!quiet)flash("laymsg",e.message,1);}}
 function showProblems(p){$("problems").innerHTML=(p||[]).map(x=>`<li>${esc(x)}</li>`).join("");}
-function mode(){return document.querySelector("input[name=mode]:checked").value;}
+function styleOf(m){return m>=50&&m<100?"corner":"shelf";}
+function cellName(x,y){let c="",n=x;for(;;){c=String.fromCharCode(65+n%26)+c;n=Math.floor(n/26)-1;if(n<0)break;}return c+(y+1);}
+function countW(n){return 5+String(n).length*3.6;}
 function twoLines(t){if(!t)return["",""];const i=t.lastIndexOf("_");return i>0?[t.slice(0,i),t.slice(i+1)]:[t,""];}
 function binText(b){const claim=(S.claims||{})[b.marker];
  if(b.role==="wild")return claim?{top:"wild",lines:twoLines(claim),free:false}:{top:"wild",lines:["free",""],free:true};
  if(b.role==="sort"){const h=b.label||b.holds.join(", ");return{top:"rules",lines:twoLines(h.length>18?h.slice(0,17)+"…":h),free:false};}
- if(b.role==="work")return{top:"plate",lines:[`${b.w}×${b.d} tray`,"parts go here"],free:false,plate:true};
+ if(b.role==="work")return{top:"tray",lines:[`${b.w}×${b.d} tray`,"parts go here"],free:false,plate:true};
  return{top:b.role,lines:[b.label||ROLE_TEXT[b.role]||b.role,""],free:false,special:true};}
-function render(){const W=lay.cols*CELL,H=lay.rows*CELL,svg=$("grid"),rm=readyMap(),pad=4;svg.setAttribute("viewBox",`${-pad} ${-pad} ${W+2*pad} ${H+2*pad}`);
- const Y=(y,d)=>H-(y+d)*CELL;let s="";
- for(let x=0;x<lay.cols;x++)for(let y=0;y<lay.rows;y++)s+=`<rect x="${x*CELL+1.5}" y="${Y(y,1)+1.5}" width="${CELL-3}" height="${CELL-3}" rx="6" fill="var(--cell)" stroke="var(--line2)" data-cx="${x}" data-cy="${y}" style="cursor:${mode()==="select"?"default":"pointer"}"/>`;
- $("workmode").hidden=lay.work_marker!=null;
- const w=lay.work;if(lay.work_marker==null)s+=`<rect x="${w.x*CELL+3}" y="${Y(w.y,w.d)+3}" width="${w.w*CELL-6}" height="${w.d*CELL-6}" rx="9" fill="var(--work)" pointer-events="none"/>`+
-  `<text x="${(w.x+w.w/2)*CELL}" y="${Y(w.y,w.d)+w.d*CELL/2+2}" text-anchor="middle" font-size="6.2" letter-spacing="1.2" fill="#9aa9ae">WORKING AREA</text>`;
- for(const b of lay.bins){const on=b.marker===sel,r=rm[b.marker],t=binText(b),x0=b.x*CELL+4,y0=Y(b.y,b.d)+4,bw=b.w*CELL-8,bh=b.d*CELL-8;
-  const f=(S.fill||{})[b.marker],q=swapMap()[b.marker],fill=t.plate?"var(--work)":r?"var(--ok-soft)":t.special?"var(--cell)":"#fff",stroke=on?"var(--acc)":q?"var(--warn)":r?"var(--ok)":t.plate?"#c9d6db":"#d9d8d2";
-  s+=`<g data-m="${b.marker}" style="cursor:pointer"><rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="${on||q?1.6:0.8}" ${t.free&&!on?'stroke-dasharray="3 2.5"':""}/>`+
+function queue(text){pending.push(text);renderBed();}
+function changedBins(){if(!lay||!draft)return new Set();const was={};for(const b of lay.bins)was[b.marker]=JSON.stringify(b);return new Set(draft.bins.filter(b=>was[b.marker]!==JSON.stringify(b)).map(b=>b.marker));}
+function dots(x,y,on){return `<g class="dots" data-dot="1"><rect x="${x-9}" y="${y-5}" width="18" height="10" rx="5" fill="${on?"var(--acc-soft)":"transparent"}"/>`+[-4.5,0,4.5].map(d=>`<circle cx="${x+d}" cy="${y}" r="1.25" fill="var(--mut)"/>`).join("")+"</g>";}
+function renderBed(){const L=draft;if(!L)return;const W=L.cols*CELL,H=L.rows*CELL,svg=$("grid"),rm=readyMap(),qm=swapMap(),ch=changedBins(),pad=4;
+ svg.setAttribute("viewBox",`${-pad} ${-pad} ${W+2*pad} ${H+2*pad}`);const Y=(y,d)=>H-(y+d)*CELL;let s="";
+ const taken=new Set();for(const b of L.bins)for(let i=0;i<b.w;i++)for(let j=0;j<b.d;j++)taken.add(`${b.x+i},${b.y+j}`);
+ for(let x=0;x<L.cols;x++)for(let y=0;y<L.rows;y++){const free=!taken.has(`${x},${y}`),x0=x*CELL+1.5,y0=Y(y,1)+1.5;
+  s+=`<g data-cell="${x},${y}" style="cursor:${free?"pointer":"default"}"><rect x="${x0}" y="${y0}" width="${CELL-3}" height="${CELL-3}" rx="6" fill="${free?"#f1f1ee":"var(--cell)"}" stroke="var(--line2)"/>`+
+   (free?`<text x="${x0+6}" y="${y0+10}" font-size="5.4" fill="var(--soft)">${cellName(x,y)}</text>${dots(x0+CELL/2-1.5,y0+CELL/2-1.5)}`:"")+"</g>";}
+ for(const b of L.bins){const r=rm[b.marker],q=qm[b.marker],t=binText(b),x0=b.x*CELL+4,y0=Y(b.y,b.d)+4,bw=b.w*CELL-8,bh=b.d*CELL-8,f=(S.fill||{})[b.marker],edit=ch.has(b.marker);
+  const fill=q?"var(--warn-soft)":t.plate?"var(--work)":r?"var(--ok-soft)":t.special?"var(--cell)":"#fff",stroke=q?"var(--warn)":edit?"var(--acc)":r?"var(--ok)":t.plate?"#c9d6db":"#d9d8d2";
+  s+=`<g data-m="${b.marker}" style="cursor:pointer"><rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="${q||edit?1.6:0.8}" ${(t.free&&!q)||edit?'stroke-dasharray="3 2.5"':""}/>`+
    (()=>{const k=CELL*14/42,rot=(b.rot||0)%360,sh=styleOf(b.marker)==="corner"?{0:[x0+bw-k,y0,k,k],90:[x0,y0,k,k],180:[x0,y0+bh-k,k,k],270:[x0+bw-k,y0+bh-k,k,k]}[rot]:{0:[x0,y0,bw,k],180:[x0,y0+bh-k,bw,k],90:[x0,y0,k,bh],270:[x0+bw-k,y0,k,bh]}[rot];
      return `<rect x="${sh[0]+1}" y="${sh[1]+1}" width="${sh[2]-2}" height="${sh[3]-2}" rx="5" fill="${t.plate?"#dfe7ea":"var(--line2)"}" opacity="${t.plate?1:0.55}"/>`;})()+
    `<text x="${x0+7}" y="${y0+11}" font-size="5.6" fill="var(--soft)"><tspan font-weight="600" fill="var(--mut)">${cellName(b.x,b.y)}</tspan> · ${b.marker}</text>`+
@@ -373,50 +444,97 @@ function render(){const W=lay.cols*CELL,H=lay.rows*CELL,svg=$("grid"),rm=readyMa
     :`<text x="${x0+bw-7}" y="${y0+11}" font-size="5.6" fill="var(--soft)" text-anchor="end">${esc(r?"":t.top)}</text>`)+
    `<text x="${x0+7}" y="${y0+bh/2+3}" font-size="7.6" font-weight="600" fill="${t.free?"var(--soft)":"var(--ink)"}">${esc(t.lines[0].slice(0,11*b.w))}</text>`+
    `<text x="${x0+7}" y="${y0+bh/2+13}" font-size="7.6" fill="var(--mut)">${esc(t.lines[1].slice(0,11*b.w))}</text>`;
-  if(r)s+=`<circle cx="${x0+bw-11}" cy="${y0+9}" r="5" fill="var(--ok)"/><path d="M${x0+bw-13.4} ${y0+9.2} l1.8 1.8 l3.2 -3.4" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`+
-   `<text x="${x0+7}" y="${y0+bh-7}" font-size="5.6" fill="var(--ok)">ready · ${r.count}</text>`;
-  else if(f&&f.count&&!t.plate){const share=Math.min(1,f.share),bar=bw-14;
-   s+=`<g><title>${f.full?"full: empty it soon":`about ${Math.round(share*100)} % full, room for about ${f.more} more`}</title><rect x="${x0+7}" y="${y0+bh-6}" width="${bar}" height="2.4" rx="1.2" fill="var(--line2)"/><rect x="${x0+7}" y="${y0+bh-6}" width="${Math.max(2.4,bar*share)}" height="2.4" rx="1.2" fill="${f.full?"var(--warn)":"var(--acc)"}"/></g>`;}
-  s+="</g>";}
- if(workStart)s+=`<rect x="${workStart[0]*CELL+2}" y="${Y(workStart[1],1)+2}" width="${CELL-4}" height="${CELL-4}" rx="7" fill="none" stroke="var(--acc)" stroke-width="1.6"/>`;
+  if(q)s+=`<text x="${x0+7}" y="${y0+bh-7}" font-size="5.6" font-weight="600" fill="var(--warn)">change</text>`;
+  else if(r)s+=`<circle cx="${x0+bw-11}" cy="${y0+9}" r="5" fill="var(--ok)"/><path d="M${x0+bw-13.4} ${y0+9.2} l1.8 1.8 l3.2 -3.4" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><text x="${x0+7}" y="${y0+bh-7}" font-size="5.6" fill="var(--ok)">finished · ${r.count}</text>`;
+  else if(f&&f.count&&!t.plate){const share=Math.min(1,f.share),bar=bw-30;
+   s+=`<g><title>${f.full?"full: change it soon":`about ${Math.round(share*100)} % full, room for about ${f.more} more`}</title><rect x="${x0+7}" y="${y0+bh-6}" width="${bar}" height="2.4" rx="1.2" fill="var(--line2)"/><rect x="${x0+7}" y="${y0+bh-6}" width="${Math.max(2.4,bar*share)}" height="2.4" rx="1.2" fill="${f.full?"var(--warn)":"var(--acc)"}"/></g>`;}
+  if(S.target&&S.target.bin===b.marker)s+=`<rect x="${x0-2.5}" y="${y0-2.5}" width="${bw+5}" height="${bh+5}" rx="9" fill="none" stroke="#c8462c" stroke-width="1.4"/>`;
+  s+=dots(x0+bw-11,y0+bh-6.5)+"</g>";}
  svg.innerHTML=s;
- svg.querySelectorAll("rect[data-cx]").forEach(r=>r.onclick=()=>cellClick(+r.dataset.cx,+r.dataset.cy));
- svg.querySelectorAll("g[data-m]").forEach(g=>g.onclick=e=>{e.stopPropagation();if(mode()==="select"){sel=+g.dataset.m;render();panel();}});}
-function cellName(x,y){let c="",n=x;for(;;){c=String.fromCharCode(65+n%26)+c;n=Math.floor(n/26)-1;if(n<0)break;}return c+(y+1);}
-function countW(n){return 5+String(n).length*3.6;}
-function nextMarker(w,d,u,st){const used=new Set(lay.bins.map(b=>b.marker));const s=SIZES.find(s=>s.style===st&&s.height_u===u&&((s.w===w&&s.d===d)||(s.w===d&&s.d===w)));
+ svg.querySelectorAll("g[data-m]").forEach(g=>{const m=+g.dataset.m,open=e=>{e.preventDefault();e.stopPropagation();binMenu(m,e);};g.onclick=open;g.oncontextmenu=open;});
+ svg.querySelectorAll("g[data-cell]").forEach(g=>{const[x,y]=g.dataset.cell.split(",").map(Number);if(taken.has(`${x},${y}`))return;const open=e=>{e.preventDefault();e.stopPropagation();cellMenu(x,y,e);};g.onclick=open;g.oncontextmenu=open;});
+ $("pending").hidden=!pending.length;$("pendtext").innerHTML=pending.length?`<b>${pending.length} change${pending.length===1?"":"s"} queued</b> · ${pending.map(esc).join(" · ")}`:"";
+ renderBedBar();}
+function renderBedBar(){const reqs=S.requests||[],parked=S.swap_phase==="parked",L=draft;
+ const cell=m=>{const b=L&&L.bins.find(b=>b.marker===m);return b?cellName(b.x,b.y):String(m);};
+ $("bedbar").innerHTML=reqs.map(x=>`<span class="req chg"><b>${esc(x.cell)}</b> ${esc(x.what)} <span class="mut">${x.count} · ${x.why==="full"?"full":x.why==="asked"?"asked":"for "+esc(x.for_kind||"")}</span><button onclick="cmd('change')">${parked?`Bin ${esc(x.cell)} changed`:`Change bin ${esc(x.cell)}`}</button></span>`).join("")+
+  (S.ready||[]).filter(x=>!reqs.some(r=>r.marker===x.marker)).map(x=>`<span class="req fin"><b>${esc(cell(x.marker))}</b> ${esc(x.what)} <span class="mut">${x.count} · finished</span><button onclick="emptied(${x.marker})">Emptied</button></span>`).join("");}
+// menus
+function closeMenu(){$("menu").hidden=true;}
+document.addEventListener("click",e=>{if(!$("menu").contains(e.target))closeMenu();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeMenu();closeModal();}});
+function showMenu(html,e){const m=$("menu");m.innerHTML=html;m.hidden=false;const r=m.getBoundingClientRect(),x=Math.min(e.clientX,innerWidth-r.width-8),y=Math.min(e.clientY,innerHeight-r.height-8);m.style.left=x+"px";m.style.top=y+"px";}
+function binMenu(m,e){const b=draft.bins.find(b=>b.marker===m);if(!b)return;const f=(S.fill||{})[m]||{},claim=(S.claims||{})[m],q=swapMap()[m],r=readyMap()[m],n=f.count||0;
+ const what=b.role==="work"?"the tray":claim||b.label||b.holds.join(", ")||(b.role==="wild"?"free wild bin":b.role);
+ showMenu(`<div class="mh"><b>${cellName(b.x,b.y)} · bin ${m}</b><br>${esc(what)}${n?` · ${n} part${n===1?"":"s"}${f.share!=null&&b.role!=="work"?`, ~${Math.round(Math.min(1,f.share)*100)} % full`:""}`:""}</div>`+
+  (q?`<button class="warnb" onclick="closeMenu();cmd('change')">${S.swap_phase==="parked"?"Bin changed: check it":"Change bin "+esc(q.cell)+" now"}</button>`:(b.role!=="work"?`<button onclick="askChange(${m})">Change bin (empty or swap it)…</button>`:""))+
+  `<button onclick="editBin(${m})">Edit role, rules, size…</button>`+
+  (b.role!=="work"?`<button onclick="makeTray(${m})">Make it the tray</button>`:"")+
+  `<button onclick="turnBin(${m})">Turn 90°</button>`+
+  (n&&b.role!=="work"?`<button onclick="binFull(${m})">It is full (teach the estimate)</button>`:"")+
+  (n||claim||r?`<button onclick="emptied(${m})">Emptied</button>`:"")+
+  `<div class="sep"></div><a href="api/print/bin?marker=${m}&fmt=3mf" onclick="closeMenu()">Print this bin (3MF)</a>`+
+  `<button class="warnb" onclick="removeBin(${m})">Take it off the layout</button>`,e);}
+let addCorner=false;
+function cellMenu(x,y,e){const opts=[[1,1,3],[1,2,3],[1,1,6],[1,2,6],[2,2,6],[3,3,3],[4,4,3]];
+ showMenu(`<div class="mh"><b>${cellName(x,y)} · no bin</b><br>Put a bin here (it is found by its code on the next Resync, too)</div>`+
+  opts.map(([w,d,u])=>`<button onclick="addBin(${x},${y},${w},${d},${u})">${w}×${d} cell${w*d>1?"s":""}, ${u} units${w>=3?" (tray)":""}</button>`).join("")+
+  `<div class="sep"></div><label class="opt"><input type="checkbox" ${addCorner?"checked":""} onchange="addCorner=this.checked" onclick="event.stopPropagation()">code on a corner post</label>`,e);}
+function fits(x,y,w,d,skip){if(x<0||y<0||x+w>draft.cols||y+d>draft.rows)return false;for(const b of draft.bins){if(b.marker===skip)continue;if(x<b.x+b.w&&b.x<x+w&&y<b.y+b.d&&b.y<y+d)return false;}return true;}
+function nextMarker(w,d,u,st){const used=new Set(draft.bins.map(b=>b.marker));const s=SIZES.find(s=>s.style===st&&s.height_u===u&&((s.w===w&&s.d===d)||(s.w===d&&s.d===w)));
  const [a,z]=s?[s.first,s.last]:[240,249];for(let m=a;m<=z;m++)if(!used.has(m))return m;return null;}
-function cellClick(x,y){const m=mode();
- if(m==="add"){const w=+$("nw").value,d=+$("nd").value,u=+$("nu").value,id=nextMarker(w,d,u,$("ns").value);if(id===null){flash("laymsg","no free code left for that size",1);return;}lay.bins.push({marker:id,x,y,w,d,height_u:u,holds:[],role:"wild",label:""});sel=id;render();panel();}
- else if(m==="work"){if(!workStart){workStart=[x,y];render();}else{const[x0,y0]=workStart;lay.work={x:Math.min(x0,x),y:Math.min(y0,y),w:Math.abs(x-x0)+1,d:Math.abs(y-y0)+1};workStart=null;render();}}
- else{sel=null;render();panel();}}
-function panel(){const b=lay.bins.find(b=>b.marker===sel),p=$("binpanel");
- if(!b){p.innerHTML='<h2>Bin</h2><p class="note">Click a bin in the grid.</p>';return;}
- const roles=["wild","sort","work","unknown","unsure","overflow","kit","all"],claim=(S.claims||{})[b.marker],r=readyMap()[b.marker],n=(S.bin_counts||{})[b.marker]||0;
- const f=(S.fill||{})[b.marker];p.innerHTML=`<h2>Bin ${b.marker} · ${cellName(b.x,b.y)}</h2>
- ${r?`<div class="notice" style="margin-bottom:14px;padding:10px 12px"><span class="check">✓</span><div><b>Ready to take out</b><br><span class="note">${esc(r.what)} · ${r.count} part${r.count===1?"":"s"}</span></div></div>`:""}
- ${b.role==="wild"?`<p>${claim?`Collects <b>${esc(claim)}</b>`:'<span class="mut">Free: the next new kind goes here.</span>'}</p>`:""}
- ${n?`<p class="note">${n} part${n===1?"":"s"} in it since it was last emptied${f&&b.role!=="work"?`: about ${Math.round(Math.min(1,f.share)*100)} % full${f.full?" (full)":`, room for about ${f.more} more like them`}`:""}. Estimated from the size of each part the camera saw.</p>`:""}
- ${n||claim?`<p class="row"><button class="b s" onclick="emptied(${b.marker})">Emptied</button>${n&&b.role!=="work"?`<button class="b s" onclick="binFull(${b.marker})" title="it is really full now: the estimates learn how densely these parts pack">Full</button>`:""}</p>`:""}
- <div style="display:grid;gap:10px;margin-top:6px">
- <label>role<select id="br">${roles.map(x=>`<option${x===b.role?" selected":""}>${x}</option>`).join("")}</select></label>
- <label>rules<input id="bh" style="flex:1" value="${esc(b.holds.join(", "))}" placeholder="none: wild"></label>
- <label>label<input id="bl" style="flex:1" value="${esc(b.label)}" placeholder="optional"></label>
- <div class="row"><label>marker<input id="bm" type="number" min="50" max="249" value="${b.marker}"></label><span class="note">code on ${styleOf(b.marker)==="corner"?"a corner post":"the shelf"}</span></div>
- <div class="row"><label>size<input id="bw" type="number" min="1" value="${b.w}" style="width:56px">×<input id="bd" type="number" min="1" value="${b.d}" style="width:56px"></label><label>height<input id="bu" type="number" min="3" value="${b.height_u}" style="width:56px">u</label></div></div>
- <div class="row" style="margin-top:14px"><button class="b s" onclick="turnBin()">Turn 90°</button><button class="b s" onclick="delBin()">Remove</button><span class="note">print: <a href="api/print/bin?marker=${b.marker}&fmt=3mf">3MF</a> · <a href="api/print/bin?marker=${b.marker}&fmt=stl">STL</a></span></div>
- <p class="note" style="margin-top:12px">Typing rules turns a wild bin into a rule bin; clearing them makes it wild again.</p>`;
- const upd=()=>{const was=b.role;b.marker=+$("bm").value;b.role=$("br").value;
-  if(b.role==="work"&&was!=="work"){for(const o of lay.bins)if(o!==b&&o.role==="work")o.role="wild";lay.work_marker=b.marker;lay.work_auto=false;}
-  else if(was==="work"&&b.role!=="work"){lay.work_marker=null;lay.work_auto=true;}
-  else if(b.role==="work")lay.work_marker=b.marker;b.holds=$("bh").value.split(",").map(s=>s.trim()).filter(Boolean);if(b.holds.length&&b.role==="wild")b.role="sort";else if(!b.holds.length&&b.role==="sort")b.role="wild";if(b.role==="work")b.holds=[];b.label=$("bl").value;b.w=+$("bw").value;b.d=+$("bd").value;b.height_u=+$("bu").value;sel=b.marker;render();panel();};
- ["bm","br","bh","bl","bw","bd","bu"].forEach(id=>$(id).onchange=upd);}
-function turnBin(){const b=lay.bins.find(b=>b.marker===sel);[b.w,b.d]=[b.d,b.w];b.rot=((b.rot||0)+90)%360;render();panel();}
-function delBin(){lay.bins=lay.bins.filter(b=>b.marker!==sel);sel=null;render();panel();}
-async function saveLayout(){try{const j=await api("api/layout",{layout:lay});lay=j.layout;showProblems(j.problems);flash("laymsg",j.problems.length?"saved, but see below":"saved");render();renderPrint();}catch(e){flash("laymsg",e.message,1);}}
-async function scan(){flash("laymsg","taking a photo…");try{const j=await api("api/scan",{});await loadLayout();showProblems(j.problems);
- const wb=lay.bins.find(b=>b.marker===j.work);flash("laymsg",`${j.found.length} bin(s) · baseplate at ${j.origin.map(v=>v.toFixed(1)).join(", ")} · plate: ${wb?`bin ${wb.marker} (${wb.w}×${wb.d})${j.work_auto?", the biggest":", your choice"}`:"none"}`+(j.removed.length?` · not seen: ${j.removed.join(", ")}`:""));}catch(e){flash("laymsg",e.message,1);}}
-function renderPrint(){$("printlist").innerHTML="<tr><th>bin</th><th>size</th><th>holds</th><th>files</th></tr>"+lay.bins.map(b=>`<tr><td>${b.marker}</td><td>${b.w}×${b.d} · ${b.height_u}u</td><td>${esc(b.label||b.holds.join(", ")||b.role)}</td><td><a href="api/print/bin?marker=${b.marker}&fmt=3mf">3MF</a> · <a href="api/print/bin?marker=${b.marker}&fmt=stl">STL</a></td></tr>`).join("");}
+function addBin(x,y,w,d,u){closeMenu();if(!fits(x,y,w,d)){flash("laymsg",`a ${w}×${d} bin does not fit at ${cellName(x,y)}`,1);return;}
+ const id=nextMarker(w,d,u,addCorner?"corner":"shelf");if(id===null){flash("laymsg","no free code left for that size",1);return;}
+ draft.bins.push({marker:id,x,y,w,d,height_u:u,holds:[],role:"wild",label:"",rot:0});queue(`add bin ${id} at ${cellName(x,y)}`);}
+function removeBin(m){closeMenu();const b=draft.bins.find(b=>b.marker===m);draft.bins=draft.bins.filter(b=>b.marker!==m);if(draft.work_marker===m){draft.work_marker=null;draft.work_auto=true;}queue(`take bin ${m} (${cellName(b.x,b.y)}) off`);}
+function turnBin(m){closeMenu();const b=draft.bins.find(b=>b.marker===m);const[w,d]=[b.d,b.w];if(!fits(b.x,b.y,w,d,m)){flash("laymsg","turned, it would not fit",1);return;}b.w=w;b.d=d;b.rot=((b.rot||0)+90)%360;queue(`turn bin ${m}`);}
+function makeTray(m){closeMenu();for(const o of draft.bins)if(o.role==="work")o.role="wild";const b=draft.bins.find(b=>b.marker===m);b.role="work";b.holds=[];draft.work_marker=m;draft.work_auto=false;queue(`bin ${m} becomes the tray`);}
+async function applyChanges(){try{const j=await api("api/layout",{layout:draft});lay=j.layout;draft=JSON.parse(JSON.stringify(lay));const n=pending.length;pending=[];showProblems(j.problems);
+ flash("laymsg",(j.problems.length?"applied, but see the problems above":`${n} change${n===1?"":"s"} applied`)+(["running","waiting","parked"].includes(S.status)?": used from the next pick":""));renderBed();renderPrint();}catch(e){flash("laymsg",e.message,1);}}
+function discard(){pending=[];draft=JSON.parse(JSON.stringify(lay));flash("laymsg","changes discarded");renderBed();}
+async function scan(){if(pending.length&&!confirm("Resync replaces the queued changes. Go on?"))return;pending=[];flash("laymsg","taking a photo…");try{const j=await api("api/scan",{});await loadLayout();showProblems(j.problems);
+ const wb=lay.bins.find(b=>b.marker===j.work);flash("laymsg",`${j.found.length} bin(s) · grid at ${j.origin.map(v=>v.toFixed(1)).join(", ")} · tray: ${wb?`bin ${wb.marker} (${wb.w}×${wb.d})${j.work_auto?", the biggest":", your choice"}`:"none"}`+(j.removed.length?` · not seen: ${j.removed.join(", ")}`:""));}catch(e){flash("laymsg",e.message,1);}}
+// dialogs
+function modal(title,body,ok){$("mtitle").textContent=title;$("mbody").innerHTML=body;$("mok").onclick=()=>{if(ok()!==false)closeModal();};$("modal").hidden=false;}
+function closeModal(){$("modal").hidden=true;}
+function editBin(m){closeMenu();const b=draft.bins.find(b=>b.marker===m),roles=["wild","sort","work","unknown","unsure","overflow","kit","all"];
+ modal(`Bin ${m} · ${cellName(b.x,b.y)}`,`<div class="fields">
+  <label>role<select id="e_role">${roles.map(x=>`<option${x===b.role?" selected":""}>${x}</option>`).join("")}</select></label>
+  <label>rules<input id="e_holds" value="${esc(b.holds.join(", "))}" placeholder="none: a wild bin"></label>
+  <label>label<input id="e_label" value="${esc(b.label||"")}" placeholder="optional"></label>
+  <label>code<input id="e_marker" type="number" min="50" max="249" value="${m}"></label>
+  <label>size<span class="row"><input id="e_w" type="number" min="1" value="${b.w}" style="width:60px">×<input id="e_d" type="number" min="1" value="${b.d}" style="width:60px">cells</span></label>
+  <label>height<span class="row"><input id="e_u" type="number" min="3" value="${b.height_u}" style="width:60px">units</span></label></div>
+  <p class="note" style="margin:12px 0 0">Rules: a part number (DIN912_M4x16), a class (DIN912_M4), a family (DIN912) or wildcards (DIN912_M*), separated by commas. Typing rules makes a wild bin a rule bin; clearing them makes it wild again.</p>`,()=>{
+  const nm=+$("e_marker").value,w=+$("e_w").value,d=+$("e_d").value;if(nm!==m&&draft.bins.some(o=>o.marker===nm)){alert(`code ${nm} is used by another bin`);return false;}
+  if(!fits(b.x,b.y,w,d,m)){alert("that size does not fit there");return false;}
+  const was=b.role;b.role=$("e_role").value;b.holds=$("e_holds").value.split(",").map(s=>s.trim()).filter(Boolean);b.label=$("e_label").value;b.marker=nm;b.w=w;b.d=d;b.height_u=+$("e_u").value;
+  if(b.holds.length&&b.role==="wild")b.role="sort";else if(!b.holds.length&&b.role==="sort")b.role="wild";
+  if(b.role==="work"){for(const o of draft.bins)if(o!==b&&o.role==="work")o.role="wild";b.holds=[];draft.work_marker=nm;draft.work_auto=false;}else if(was==="work"){draft.work_marker=null;draft.work_auto=true;}
+  queue(`edit bin ${nm}`);});}
+function openSettings(){const L=draft;modal("Layout settings",`<div class="fields">
+  <label>each wild bin collects<select id="s_wild"><option value="part">a part number (DIN912_M4x16)</option><option value="class">a class, any length (DIN912_M4)</option><option value="family">a family (DIN912)</option></select></label>
+  <label>grid<span class="row"><input id="s_cols" type="number" min="1" value="${L.cols}" style="width:60px">×<input id="s_rows" type="number" min="1" value="${L.rows}" style="width:60px">cells</span></label>
+  <label>front-left corner<span class="row">X<input id="s_ox" type="number" step="0.1" value="${L.origin[0]}" style="width:76px">Y<input id="s_oy" type="number" step="0.1" value="${L.origin[1]}" style="width:76px"></span></label>
+  <label>TPU sheet in the tray<span class="row"><input id="s_pt" type="number" step="0.05" value="${L.plate_thickness_mm}" style="width:76px">mm</span></label></div>
+  <p class="note" style="margin:12px 0 0">Resync finds the grid's corner by itself; the size grows to fit the bins it sees.</p>`,()=>{
+  L.wild_by=$("s_wild").value;L.cols=+$("s_cols").value;L.rows=+$("s_rows").value;L.origin=[+$("s_ox").value,+$("s_oy").value];L.plate_thickness_mm=+$("s_pt").value;queue("layout settings");});
+ $("s_wild").value=L.wild_by||"part";}
+// print tab
+function renderPrint(){if(!lay)return;$("printlist").innerHTML="<tr><th>bin</th><th>size</th><th>holds</th><th>files</th></tr>"+lay.bins.map(b=>`<tr><td>${b.marker}</td><td>${b.w}×${b.d} · ${b.height_u}u</td><td>${esc(b.label||b.holds.join(", ")||b.role)}</td><td><a href="api/print/bin?marker=${b.marker}&fmt=3mf">3MF</a> · <a href="api/print/bin?marker=${b.marker}&fmt=stl">STL</a></td></tr>`).join("");}
+function renderSizes(){$("sizelist").innerHTML="<tr><th>size</th><th>codes</th><th>for</th><th>plates (download)</th><th class=\"thumb\">looks like</th></tr>"+SIZES.map(s=>{const plates=[];for(let f=s.first;f<=s.last;f+=s.per_plate)plates.push(`<a href="api/print/plate?size=${s.name}&first=${f}">${f===Math.min(f+s.per_plate-1,s.last)?f:`${f}–${Math.min(f+s.per_plate-1,s.last)}`}</a>`);
+ return `<tr><td><b>${s.w}×${s.d}</b> · ${s.height_u}u${s.style==="corner"?"<br><span class=\"note\">corner code</span>":""}</td><td>${s.first}–${s.last}</td><td class="note">${esc(s.use)}</td><td><div class="plates">${plates.join("")}</div></td><td class="thumb">${binIso(s.w,s.d,s.height_u,s.style)}</td></tr>`;}).join("")+'<tr><td class="note" colspan="5">240–249: any other size, set by hand on the bed (shelf code). 50–99: the code on a post in the back-right corner instead of a shelf: nothing overhangs, so no part gets trapped (best for the tray).</td></tr>';}
+function binIso(w,d,hu,style){const P=42,W=w*P-0.5,D=d*P-0.5,Hh=hu*7,t=1.6,f=6,c=0.866;
+ const pr=(u,v,z)=>[(u-v)*c,(u+v)*0.5-z],poly=(pts,fill,extra="")=>`<polygon points="${pts.map(p=>pr(...p).map(n=>n.toFixed(1)).join(",")).join(" ")}" fill="${fill}" stroke="#9a9a94" stroke-width=".5" stroke-linejoin="round" ${extra}/>`;
+ let s="";const R=(u0,v0,u1,v1,z)=>[[u0,v0,z],[u1,v0,z],[u1,v1,z],[u0,v1,z]];
+ s+=poly([[W,0,0],[W,D,0],[W,D,Hh],[W,0,Hh]],"#e4e3dc")+poly([[0,D,0],[W,D,0],[W,D,Hh],[0,D,Hh]],"#efeee8");
+ s+=poly(R(0,0,W,D,Hh),"#f8f8f4");s+=poly(R(t,t,W-t,D-t,f),"#dcdcd5");
+ s+=poly([[t,t,f],[W-t,t,f],[W-t,t,Hh],[t,t,Hh]],"#cfcfc8")+poly([[t,t,f],[t,D-t,f],[t,D-t,Hh],[t,t,Hh]],"#d6d6cf");
+ const mk=(u,v)=>{const m=9.6;return poly(R(u-m/2,v-m/2,u+m/2,v+m/2,Hh+0.4),"#222");};
+ if(style==="corner"){const p=14,u0=W-t-p,v1=t+p;s+=poly([[u0,v1,f],[W-t,v1,f],[W-t,v1,Hh],[u0,v1,Hh]],"#e7e6df")+poly([[u0,t,f],[u0,v1,f],[u0,v1,Hh],[u0,t,Hh]],"#dfded7")+poly(R(u0,t,W-t,v1,Hh),"#f8f8f4")+mk(u0+p/2,t+p/2);}
+ else{const sd=14;s+=poly([[t,t+sd,Hh],[W-t,t+sd,Hh],[W-t,t,Math.max(f,Hh-sd)],[t,t,Math.max(f,Hh-sd)]],"#e2e1da")+poly(R(t,t,W-t,t+sd,Hh),"#f8f8f4")+mk(W/2,t+sd/2);}
+ const pts=[[0,0,0],[W,0,0],[0,D,0],[W,D,0],[0,0,Hh],[W,0,Hh],[0,D,Hh],[W,D,Hh]].map(p=>pr(...p)),xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x0=Math.min(...xs)-2,y0=Math.min(...ys)-2;
+ return `<svg viewBox="${x0} ${y0} ${Math.max(...xs)-x0+2} ${Math.max(...ys)-y0+2}">${s}</svg>`;}
 
 // ---------------------------------------------------------------- setup
 function go(t){document.querySelector(`nav button[data-t="${t}"]`).click();}
@@ -492,11 +610,12 @@ async function getTip(){try{const j=await api("api/tip");$("tip").textContent=j.
 const SRC={dropped:"dropped here",["machine.yaml"]:"from machine.yaml",["screw-sorting"]:"from the screw-sorting code",none:"not there"};
 async function loadFiles(){try{renderFiles((await api("api/files")).slots);}catch(e){flash("fmsg",e.message,1);}}
 function renderFiles(slots){
- $("flist").innerHTML=slots.map(f=>`<div class="card" style="margin:0"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(f.title)}</h2><span class="src ${f.source==="dropped"?"dropped":f.source==="none"?"none":""}">${esc(SRC[f.source]||f.source)}</span></div>
-  <p style="margin:8px 0 0"><b>${esc(f.filename)}</b> <span class="note">${esc(f.summary||"")}${f.added?` · added ${esc(f.added.added)}${f.added.original!==f.filename?" from "+esc(f.added.original):""}`:""}</span></p>
-  <dl class="fmeta"><dt>Where</dt><dd>${esc(f.where)}</dd><dt>Used for</dt><dd>${esc(f.used_for)}</dd><dt>Without it</dt><dd>${esc(f.without)}</dd></dl>
-  <div class="fdrop" data-k="${f.key}">Drop <b>${esc(f.filename)}</b> here, or click to choose</div>
-  <div class="row" style="margin-top:10px">${f.path?`<button class="b s" onclick="location.href='api/files/download?key=${f.key}'">Download</button>`:""}${f.source==="dropped"?`<button class="b s" onclick="removeFile('${f.key}')">Remove</button>`:""}</div></div>`).join("");
+ $("flist").innerHTML=slots.map(f=>`<div class="frow">
+  <div class="fname"><span class="t">${esc(f.title)}</span><code>${esc(f.filename)}</code><span class="src ${f.source==="dropped"?"dropped":f.source==="none"?"none":""}" style="align-self:flex-start">${esc(SRC[f.source]||f.source)}</span>
+   <span class="note">${esc(f.summary||"")}${f.added?`<br>added ${esc(f.added.added)}${f.added.original!==f.filename?" from "+esc(f.added.original):""}`:""}</span></div>
+  <dl class="fmeta3"><div><dt>Where</dt><dd>${esc(f.where)}</dd></div><div><dt>Used for</dt><dd>${esc(f.used_for)}</dd></div><div><dt>Without it</dt><dd>${esc(f.without)}</dd></div></dl>
+  <div class="fside"><div class="fdrop" data-k="${f.key}"><span>Drop <b>${esc(f.filename)}</b><br>or click to choose</span></div>
+   <div class="fbtns">${f.path?`<button class="b s" onclick="location.href='api/files/download?key=${f.key}'">Download</button>`:""}${f.source==="dropped"?`<button class="b s" onclick="removeFile('${f.key}')">Remove</button>`:""}</div></div></div>`).join("");
  document.querySelectorAll(".fdrop").forEach(d=>{const k=d.dataset.k;
   d.onclick=()=>{const i=document.createElement("input");i.type="file";i.accept=".json,.yaml,.yml";i.onchange=()=>i.files[0]&&sendFile(k,i.files[0]);i.click();};
   d.ondragover=e=>{e.preventDefault();d.classList.add("over");};d.ondragleave=()=>d.classList.remove("over");

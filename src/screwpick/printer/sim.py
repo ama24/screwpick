@@ -212,6 +212,7 @@ class SimVision:
         self.head = None  # config.HeadCamera
         self.head_ref: tuple[float, float] = (0.0, 0.0)  # tip X/Y of the calibration photo
         self.painted: list[bool] = []  # per photo: was everything outside the tray painted over
+        self._px: np.ndarray | None = None  # bed mm -> picture pixels of the last drawing
 
     delay_s: float = 0.0  # pretend the analysis takes this long (tests of the pipeline)
 
@@ -286,7 +287,12 @@ class SimVision:
         shot = Shot(name, parts, markers)
         if self.out is not None:
             painted = [T.apply(work.outline)] if work is not None else None
-            shot.vis = self._draw(name, lay, plate, painted)
+            shot.vis = self._draw(name, lay, plate, painted)  # what the model saw
+            shot.view = self._draw(name, lay, plate, None, "view")  # the whole picture
+            if self._px is not None:  # plate -> bed (T) -> picture pixels
+                Tm = np.eye(3)
+                Tm[:2, :2], Tm[:2, 2] = T.A, T.t
+                shot.view_h = (self._px @ Tm).tolist()
         return shot
 
     def _draw(
@@ -295,6 +301,7 @@ class SimVision:
         lay: Layout,
         plate: list[SimPart],
         keep: list[np.ndarray] | None = None,  # painted: only this (bed mm) is left
+        suffix: str = "vis",
     ) -> Path | None:
         try:
             import cv2
@@ -305,6 +312,7 @@ class SimVision:
         s = 4.0  # px per mm
         W = int(lay.origin[0] * 2 + lay.cols * lay.pitch) + 1
         H = int(lay.origin[1] * 2 + lay.rows * lay.pitch) + 1
+        self._px = np.array([[s, 0.0, 0.0], [0.0, -s, H * s], [0.0, 0.0, 1.0]])  # bed -> px
         img = np.full((int(H * s), int(W * s), 3), (243, 246, 246), np.uint8)  # BGR, light
 
         def px(x: float, y: float) -> tuple[int, int]:
@@ -334,24 +342,14 @@ class SimVision:
             cv2.rectangle(img, px(post[0], post[1]), px(post[2], post[3]), (210, 216, 217), -1)
         for sp in plate:
             poly = np.array([px(*p) for p in _rect(sp.x, sp.y, sp.size[0], sp.size[1], sp.angle)])
-            colour = (201, 163, 184) if sp.cls == "UNKNOWN" else (176, 169, 143)
+            colour = (150, 140, 160) if sp.cls == "UNKNOWN" else (150, 152, 148)  # bare metal
             cv2.fillPoly(img, [poly.astype(np.int32)], colour, cv2.LINE_AA)
-            cv2.putText(
-                img,
-                sp.cls + (f"x{sp.length:g}" if sp.length else ""),
-                px(sp.x + 4, sp.y + 4),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.4,
-                (51, 49, 47),
-                1,
-                cv2.LINE_AA,
-            )
         if keep is not None:  # what the model sees: the rest painted the floor's colour
             mask = np.zeros(img.shape[:2], np.uint8)
             for poly in keep:
                 cv2.fillPoly(mask, [np.array([px(*q) for q in poly], np.int32)], 255)
             img[mask == 0] = (244, 242, 237)
-        path = self.out / f"{name}_vis.jpg"
+        path = self.out / f"{name}_{suffix}.jpg"
         cv2.imwrite(str(path), img)
         return path
 

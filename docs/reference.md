@@ -141,12 +141,12 @@ The steps below are the same work in more detail.
    **Calibrate tab**: take a photo, then jog the tip onto the centre of 3 or more markers
    (spread over the bed), pressing **Tip is here** on each. Then **Fit**. Errors under 0.5 mm
    are good. **Check** moves the tip just above a marker to confirm.
-7. **Layout tab → Resync with the camera**: one photo finds where the baseplate lies, which
+7. **Device tab → Resync** (next to the bed): one photo finds where the baseplate lies, which
    bins stand where and which way round, and makes the **biggest bin the plate**. To use
    another bin as the plate, give it the role *work*; Resync keeps your choice from then on.
    Bins taken off the bed keep their rules and get them back when they return. Give the other
    bins rules (*holds*) or leave them wild.
-8. **Run tab**: pick a strategy and press **Start**, or use the printer menu.
+8. **Device tab**: pick a strategy and press **Sort once** or **Automatic**, or use the printer menu.
 
 ## Models: upload over WiFi, keep the old ones
 
@@ -229,7 +229,7 @@ outside the tray's inside (and the corner post) is painted over with the colour 
 floor (`camera.mask`, `camera.mask_colour`: `auto` or e.g. `#FFFFFF`). The photo keeps its
 size, so the parts stay exactly as large as in the training pictures: cropping and enlarging
 would change their scale and spoil the classes and the lengths. The photo with the outlines on
-the Run tab shows what the model saw.
+the Device tab's camera shows what the model saw.
 
 The codes are always read from the photo itself, and the check after a bin change looks at it
 unpainted (it must see into the bins).
@@ -242,7 +242,7 @@ floor's edge. Save keeps it (`camera.mask_margin_mm`).
 ## Wild bins
 
 A **wild** bin has no rules. The first part of a kind that no other bin takes **claims** a free
-wild bin, and from then on that bin collects that kind. The Layout tab sets what "a kind" is for
+wild bin, and from then on that bin collects that kind. The bed's Settings (Device tab) set what "a kind" is for
 all wild bins:
 
 - **part number** (DIN912_M4x16): the default, one class and length per bin. Screws wait
@@ -255,11 +255,11 @@ all wild bins:
 - **Rules come first.** Bins with rules (and the unknown/unsure roles) are tried before wild bins.
   When every wild bin is taken, new kinds go to *overflow*, or stay on the plate.
 - **Claims are kept** across runs and restarts (`data/wild_bins.json`). Each bin shows on the
-  Run and Layout tabs what it collects.
+  Device tab what it collects.
 
 **Ready to take out.** After every photo screwpick checks each filled bin. When nothing left on
 the plate goes into that bin, the bin is marked:
-- in soft green with a check mark in the Layout tab;
+- in soft green with a check mark on the Device tab's bed;
 - in a notice at the top of every tab;
 - with a line on the printer display.
 
@@ -278,7 +278,7 @@ So you can put a new printed bin on the bed and it's used straight away.
 ## How full the bins are
 
 Cells are named like a chess board: a column letter from the left and a row number from the
-front (A1 is front-left), so the machine can say "bin E1". Every bin in the Layout tab shows
+front (A1 is front-left), so the machine can say "bin E1". Every bin on the Device tab's bed shows
 how many parts went in since it was last emptied (the small number at its top right), and a
 bar for how full it is, turning amber when it is full (`run.fill.full_at`, 90 %).
 
@@ -316,15 +316,15 @@ The machine asks for a bin change when
   kind still lies on the plate lower (it would be needed again soon).
 
 The request shows at the top of the web page ("Bin change: E1 DIN934_M4 30 · full"), the bin
-is outlined in amber in the Layout tab, the console and the printer's display say it. The
+is shown in amber on the Device tab's bed, the activity feed and the printer's display say it. The
 machine never stops for it: it keeps sorting everything else. When only the waiting parts are
 left, it waits, and still looks at the tray every `standby.interval_s`: parts thrown in
 meanwhile are sorted. The requests are kept across a restart.
 
-The OK takes two presses, in the page or with **OK (bin change)** in the printer menu:
-1. **OK, park for the change:** the machine finishes its move and parks (bed out, safe for
+**Change bin** takes two presses, next to the bed on the page or with **Change bin** in the printer menu:
+1. **Change bin E1:** the machine finishes its move and parks (bed out, safe for
    your hands);
-2. empty the bin, or put another (empty) bin in its place, then **OK, bins changed**. The next
+2. empty the bin, or put another (empty) bin in its place, then **Bin E1 changed**. The next
    photo checks what stands there now, and sorting goes on:
 - **the same code:** the bin was emptied; its count starts again, a wild bin is free again;
 - **another code:** a different bin stands there; it becomes a wild bin (or takes up its old
@@ -332,7 +332,7 @@ The OK takes two presses, in the page or with **OK (bin change)** in the printer
   later and its count and contents come back with it;
 - **no code:** the cell is empty; the old bin is kept aside the same way.
 
-OK also works when the machine is not sorting: the first press only confirms, the second
+Change bin also works when the machine is not sorting: the first press only confirms, the second
 takes a photo and does the same check.
 
 ## Strategies and picking order
@@ -409,7 +409,7 @@ along the printer's X axis), *Turn to 90°*, *Set zero*.
    so its 1–3 s of thinking hide behind the move.
 4. The next part is chosen from that photo. Back to 1.
 
-The Run tab shows how long the last cycle took and how long the machine had to wait for the Pi
+The Device tab's activity shows how long the last cycle took and how long the machine had to wait for the Pi
 after the drop. On a Pi 4 or Pi 5 that wait should be about 0. A Pi 3B (1 GB) is too small for
 Klipper and the model together.
 
@@ -421,7 +421,7 @@ Klipper and the model together.
 
 ## Automatic mode
 
-Press **Automatic** on the Run tab (or *Screw sorter → Automatic* on the printer). The machine
+Press **Automatic** on the Device tab (or *Screw sorter → Automatic* on the printer). The machine
 then runs by itself until you press Stop:
 
 1. **Standby:** the bed stays all the way out at the photo position (`printer.photo_position`)
@@ -484,7 +484,7 @@ closer, so it sees more detail, but only a patch at a time (`camera.head.fov_mm`
 machine moves it around and joins the photos:
 - **sorting:** only the tray, in a few overlapping photos (a part on the seam between two
   photos is counted once);
-- **Resync, the OK after a bin change, the start of a run:** the whole grid and one cell
+- **Resync, the check after a bin change, the start of a run:** the whole grid and one cell
   around it (`margin_cells`), so a bin put next to the grid is found too.
 
 Set it up:
@@ -520,7 +520,7 @@ the others you tick with Done.
 
 ## The console
 
-The Run tab has a **console**: one short line per thing the machine sees or decides, e.g.
+The Device tab's **Activity** panel is a console: one short line per thing the machine sees or decides, e.g.
 
 ```
 14:02:11 sorting: sort
@@ -536,7 +536,7 @@ The Run tab has a **console**: one short line per thing the machine sees or deci
 ## Printer menu
 
 `screwpick.cfg` adds **Screw sorter** to the printer's display menu: *Sort*, *Clear plate*,
-*Pick kit*, *One pick*, *OK (bin change)*, *Pause*, *Resume*, *Stop*, *Picker mounted*,
+*Pick kit*, *One pick*, *Change bin*, *Pause*, *Resume*, *Stop*, *Picker mounted*,
 *Hotend mounted*. You can also
 type the commands in any Klipper console: `SCREWPICK CMD=start STRATEGY=sort`.
 

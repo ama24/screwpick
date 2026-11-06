@@ -36,6 +36,8 @@ class Shot:
     photo: Path | None = None
     vis: Path | None = None  # photo with the outlines drawn
     result: dict[str, Any] = field(default_factory=dict)
+    view: Path | None = None  # the photo without drawings (the page draws the outlines)
+    view_h: list[list[float]] | None = None  # plate mm (z = 0) -> view pixels
 
 
 class Vision(Protocol):
@@ -237,6 +239,22 @@ class CameraVision:
             return {"error": self.model_error or "no model loaded"}
         return self.analyzer.describe()
 
+    def _view(self, scene: Any, name: str, max_side: int = 1600) -> tuple[Path, list]:
+        """The photo for the page, scaled down, and the homography plate mm -> its pixels."""
+        import cv2
+
+        h, w = scene.image.shape[:2]
+        k = min(1.0, max_side / max(h, w))
+        img = cv2.resize(scene.image, (round(w * k), round(h * k)), interpolation=cv2.INTER_AREA)
+        path = self.out / f"{name}_view.jpg"
+        cv2.imwrite(str(path), img, [cv2.IMWRITE_JPEG_QUALITY, 82])
+        g = np.arange(-20.0, 241.0, 20.0)
+        plate = np.array([(x, y) for x in g for y in g])
+        px = scene.cam.project(np.c_[plate, np.zeros(len(plate))])
+        ok = (px[:, 0] > -w) & (px[:, 0] < 2 * w) & (px[:, 1] > -h) & (px[:, 1] < 2 * h)
+        H, _ = cv2.findHomography(plate[ok], px[ok])
+        return path, (np.diag([k, k, 1.0]) @ H).tolist()
+
     def _painted(self, scene: Any, work: WorkArea) -> Any:
         import dataclasses
 
@@ -330,6 +348,7 @@ class CameraVision:
 
         assert self.analyzer is not None
         scene = self._scene(photo)
+        seen = scene  # unpainted: what the page shows
         if work is not None and self.m.camera.mask:
             scene = self._painted(scene, work)
         result = self.analyzer.analyse(scene, str(photo))
@@ -348,7 +367,8 @@ class CameraVision:
         ]
         vis = self.out / f"{name}_vis.jpg"
         cv2.imwrite(str(vis), draw(scene, result, max_side=1600), [cv2.IMWRITE_JPEG_QUALITY, 85])
-        return Shot(name, parts, markers, photo, vis, result)
+        view, view_h = self._view(seen, name)
+        return Shot(name, parts, markers, photo, vis, result, view, view_h)
 
     def test_models(self, choice: ModelChoice, photo: Path, out_name: str) -> dict[str, Any]:
         """Run other models on an existing photo, without switching to them."""

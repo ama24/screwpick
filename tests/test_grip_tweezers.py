@@ -129,8 +129,9 @@ def test_tweezers_turn_across_each_part_and_the_console_says_so(machine):
     console = runner.snapshot()["console"]
     text = "\n".join(console)
     assert "sorting: sort" in text and "on the plate:" in text and "jaws" in text
-    assert "dropped in bin" in text and "done:" in text
-    assert all(len(line) < 90 for line in console)  # short lines
+    assert "leaving " in text and " in bin " in text and "done:" in text
+    assert "taking a photo" in text and "running the model" in text
+    assert all(len(line) < 100 for line in console)  # short lines
 
 
 def test_setup_rotation_test(machine):

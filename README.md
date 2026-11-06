@@ -8,11 +8,12 @@ screwpick is the program that runs the machine. It lives on a Raspberry Pi next 
 printer's firmware) and you use it from a web page on your phone or PC, or from the printer's own
 display.
 
-![The Run tab while sorting](docs/images/run.png)
-*The Run tab. On the left the last photo with every part outlined (here from the built-in simulator,
-which draws the parts instead of photographing them); on the right the console, which says in one
-line what the machine sees and decides. The banners at the top ask for a bin change and list bins
-that are finished.*
+![The Device tab](docs/images/device.png)
+*The Device tab, the page you land on. Top left the camera: the latest photo with every part
+outlined and named, and the part picked next boxed in red. Top right the bed, live: every bin with
+what it collects and how full it is; one bin waits for a change (amber), two are finished (green).
+Bottom left what lies in the tray, by class and length; bottom right what the machine is doing.
+(Pictures from the built-in simulator, which draws the bed instead of photographing it.)*
 
 It is one of three projects that work together:
 
@@ -24,6 +25,20 @@ It is one of three projects that work together:
 
 They only exchange files (a trained model, a calibration, a parts table), which you drop into
 screwpick's web page. screwpick never reaches into the other projects' folders.
+
+### What's new
+
+- **Device tab:** one page with the live camera (every part outlined, the next one boxed), the
+  live bed with a menu on every bin, what lies in the tray, and what the machine is doing.
+  [See below](#first-time-setup).
+- **Change bin:** a full bin turns amber and gets a *Change bin* button, on the page and on the
+  printer. The machine keeps sorting the rest meanwhile. [Everyday use](#everyday-use).
+- **Queued bin changes:** edit, add, turn or take off bins, then *Apply* them all at once, even
+  while sorting.
+- **Camera calibration and real photos from the page** (Calibrate and Photos tabs): screwpick is
+  the only program that moves the printer.
+- **Files tab:** one row per file from the other projects, each with its drop area.
+- **Faster page:** the Pi answers on IPv6 and IPv4 and no longer re-reads files every second.
 
 ---
 
@@ -71,7 +86,7 @@ screwpick's web page. screwpick never reaches into the other projects' folders.
    part, at the right angle, takes it and drops it into its bin. While it carries the part, the Pi
    already looks at the next photo.
 6. **Again**, until the tray is empty. Bins that are full or finished are shown on the page and on
-   the printer display; you empty them and press OK.
+   the printer display; you empty or swap them and press **Change bin**.
 
 ---
 
@@ -184,14 +199,23 @@ Print the baseplate, a tray and some bins (the *Print bins* tab, or the ready-ma
 a colour change at the rim height.
 
 Put the baseplate anywhere on the bed, the tray and the bins anywhere on it, turned any way. Then
-in the **Layout** tab press **Resync with the camera**: one photo finds the grid, every bin and
+on the **Device** tab press **Resync** (next to the bed): one photo finds the grid, every bin and
 which way it faces, and makes the biggest bin the tray.
 
-![The Layout tab](docs/images/layout.png)
+<img src="docs/images/bin-menu.png" alt="A bin's menu" width="420" align="right">
 
 Each bin shows its grid name (A1 is front-left), its code, what it collects, how many parts went
-in and a bar for how full it is. Click a bin to give it rules, or leave it **wild**: a wild bin is
-claimed by the first new kind of part that needs a bin. A layout of only wild bins sorts by itself.
+in and a bar for how full it is. Click a bin (or its **⋯**, or right-click it) for its menu: edit
+its rules, make it the tray, turn it, ask for it to be changed, mark it full or emptied, print
+it. A grey square is a cell without a bin; its ⋯ puts one there.
+
+Leave a bin without rules and it is **wild**: it is claimed by the first new kind of part that
+needs a bin. A layout of only wild bins sorts by itself.
+
+Changes are **queued**: they show dashed, a bar lists them, and **Apply** saves them all at once
+(even while the machine sorts: they count from its next pick). **Discard** forgets them.
+**Settings** next to Resync holds the grid size and what a wild bin collects.
+<br clear="right">
 
 ### 3. The camera
 
@@ -232,22 +256,26 @@ program notices; they never block sorting.
 ## Everyday use
 
 1. **Throw the parts into the tray** and spread them a little with your hand.
-2. Press **Automatic** on the Run tab (or *Screw sorter → Automatic* on the printer's display).
+2. Press **Automatic** on the Device tab (or *Screw sorter → Automatic* on the printer's display).
    The machine waits until nothing moves any more, sorts until the tray is empty, then waits
    again: just keep throwing parts in. It looks again every minute, with the motors off so it's
    quiet. **Sort once** sorts what's there and stops.
-3. **Watch the Run tab** if you like: the photo, the console, the counts.
-4. **When a bin is full**, or a new kind needs a bin and none is free, a banner asks for a bin
-   change and the bin is outlined in amber. The machine **keeps sorting everything else**.
-   - Press **OK** once: the machine parks with the bed out, so your hands are safe.
-   - Empty the bin, or put an empty bin in its place, and press **OK** again. A photo checks what
-     is there now (the same bin emptied, another bin, or nothing) and sorting goes on.
-5. **Finished bins** (nothing left in the tray goes there) are shown in green. Take them out,
-   empty them and press **Emptied**.
+3. **Watch the Device tab** if you like: the photo with the next part boxed, the bed, what lies
+   in the tray, and a line for everything the machine does (parking, taking a photo, running the
+   model, picking X, leaving X in bin Y).
+4. **When a bin is full**, or a new kind needs a bin and none is free, the bin turns amber on the
+   bed and a **Change bin E1** button appears under it (and on the printer's display). The
+   machine **keeps sorting everything else**.
+   - Press **Change bin E1**: the machine parks with the bed out, so your hands are safe.
+   - Empty the bin, or put an empty bin in its place, and press **Bin E1 changed**. A photo checks
+     what is there now (the same bin emptied, another bin, or nothing) and sorting goes on.
+   - You can also ask for any bin to be changed from its ⋯ menu.
+5. **Finished bins** (nothing left in the tray goes there) are green, with an **Emptied** button
+   under the bed. Take them out, empty them and press it.
 6. **STOP** at the top right stops the printer at once.
 
 Everything on the page can also be done from the printer's display: **Screw sorter** in its
-menu has Automatic, Sort, One pick, OK, Pause, Resume and Stop.
+menu has Automatic, Sort, One pick, Change bin, Pause, Resume and Stop.
 
 ---
 
