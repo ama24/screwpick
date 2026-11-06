@@ -70,6 +70,10 @@ class Camera:
     # + keeps this much of the wall's foot, - paints this much more of the floor's edge
     # (Calibrate tab: Camera cropping)
     mask_margin_mm: float = 0.0
+    # lens above the tray floor (TPU top), used while there is no camera calibration: the
+    # camera is taken as straight down over the picture's centre (Calibrate tab: Skip for now)
+    # None: vision.yaml's nominal_camera.height_mm
+    height_mm: float | None = None
 
 
 @dataclass

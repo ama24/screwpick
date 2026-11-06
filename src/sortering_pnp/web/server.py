@@ -318,6 +318,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json(r.photos.state())
         elif method == "GET" and path == "/api/calibration/board.pdf":
             self._send(200, r.photos.board_pdf(), "application/pdf", "tray_board.pdf")
+        elif method == "POST" and path == "/api/calibration/height":
+            self._json(r.camera_height(float(self._body().get("height_mm", 0.0))))
         elif method == "POST" and path == "/api/calibration/settings":
             b = self._body()
             self._json(

@@ -335,6 +335,9 @@ class Photos:
         return {
             "job": self.job.state() if self.job is not None else None,
             "calibrated": source if path is not None else None,
+            # without a calibration: straight down over the picture's centre, this high
+            "height_mm": getattr(self.r.vision, "nominal_height_mm", None),
+            "height_set": self.m.camera.height_mm is not None,
             "camera": self._cam_key(),
             "board": {**self.spec().to_dict(), "size_mm": list(self.spec().size_mm)},
             "measured_square_mm": c.measured_square_mm,
