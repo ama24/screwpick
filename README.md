@@ -26,6 +26,20 @@ It is one of three projects that work together:
 They only exchange files (a trained model, a calibration, a parts table), which you drop into
 screwpick's web page. screwpick never reaches into the other projects' folders.
 
+### What's new
+
+- **Device tab:** one page with the live camera (every part outlined, the next one boxed), the
+  live bed with a menu on every bin, what lies in the tray, and what the machine is doing.
+  [See below](#first-time-setup).
+- **Change bin:** a full bin turns amber and gets a *Change bin* button, on the page and on the
+  printer. The machine keeps sorting the rest meanwhile. [Everyday use](#everyday-use).
+- **Queued bin changes:** edit, add, turn or take off bins, then *Apply* them all at once, even
+  while sorting.
+- **Camera calibration and real photos from the page** (Calibrate and Photos tabs): screwpick is
+  the only program that moves the printer.
+- **Files tab:** one row per file from the other projects, each with its drop area.
+- **Faster page:** the Pi answers on IPv6 and IPv4 and no longer re-reads files every second.
+
 ---
 
 ## Contents
