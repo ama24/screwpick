@@ -195,6 +195,22 @@ button.p{font-weight:600}button.big{padding:11px 18px}
 #msg{font-size:13px;margin-top:4px;min-height:19px}#strategy{max-width:250px}
 @media (max-width:900px){.app{flex-direction:column}.side{position:static;height:auto;flex:none;width:100%;flex-direction:row;flex-wrap:wrap;align-items:center;border-right:0;border-bottom:1px solid var(--line);padding:12px}
  nav{flex-direction:row;flex-wrap:wrap;gap:4px;width:100%}.ngroup{flex-direction:row;flex-wrap:wrap}.glabel{display:none}nav button{width:auto}.mcard{margin:0;flex:1 1 100%}main{padding:18px 16px 30px}.content{width:100%;overflow-x:hidden}.card{overflow-x:auto}}
+
+/* picker types (Setup) */
+.pkgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:4px 0 14px}
+.pkopt{position:relative;text-align:left;display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:14px 14px 12px;font:inherit;color:var(--ink);cursor:pointer}
+.pkopt:hover{border-color:#b9c2bd}.pkopt.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc-soft);background:#fbfefd}
+.pkopt b{font-size:14.5px;padding-right:22px}.pkopt .note{font-size:12.5px;line-height:1.45}
+.pkopt .pkn{position:absolute;top:12px;right:12px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:600;background:var(--line2);color:var(--mut)}
+.pkopt.on .pkn{background:var(--acc);color:#fff}
+.pktags{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}.pktags .tag{font-size:11.5px}.pktags .tag.a{background:var(--acc-soft);color:var(--acc)}
+.pkwire{border:1px solid var(--line);border-radius:12px;padding:16px;background:#fcfcfa}
+.wsvg{overflow-x:auto}.wsvg svg{width:100%;min-width:560px;max-width:900px;height:auto;display:block;margin:0 auto 14px}.wsvg text{font:11.5px Inter,system-ui,sans-serif;fill:var(--ink)}
+.pkinfo{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:6px 24px;border-top:1px solid var(--line2);padding-top:14px}
+.pkwire h4{margin:0 0 6px;font-size:13px;font-weight:600}.pkwire ul{margin:0 0 12px;padding-left:18px;font-size:13px;line-height:1.5}
+.pins{border-collapse:collapse;font-size:13px;margin-bottom:12px;width:100%}.pins td{padding:4px 8px 4px 0;border-bottom:1px solid var(--line2);vertical-align:top}
+.pins i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.pkwire details{font-size:12.5px;margin:6px 0 10px}.pkwire pre{white-space:pre-wrap;background:#f1f3ef;border-radius:8px;padding:8px 10px;font-size:12px;margin:6px 0}
 </style></head><body>
 <div class="app">
 <aside class="side">
@@ -602,6 +618,79 @@ async function loadSetup(){try{SU=await api("api/setup");renderSetup();loadTodo(
 async function setupCall(path,body,msg){try{if(msg)flash("setupsum",msg);const j=await api(path,body||{});if(j.checks)CHECKS=j.checks;SU=j.steps?j:await api("api/setup");renderSetup();if(j.tip)flash("setupsum",`tip at ${j.tip.join(", ")}`);poll();}catch(e){flash("setupsum",e.message,1);}}
 function mval(id){return +$(id).value;}
 function saveMachine(){setupCall("api/setup/machine",{values:{limits_x:[mval("mx0"),mval("mx1")],limits_y:[mval("my0"),mval("my1")],limits_z:[mval("mz0"),mval("mz1")],travel_z:mval("mtz"),photo_position:[mval("mpx"),mval("mpy"),mval("mpz")]}},"saving…");}
+const WC={sig:"#e8590c",sig2:"#7048e8",v5:"#d6336c",v24:"#a61e1e",gnd:"#343a40"};
+function wiring(t){let s="";
+ const ln=(pts,c,w=2.6)=>`<polyline points="${pts.map(p=>p.join(",")).join(" ")}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"/>`;
+ const dot=(x,y,c)=>`<circle cx="${x}" cy="${y}" r="3.6" fill="${c}"/>`,tx=(x,y,v,o="")=>`<text x="${x}" y="${y}" ${o}>${v}</text>`;
+ const box=(x,y,w,h,ti,sub,fill="#fff",ink="#1c2024",st="#c9cec6")=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="${fill}" stroke="${st}"/>`+tx(x+w/2,y+h/2+(sub?-3:4),ti,`text-anchor="middle" font-weight="600" style="fill:${ink}"`)+(sub?tx(x+w/2,y+h/2+13,sub,`text-anchor="middle" font-size="10.5" style="fill:${ink};opacity:.75"`):"");
+ const servo=(y,ti)=>box(430,y,150,56,ti,"MG90S servo","#e7eefb","#1c3d73","#9fb4d9");
+ // the Pi's header: odd pins on the left, pin 1 at the top
+ s+=tx(68,14,"Raspberry Pi","text-anchor=\"middle\" font-weight=\"600\"")+`<rect x="22" y="24" width="92" height="334" rx="8" fill="#1d6b45"/>`;
+ const py=r=>40+(r-1)*16,px=c=>c?88:48,hot={32:WC.sig,34:WC.gnd};if(t.rotates)hot[33]=WC.sig2;
+ for(let r=1;r<=20;r++)for(let c=0;c<2;c++){const n=2*r-1+c,h=hot[n];s+=`<rect x="${px(c)-5}" y="${py(r)-5}" width="10" height="10" rx="2" fill="${h||"#d9c06a"}" ${h?'stroke="#fff" stroke-width="2"':""}/>`;}
+ s+=tx(34,py(1)+4,"1",'font-size="9" style="fill:#cfe8da"')+tx(102,py(1)+4,"2",'font-size="9" style="fill:#cfe8da"');
+ s+=ln([[93,280],[130,280]],WC.sig,1.4)+ln([[93,296],[130,296]],WC.gnd,1.4)+(t.rotates?ln([[53,296],[60,312],[130,312]],WC.sig2,1.4):"");
+ s+=tx(134,284,"32 · GPIO12",`font-weight="600" style="fill:${WC.sig}"`)+tx(134,300,"34 · GND",'font-weight="600"')+(t.rotates?tx(134,316,"33 · GPIO13",`font-weight="600" style="fill:${WC.sig2}"`):"");
+ const servos=t.servos>0,bot=servos?354:296;
+ // power: the printer's 24 V supply, and a 5 V buck converter for the servos
+ s+=box(640,300,120,80,"Printer PSU","24 V","#f4f5f2");
+ if(servos){s+=box(430,312,150,56,"5 V buck converter","set to 5.0 V","#fff7e6","#7a4b00","#efd39b")+ln([[408,52],[408,326]],WC.v5)+ln([[408,326],[430,326]],WC.v5)+dot(408,326,WC.v5);}
+ s+=ln([[392,t.pump&&!t.rotates?194:36],[392,bot]],WC.gnd)+ln([[222,296],[392,296]],WC.gnd)+dot(392,296,WC.gnd);
+ if(servos)s+=ln([[392,354],[430,354]],WC.gnd)+dot(392,354,WC.gnd);
+ if(!t.pump){ // servo pickers: the action servo on GPIO12, the turn servo on GPIO13
+  s+=servo(24,t.key==="magnet"?"Magnet servo":"Jaw servo")+ln([[392,36],[430,36]],WC.gnd)+ln([[408,52],[430,52]],WC.v5)+dot(392,36,WC.gnd)+dot(408,52,WC.v5);
+  s+=ln([[222,280],[300,280],[300,68],[430,68]],WC.sig);
+  if(t.rotates)s+=servo(120,"Turn servo")+ln([[392,132],[430,132]],WC.gnd)+ln([[408,148],[430,148]],WC.v5)+dot(392,132,WC.gnd)+dot(408,148,WC.v5)+ln([[222,312],[320,312],[320,164],[430,164]],WC.sig2);
+  s+=ln([[640,322],[610,322],[610,326],[580,326]],WC.v24)+ln([[640,358],[610,358],[610,354],[580,354]],WC.gnd);
+ }else{ // pump pickers: GPIO12 switches the pump through the MOSFET module
+  s+=`<rect x="430" y="128" width="170" height="118" rx="7" fill="#b8322a"/>`+tx(500,224,"MOSFET module",'text-anchor="middle" font-weight="600" style="fill:#fff"');
+  [["SIG",150],["VCC",172],["GND",194]].forEach(([l,y])=>{s+=`<rect x="430" y="${y-4}" width="9" height="8" fill="#e9e3d0"/>`+tx(445,y+4,l,'font-size="10" style="fill:#fff"');});
+  [["V+",150],["V−",172],["VIN",206],["GND",228]].forEach(([l,y])=>{s+=`<rect x="584" y="${y-7}" width="16" height="14" rx="2" fill="#2f6fd1"/>`+tx(578,y+4,l,'text-anchor="end" font-size="10" style="fill:#fff"');});
+  s+=tx(470,176,"(free)",'font-size="9.5" style="fill:#f3c6c1"');
+  s+=ln([[222,280],[300,280],[300,150],[430,150]],WC.sig)+ln([[392,194],[430,194]],WC.gnd)+dot(392,194,WC.gnd);
+  s+=box(660,128,100,62,"Pump",t.key==="suction"?"vacuum, 24 V":"tweezers, 24 V","#eef6f5","#0f5e58","#9fcfc8");
+  s+=ln([[600,150],[660,150]],WC.v24)+ln([[600,172],[660,172]],WC.gnd)+tx(664,147,"+",'font-weight="700"');
+  s+=dot(632,150,WC.v24)+dot(632,172,WC.gnd)+`<polygon points="626,168 638,168 632,157" fill="#333"/><line x1="625" y1="156" x2="639" y2="156" stroke="#333" stroke-width="2"/>`+tx(632,201,"diode",'text-anchor="middle" font-size="9.5"');
+  const v24end=servos?326:322;
+  s+=ln([[600,206],[618,206],[618,v24end]],WC.v24)+ln([[640,322],[618,322]],WC.v24)+dot(618,322,WC.v24);
+  s+=ln([[600,228],[630,228],[630,358],[640,358]],WC.gnd);
+  if(servos)s+=ln([[580,326],[618,326]],WC.v24)+ln([[580,354],[630,354]],WC.gnd)+dot(630,354,WC.gnd);
+  if(t.rotates)s+=servo(24,"Turn servo")+ln([[392,36],[430,36]],WC.gnd)+ln([[408,52],[430,52]],WC.v5)+dot(392,36,WC.gnd)+dot(408,52,WC.v5)+ln([[222,312],[320,312],[320,68],[430,68]],WC.sig2);
+ }
+ // legend
+ const leg=[["GPIO12: "+(t.pump?"pump on/off":t.key==="magnet"?"magnet servo":"jaw servo"),WC.sig]];
+ if(t.rotates)leg.push(["GPIO13: turn servo",WC.sig2]);if(servos)leg.push(["5 V",WC.v5]);leg.push(["24 V",WC.v24],["GND (all joined)",WC.gnd]);
+ let lx=22;leg.forEach(([l,c])=>{s+=`<rect x="${lx}" y="398" width="16" height="4" rx="2" fill="${c}"/>`+tx(lx+22,404,l,'font-size="11"');lx+=36+l.length*6.3;});
+ return `<svg viewBox="0 0 780 416" role="img" aria-label="Wiring of the ${esc(t.title)}">${s}</svg>`;}
+function pickerPins(t){const r=[[WC.sig,"32 · GPIO12",t.pump?"SIG of the MOSFET module (pump on/off)":t.key==="magnet"?"signal (orange) of the magnet servo":"signal (orange) of the jaw servo"]];
+ if(t.rotates)r.push([WC.sig2,"33 · GPIO13","signal (orange) of the turn servo"]);
+ r.push([WC.gnd,"34 · GND",(t.pump?"GND of the MOSFET module's pins":"")+(t.pump&&t.servos?", ":"")+(t.servos?"GND (−) of the 5 V buck converter":"")]);
+ return `<table class="pins">${r.map(([c,p,w])=>`<tr><td style="white-space:nowrap"><i style="background:${c}"></i><b>${p}</b></td><td>${w}</td></tr>`).join("")}</table>`;}
+function pickerBody(st,redo){const PK=SU.picker||{types:[]},t=PK.types.find(x=>x.key===PK.mode)||PK.types[0];if(!t)return "";
+ const opts=`<div class="pkgrid">${PK.types.map((x,i)=>`<button class="pkopt ${x.key===t.key?"on":""}" onclick="setupCall('api/setup/picker/type',{type:'${x.key}'})"><span class="pkn">${i+1}</span><b>${esc(x.title)}</b><span class="note">${esc(x.summary)}</span><span class="pktags"><span class="tag a">aims at the ${x.aim==="head"?"head":"centre of gravity"}</span>${x.rotates?'<span class="tag">turns 0–180°</span>':""}${x.pump?'<span class="tag">pump + MOSFET</span>':""}</span></button>`).join("")}</div>`;
+ const inst=PK.installed===t.key;
+ const notes=[t.servos?"Servo cable: brown = GND, red = 5 V, orange = signal.":"",t.servos?"Power the servos from the 5 V buck converter, never from the Pi's 5 V pin: a stalling servo resets the Pi.":"",
+  `Join every GND: the Pi's pin 34${t.servos?", the converter's minus":""}${t.pump?", the MOSFET module's GND":""} and the PSU's minus. The Pi's pins give 3.3 V signals.`,
+  t.pump?"The diode goes across the pump, its stripe on the + side: it stops the pump's kick when it switches off.":"",
+  t.pump?"A logic-level MOSFET module (AOD4184 / D4184) switches fully at 3.3 V; the classic IRF520 module only half-opens.":""].filter(Boolean);
+ return opts+`<div class="pkwire"><div class="wsvg">${wiring(t)}</div><div class="pkinfo"><div>
+  <h4>Pins on the Raspberry Pi</h4>${pickerPins(t)}
+  <h4>You need</h4><ul>${t.parts.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>
+  <div><h4>Good to know</h4><ul class="note" style="padding-left:16px">${notes.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>
+  <div><h4>Klipper</h4><p class="note" style="margin:0 0 6px">The Pi's pins work as a second Klipper board. Set that up once:</p>
+  <details><summary>The Pi as a Klipper board (once)</summary><pre>1. /boot/firmware/config.txt, add, then reboot:
+   dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4
+2. cd ~/klipper &amp;&amp; make menuconfig
+   (Micro-controller Architecture: Linux process)
+   make &amp;&amp; sudo make flash
+   sudo cp ./scripts/klipper-mcu.service /etc/systemd/system/
+   sudo systemctl enable --now klipper-mcu.service</pre></details>
+  <div class="row"><button class="b ${inst?"":"p"} s" onclick="setupCall('api/setup/picker/install',{},'writing ${esc(PK.file)} and restarting Klipper…')">${inst?"Install again":"Install in Klipper"}</button> <a class="b s" href="api/setup/picker.cfg?type=${t.key}">Download ${esc(PK.file)}</a></div>
+  <p class="note" style="margin:6px 0 0">${inst?`<span class="ok">✓ installed for the ${esc(t.title.toLowerCase())}</span>`:`Writes ${esc(PK.file)} next to printer.cfg and restarts Klipper.`}</p>
+ </div></div></div>
+ <h4 style="margin:14px 0 6px;font-size:13px">Test it</h4><p class="note" style="margin:0 0 8px">Grab and Release run where the tool is now; nothing moves. Hold a screw ${t.holds==="jaws"?"between the jaws":t.holds==="cup"?"against the cup":"against the rod's tip"}.</p><button class="b s" onclick="setupCall('api/setup/picker',{action:'grab'})">Grab</button> <button class="b s" onclick="setupCall('api/setup/picker',{action:'release'})">Release</button>`+
+  (SU.rotation?`<p class="note" style="margin-top:10px">Turning: at <b>0°</b> the jaws must close along the printer's X axis (left–right). If they don't, change the offset until they do.</p><div class="row"><button class="b s" onclick="setupCall('api/setup/rotate',{angle:0})">Turn to 0°</button> <button class="b s" onclick="setupCall('api/setup/rotate',{angle:90})">Turn to 90°</button> <span class="note">offset</span> <input id="pkoff" type="number" step="1" value="${PK.offset_deg||0}" style="width:76px"> <span class="note">°</span> <button class="b s" onclick="setupCall('api/setup/picker/offset',{deg:+$('pkoff').value||0})">Save offset</button></div>`:"")+
+  (["grab","release"].every(x=>(SU.picker_tried||[]).includes(x))&&(!SU.rotation||(SU.picker_tried||[]).includes("rotate"))&&!st.done?` <p><button class="b p s" onclick="setupCall('api/setup/confirm',{step:'picker'})">It holds and lets go</button></p>`:"")+redo;}
 function stepBody(st){const m=SU.machine||{},redo=st.done?` <button class="b s" onclick="setupCall('api/setup/reset',{step:'${st.key}'})">Redo</button>`:"";
  switch(st.key){
  case "printer":return `<p class="note">Asks Klipper a few questions; nothing moves.</p><button class="b p s" onclick="setupCall('api/setup/printer',{},'asking Klipper…')">Check</button>`+
@@ -614,9 +703,7 @@ function stepBody(st){const m=SU.machine||{},redo=st.done?` <button class="b s" 
   <div class="row" style="margin-top:10px"><span class="note">show me:</span>${["photo","front_left","back_right","centre"].map(t=>`<button class="b s" onclick="setupCall('api/setup/goto',{target:'${t}'},'moving…')">${{photo:"photo position",front_left:"front-left limit",back_right:"back-right limit",centre:"plate centre"}[t]}</button>`).join("")}</div>
   <p style="margin-top:10px">${st.done?"":`<button class="b p s" onclick="setupCall('api/setup/confirm',{step:'machine'})">All positions are right</button>`}${redo}</p>`;
  case "tip":return `<p class="note">In <b>Calibrate → Tip height</b>: jog the tip down onto the plate until a sheet of paper just drags, then press the button. This step checks itself.</p><button class="b s" onclick="go('calib')">Open Calibrate</button>`;
- case "picker":return `<p class="note">Runs the grab and release macros where the tool is now; nothing moves. Hold a screw against the cup or between the jaws.</p><button class="b s" onclick="setupCall('api/setup/picker',{action:'grab'})">Grab</button> <button class="b s" onclick="setupCall('api/setup/picker',{action:'release'})">Release</button>`+
-  (SU.rotation?`<p class="note" style="margin-top:10px">Tweezers: at <b>0°</b> the jaws must close along the printer's X axis (left–right). If they don't, turn them there by hand and press <b>Set zero</b>.</p><button class="b s" onclick="setupCall('api/setup/rotate',{angle:0})">Turn to 0°</button> <button class="b s" onclick="setupCall('api/setup/rotate',{angle:90})">Turn to 90°</button> <button class="b s" onclick="setupCall('api/setup/rotate',{zero:true})">Set zero</button> `:"")+
-  (["grab","release"].every(x=>(SU.picker_tried||[]).includes(x))&&(!SU.rotation||(SU.picker_tried||[]).includes("rotate"))&&!st.done?` <button class="b p s" onclick="setupCall('api/setup/confirm',{step:'picker'})">It holds and lets go</button>`:"")+redo;
+ case "picker":return pickerBody(st,redo);
  case "camera":return `<p class="note">In <b>Calibrate</b>: photo, the tip onto 3 or more markers, Fit. Checks itself when the worst error is below 1 mm.</p><button class="b s" onclick="go('calib')">Open Calibrate</button>`;
  case "layout":return `<p class="note">In <b>Device</b>, next to the bed: <b>Resync</b>. Checks itself when the bins and a plate are found without problems.</p><button class="b s" onclick="go('device')">Open Device</button>`;
  }return "";}

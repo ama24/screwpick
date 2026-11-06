@@ -143,7 +143,7 @@ class Motion:
         """Go to the part, descend slowly to z (tip height), grab, lift to the travel height."""
         pk = self.m.picker
         self.travel(x, y)
-        if pk.rotate and angle_deg is not None and pk.mode in ("gripper", "tweezers", "both"):
+        if pk.rotate and angle_deg is not None and pk.kind.rotates:
             # the jaws close across the part: `angle_deg` = their closing direction (grip.py)
             self.p.gcode(f"{pk.rotate} ANGLE={angle_deg % 180.0:.1f}")
         self.move(z=z + pk.approach_mm)

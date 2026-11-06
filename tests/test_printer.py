@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import email.parser
+import email.policy
 import http.server
 import json
 import threading
@@ -128,6 +130,7 @@ def test_sim_printer_picks_up_parts(machine):
 
 class _Moonraker(http.server.BaseHTTPRequestHandler):
     scripts: list[str] = []
+    files: dict[str, tuple[str, str]] = {}  # name -> (root, text)
 
     def log_message(self, *a):
         pass
@@ -161,7 +164,23 @@ class _Moonraker(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):  # noqa: N802
         n = int(self.headers.get("Content-Length") or 0)
-        body = json.loads(self.rfile.read(n) or b"{}")
+        raw = self.rfile.read(n)
+        if self.path == "/server/files/upload":  # multipart, as Moonraker reads it
+            head = b"Content-Type: " + self.headers["Content-Type"].encode() + b"\r\n\r\n"
+            msg = email.parser.BytesParser(policy=email.policy.HTTP).parsebytes(head + raw)
+            fields = {
+                part.get_param("name", header="content-disposition"): part
+                for part in msg.iter_parts()
+            }
+            f = fields["file"]
+            self.files[f.get_filename()] = (fields["root"].get_content().strip(), f.get_content())
+            self._send({"result": {"item": {"path": f.get_filename()}}})
+            return
+        if self.path == "/printer/firmware_restart":
+            self.scripts.append("FIRMWARE_RESTART")
+            self._send({"result": "ok"})
+            return
+        body = json.loads(raw or b"{}")
         if self.path == "/printer/gcode/script":
             if body["script"] == "BAD":
                 self._send({"error": {"message": 'Unknown command:"BAD"'}}, 400)
@@ -182,6 +201,11 @@ def test_moonraker_client():
         assert _Moonraker.scripts == ["G28"]
         with pytest.raises(PrinterError, match="Unknown command"):
             mr.gcode("BAD")
+        cfg = "[mcu host]\nserial: /tmp/klipper_host_mcu\n"
+        mr.upload_config("screwpick_picker.cfg", cfg)
+        assert _Moonraker.files["screwpick_picker.cfg"] == ("config", cfg)
+        mr.firmware_restart()
+        assert _Moonraker.scripts[-1] == "FIRMWARE_RESTART"
     finally:
         srv.shutdown()
     with pytest.raises(PrinterError, match="cannot reach"):

@@ -19,7 +19,7 @@ import numpy as np
 
 from .analysis import Analyzer, ModelChoice
 from .config import Machine
-from .grip import Shape, axis_grip, outline_grip
+from .grip import Shape, axis_grip, head_grip, outline_grip
 from .markers import MarkerPose, detect, marker_pose
 from .models import ModelStore
 from .parts import Part
@@ -97,9 +97,11 @@ def parts_from_result(
     to_plate: Callable[[np.ndarray, float], np.ndarray],
     head_radius: Callable[[str], float | None],
     shape: Callable[[str], Shape | None] | None = None,
+    aim: str = "centre",
 ) -> list[Part]:
     """screwsynth-infer output -> Parts (outline in plate mm at the part's mid height), with
-    grip point, centre of mass and long axis (grip.py)."""
+    grip point, centre of mass and long axis (grip.py). `aim`: "centre" (tweezers: the centre
+    of gravity, on the shank) or "head" (suction cup, magnet: the screw's head)."""
     out = []
     for o in result.get("objects", []):
         cls = str(o["class"])
@@ -113,7 +115,8 @@ def parts_from_result(
         kp = _keypoints_px(o)
         if sh is not None and kp is not None:  # the axis from the keypoints, lying at d/2
             pts = to_plate(np.array([kp[n] for n in ("head_top", "bearing", "tip")]), sh.d / 2)
-            g = axis_grip(dict(zip(("head_top", "bearing", "tip"), pts[:, :2], strict=True)), sh)
+            kpm = dict(zip(("head_top", "bearing", "tip"), pts[:, :2], strict=True))
+            g = head_grip(kpm, sh) if aim == "head" else axis_grip(kpm, sh)
         if g is None and len(poly):
             g = outline_grip(poly)
         out.append(
@@ -357,6 +360,7 @@ class CameraVision:
             lambda px, h: scene.cam.pixel_to_plate(px, h),
             self._head_r.get,
             self._shapes.get,
+            self.m.picker.kind.aim,
         )
         full = cv2.imread(str(photo), cv2.IMREAD_GRAYSCALE)
         markers = [

@@ -37,21 +37,40 @@ Settings are in [configs/machine.yaml](../configs/machine.yaml) (each has a comm
 |---|---|
 | Printer running **Klipper + Moonraker** on the Pi | the usual Klipper install (KIAUH, MainsailOS); OctoPrint can stay or go |
 | Pi Camera Module 3 over the bed | the same one, and the same calibration, as supreme-screw-sortering |
-| A **picker** on the toolhead | vacuum cup, gripper, or both (see below); swappable with the hotend |
+| A **picker** on the toolhead | servo tweezers, suction cup, magnet or pneumatic tweezers (see below), wired to the Pi; swappable with the hotend |
 | Gridfinity **baseplate** + **bins** | printed from the web page's *Print bins* tab |
 | A matte TPU plate in the working area | blue or green, as for the camera |
 
 ### Picker
 
-- **Vacuum** (default): a small 12/24 V pump on the part-cooling-fan connector, with a
-  spring-loaded suction cup. Grab = fan on, release = fan off. Works on every material (brass,
-  stainless, aluminium, nylon), not only steel.
-- **Gripper**: a servo on a free pin (the BLTouch servo pin works well). It can also turn (a
-  second servo) so the fingers close across the part.
-- **Both**: fingers with a suction cup between them.
+Chosen in the Setup tab (`picker.mode` in machine.yaml; the page's choice is kept in
+`data/machine.json`). All four are wired to the **Raspberry Pi's pins**, which Klipper drives as a
+second micro-controller (its Linux "host" MCU):
 
-The macros live in [klipper/screwpick.cfg](../klipper/screwpick.cfg), so the Python code does not
-care how the picker is wired.
+| `picker.mode` | Grabs with (GPIO12, pin 32) | Turns (GPIO13, pin 33) | Aims at |
+|---|---|---|---|
+| `servo_tweezers` | jaw servo | turn servo, 0–180° | centre of gravity, on the shank |
+| `suction` | vacuum pump through a MOSFET module | – | the head |
+| `magnet` | servo pressing a magnet against an iron rod | – | the head |
+| `pneumatic_tweezers` | pump through a MOSFET module (springs open) | turn servo, 0–180° | centre of gravity |
+
+The old names still work: `vacuum` = `suction`; `gripper`, `tweezers` and `both` = `servo_tweezers`.
+
+- **Pins:** GPIO12 and GPIO13 are the Pi's two hardware PWM channels (`host:pwmchip0/pwm0` and
+  `pwm1` in Klipper), enabled with `dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4` in
+  `/boot/firmware/config.txt`. GND is pin 34.
+- **Power:** servos from a 5 V buck converter on the printer's 24 V, never from the Pi's 5 V pin.
+  Pumps from the 24 V supply through a MOSFET module (logic level, e.g. AOD4184: the IRF520
+  module only half-opens at 3.3 V), with a flyback diode across the pump. All grounds joined.
+- **Klipper file:** *Install in Klipper* writes `screwpick_picker.cfg` (from
+  [pickers.py](../src/screwpick/pickers.py)) into Klipper's config folder through Moonraker and
+  restarts the firmware; `screwpick.cfg` includes it. Its macros: `SCREWPICK_GRAB`,
+  `SCREWPICK_RELEASE`, and for tweezers `SCREWPICK_ROTATE ANGLE=`. Servo angles for open/closed
+  and magnet on/off are variables at the top of each macro. Download the file instead to edit
+  it first.
+- **Where it aims:** a cup or a magnet goes onto the middle of the screw's head (seen from above);
+  tweezers close on the shank at the centre of gravity. Headless parts are taken in the middle,
+  nuts and washers at the centre of their outline.
 
 ### Swappable tool
 
@@ -69,6 +88,7 @@ Pi 3B has too little memory for Klipper, the camera and the model together.
 git clone https://github.com/ama24/screwpick.git ~/screwpick
 ~/screwpick/install-pi.sh --service      # --service: start screwpick at every boot
 cp ~/screwpick/klipper/screwpick.cfg ~/printer_data/config/
+cp -n ~/screwpick/klipper/screwpick_picker.cfg ~/printer_data/config/   # placeholder, never overwritten
 echo "[include screwpick.cfg]" >> ~/printer_data/config/printer.cfg
 ```
 
@@ -84,8 +104,8 @@ echo "[include screwpick.cfg]" >> ~/printer_data/config/printer.cfg
 To upgrade on purpose: run `python scripts/lock_pi.py` and change `SUPREME_COMMIT`, test it on
 the Pi, then commit.
 
-Then restart Klipper (`FIRMWARE_RESTART`), and adapt the *PICKER HARDWARE* part of
-`screwpick.cfg` to your wiring. Check everything with:
+Then restart Klipper (`FIRMWARE_RESTART`); the picker is chosen and installed later in the
+Setup tab. Check everything with:
 
 ```bash
 cd ~/screwpick && screwpick check
@@ -111,7 +131,9 @@ menu, until every step of the **Setup** tab is checked:
 3. **Machine:** limits, travel height and photo position, editable on the page. *Show me*
    buttons drive to each position (at travel height) so you can check them.
 4. **Tip height:** checks itself when you measure it (Calibrate tab).
-5. **Picker:** *Grab* and *Release* without moving, then confirm.
+5. **Picker:** choose the type (the page draws its wiring to the Pi), *Install in Klipper*, then
+   *Grab* and *Release* without moving; tweezers also *Turn to 0°* / *90°* and the offset. Then
+   confirm. Choosing another type or installing again un-checks the step.
 6. **Camera to printer:** checks itself when the calibration's worst error is under 1 mm.
 7. **Layout:** checks itself when Resync finds the bins and a plate without problems.
 
@@ -385,19 +407,19 @@ later.
 ## Tweezers on a Z rotation axis
 
 Instead of the hotend, the toolhead carries **tweezers that turn around Z**
-(`picker.mode: tweezers`):
+(`picker.mode: servo_tweezers` or `pneumatic_tweezers`):
 - before every pick they turn so their jaws close **across** the part, at the grip point;
 - they close at the height of the shank's middle;
 - they drop the part in the bin at whatever angle they hold it.
 
-`klipper/screwpick.cfg` has two ways to drive the rotation:
-- **A, the extruder's motor driver** (the hotend still prints after a tool swap): the angle is
-  remembered; set 0° once in the Setup tab.
-- **B, a spare driver with a small 0° switch:** the axis finds 0° by itself before every sort.
+Normally a **servo on GPIO12/13 of the Pi** turns them (0–180° is enough: the jaws are
+symmetric). In the **Setup tab → Picker**: *Turn to 0°* (the jaws must close along the printer's
+X axis), *Turn to 90°*, and an **offset** in degrees if the servo's 0 isn't quite along X.
 
-The jaws open and close with a servo or solenoid, through the same `SCREWPICK_GRAB` and
-`SCREWPICK_RELEASE` macros. In the **Setup tab → Picker**: *Turn to 0°* (the jaws must close
-along the printer's X axis), *Turn to 90°*, *Set zero*.
+`klipper/screwpick.cfg` also has two stepper-motor variants, instead of the servo:
+- **A, the extruder's motor driver** (the hotend still prints after a tool swap): the angle is
+  remembered; run `SCREWPICK_ROT_ZERO` in the console when the jaws close along X.
+- **B, a spare driver with a small 0° switch:** the axis finds 0° by itself before every sort.
 
 ## One cycle: pick, photo, drop
 

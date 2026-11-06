@@ -30,7 +30,11 @@ STEPS = (
     Step("homing", "Homing", "Z homes over the middle of the plate, never over a bin"),
     Step("machine", "Machine", "Bed limits, travel height and the photo position are right"),
     Step("tip", "Tip height", "Where the picker tip touches the plate"),
-    Step("picker", "Picker", "Grab and release work"),
+    Step(
+        "picker",
+        "Picker",
+        "The kind of picker, wired to the Pi, installed in Klipper; grab and release work",
+    ),
     Step(
         "camera", "Camera to printer", "The camera's millimetres match the printer's (error < 1 mm)"
     ),

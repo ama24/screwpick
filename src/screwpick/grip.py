@@ -5,6 +5,8 @@ Screws, standoffs and rod: the three keypoints the model already finds (head_top
 give the axis and the length; with the head's size from the catalogue the centre of mass
 follows (the head is heavy: on short screws it lies near or inside the head). The tweezers
 close on the shank: at the centre of mass, but never on the head and not at the very tip.
+A suction cup or a magnet takes a screw by its head instead (head_grip): the middle of the head
+seen from above; headless parts (set screws, rod, standoffs) at their centre.
 Everything else (nuts, washers, brackets, unknown parts): the centre and the long axis of the
 outline, from its area moments.
 """
@@ -26,7 +28,7 @@ class Grip:
     point: tuple[float, float]  # plate mm: where to take it
     axis_deg: float  # direction of the long axis (plate frame), 0..180
     com: tuple[float, float]  # centre of mass, plate mm
-    method: str  # "axis" (keypoints) | "outline"
+    method: str  # "axis" (keypoints) | "head" | "outline"
 
 
 @dataclass
@@ -71,6 +73,16 @@ def axis_grip(
     lo, hi = min_from_head_mm, length - min_from_tip_mm
     grip_at = min(max(at, lo), hi) if hi > lo else length / 2  # on the shank
     return Grip(_t(br + u * grip_at), axis, _t(com), "axis")
+
+
+def head_grip(kp: Mapping[str, tuple[float, float]], s: Shape) -> Grip:
+    """Cup or magnet: the middle of the head (between head_top and the underside of the head);
+    a headless part at its centre of mass. Axis and centre of mass as for the tweezers."""
+    g = axis_grip(kp, s)
+    ht, br = (np.asarray(kp[k], dtype=float) for k in ("head_top", "bearing"))
+    if s.head_k <= 0 or float(np.linalg.norm(br - ht)) < 0.3:
+        return g
+    return Grip(_t((ht + br) / 2), g.axis_deg, g.com, "head")
 
 
 def outline_grip(poly: np.ndarray) -> Grip | None:

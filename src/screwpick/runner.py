@@ -21,7 +21,7 @@ from typing import Any
 
 import numpy as np
 
-from . import binspec
+from . import binspec, pickers
 from . import files as files_mod
 from .analysis import ModelChoice
 from .binswap import BinRequest, after_ok, choose_swap
@@ -957,7 +957,7 @@ class Runner:
         assert p is not None and b is not None
         pk = self.m.picker
         surface = layout.surface_z()
-        if pk.mode in ("gripper", "tweezers"):
+        if pk.kind.holds == "jaws":
             h = p.grip_height_mm if p.grip_height_mm is not None else p.top_mm * pk.grip_height
             z = surface + h
         else:
@@ -967,11 +967,7 @@ class Runner:
         jaws = jaw_angle(p.bed_angle, pk.rotate_offset_deg)
         name = p.cls + (f"x{p.length_mm:g}" if p.length_mm is not None else "")
         self.note(f"pick {name} at ({x:.1f}, {y:.1f}) -> bin {b.marker} ({plan.reason})")
-        turn = (
-            f", jaws {jaws:.0f}°"
-            if pk.rotate and pk.mode in ("gripper", "tweezers", "both")
-            else ""
-        )
+        turn = f", jaws {jaws:.0f}°" if pk.rotate and pk.kind.rotates else ""
         self.phase(f"picking {name} at X{x:.0f} Y{y:.0f}{turn}, for bin {layout.bin_name(b)}")
         self.motion.message(f"pick {name}")
         self.motion.pick(x, y, z, jaws)
@@ -1109,6 +1105,10 @@ class Runner:
             elif k == "mask_margin_mm":
                 self.m.camera.mask_margin_mm = float(v)
                 self.mask_checked = True
+            elif k == "picker_mode":  # chosen in the Setup tab
+                self.m.picker.set_type(str(v))
+            elif k == "rotate_offset_deg":
+                self.m.picker.rotate_offset_deg = float(v)
             elif k == "camera_settings":  # locked in the Calibrate tab
                 self.m.camera.settings = str(v)
             elif k == "calibration":
@@ -1164,7 +1164,54 @@ class Runner:
             "homed_now": self._setup_homed,
             "picker_tried": sorted(self._setup_picker),
             "rotation": bool(self.m.picker.rotate),
+            "picker": {
+                "mode": self.m.picker.kind.key,
+                "types": [pickers.as_dict(t) for t in pickers.PICKERS],
+                "offset_deg": self.m.picker.rotate_offset_deg,
+                "installed": self._picker_installed(),
+                "file": pickers.CONFIG_NAME,
+            },
         }
+
+    def _picker_installed(self) -> str | None:
+        p = self.m.path(self.m.paths.machine)
+        return (read_json(p) or {}).get("picker_installed") if p and p.is_file() else None
+
+    def setup_picker_type(self, mode: str) -> dict[str, Any]:
+        """The kind of picker (Setup tab): how it takes a part, where it aims, whether it turns.
+        Un-checks the Picker step: install its Klipper file and test it again."""
+        self._idle()
+        t = pickers.picker_type(mode)
+        self.m.picker.set_type(t.key)
+        self.remember_machine({"picker_mode": t.key})
+        self.setup.reset("picker")
+        self._setup_picker.clear()
+        self.note(
+            f"picker: {t.title} (aims at the {'head' if t.aim == 'head' else 'centre of gravity'})"
+        )
+        return self.setup_state()
+
+    def setup_picker_install(self) -> dict[str, Any]:
+        """Write screwpick_picker.cfg for the chosen picker into Klipper's config folder and
+        restart Klipper's firmware so it reads it."""
+        self._idle()
+        t = self.m.picker.kind
+        with self._lock:
+            self.printer.upload_config(pickers.CONFIG_NAME, pickers.klipper_config(t.key))
+            self.printer.firmware_restart()
+        self.remember_machine({"picker_installed": t.key})
+        self.setup.reset("picker")
+        self._setup_picker.clear()
+        self.say(f"{pickers.CONFIG_NAME} for the {t.title.lower()} installed; Klipper restarts")
+        return self.setup_state()
+
+    def setup_picker_offset(self, deg: float) -> dict[str, Any]:
+        """Trim of the rotation: the servo angle at which the jaws close along printer X."""
+        self._idle()
+        self.m.picker.rotate_offset_deg = float(deg) % 180.0
+        self.remember_machine({"rotate_offset_deg": self.m.picker.rotate_offset_deg})
+        self._setup_picker.discard("rotate")
+        return self.setup_state()
 
     def setup_check_printer(self) -> dict[str, Any]:
         """Only questions to Klipper, nothing moves."""
@@ -1279,8 +1326,9 @@ class Runner:
                 self.printer.gcode(macro)
                 self.say("tweezers: this is 0°")
             else:
-                self.printer.gcode(f"{pk.rotate} ANGLE={float(angle or 0) % 180:.1f}")
-                self.say(f"tweezers turned to {float(angle or 0) % 180:.0f}°")
+                a = float(angle or 0) % 180
+                self.printer.gcode(f"{pk.rotate} ANGLE={(a + pk.rotate_offset_deg) % 180:.1f}")
+                self.say(f"tweezers turned to {a:.0f}°")
         self._setup_picker.add("zero" if zero else "rotate")
         return self.setup_state()
 
