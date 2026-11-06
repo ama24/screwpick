@@ -219,8 +219,12 @@ stale.
 ### 2. Bins on the bed
 
 ![The Print bins tab](docs/images/print-bins.png)
+*The Print bins tab starts with the corner bins (codes 50–99): the code sits on a square post
+that goes straight down to the floor, so no part can get trapped under it. The post is in the
+back-right corner; the pictures draw it in the far corner so you can see it. The shelf bins
+(codes 100–239) follow below.*
 
-Print the baseplate, a tray and some bins (the *Print bins* tab, or the ready-made files in
+Print the baseplate, a corner tray (codes 90–94) and some bins (the *Print bins* tab, or the ready-made files in
 `prints/`). Bins come as two-colour files: white bin, black code. With a single-colour printer, add
 a colour change at the rim height.
 
