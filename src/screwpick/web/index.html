@@ -3,10 +3,10 @@
 <title>screwpick</title>
 <style>
 :root{
- --bg:#f6f6f3;--card:#fff;--ink:#2f3133;--mut:#878a8d;--soft:#b3b5b6;--line:#e7e6e1;--line2:#f0efea;
- --acc:#5f8f8b;--acc-soft:#e9f1ef;--ok:#5b8e66;--ok-soft:#ebf4ed;--warn:#b0873c;--warn-soft:#f8f1e3;
- --bad:#b4553f;--bad-soft:#f8ebe7;--work:#edf2f4;--cell:#fafaf8;
- --r:12px;--r2:8px;
+ --bg:#f3f4f1;--card:#fff;--ink:#1c2024;--mut:#5d6670;--soft:#8a9198;--line:#e3e5e0;--line2:#eef0ec;
+ --acc:#0f766e;--acc-soft:#e6f2f0;--ok:#15803d;--ok-soft:#e9f6ee;--warn:#b45309;--warn-soft:#fdf3e7;
+ --bad:#c2410c;--bad-soft:#fbede6;--work:#eaf0f0;--cell:#f7f8f5;
+ --r:14px;--r2:9px;
 }
 *{box-sizing:border-box}[hidden]{display:none!important}
 html{background:var(--bg)}
@@ -108,9 +108,9 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer}
 .warnc{background:var(--warn-soft);border-color:#ecdcbc;color:var(--warn)}
 .dgrid{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:16px}
-@media (max-width:980px){.dgrid{grid-template-columns:1fr}}
+@media (max-width:980px){.dgrid{grid-template-columns:minmax(0,1fr)}}
 .dcard{margin:0;display:flex;flex-direction:column;min-width:0}
-.chead{display:flex;align-items:center;gap:10px;min-height:32px;margin-bottom:12px}.chead h2{margin:0}.chead .row,.chead .seg{margin-left:auto}
+.chead{display:flex;flex-wrap:wrap;align-items:center;gap:10px;min-height:32px;margin-bottom:12px}.chead h2{margin:0}.chead .row,.chead .seg{margin-left:auto}
 .chead .note{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .seg.sm label{padding:3px 10px;font-size:12.5px;gap:5px}.seg.sm input{display:inline;accent-color:var(--acc);margin:0}
 .camwrap{position:relative;border-radius:var(--r2);overflow:hidden;background:#eceeec;aspect-ratio:1/1}
@@ -159,12 +159,57 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 /* print bins */
 .sizes td{vertical-align:middle}.sizes .plates{display:flex;flex-wrap:wrap;gap:4px 10px;max-width:420px}
 .sizes .thumb{width:150px;text-align:center}.sizes .thumb svg{width:132px;height:96px}
+
+/* theme: workshop sidebar */
+body{font:14px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+.app{display:flex;min-height:100vh}
+.side{position:sticky;top:0;height:100vh;flex:0 0 244px;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:20px;padding:20px 14px;box-sizing:border-box;overflow:auto;z-index:4}
+.side .brand{padding:0 8px;gap:10px}.side .brand .bl{display:flex;flex-direction:column;line-height:1.25}.side .brand b{font-size:16px;font-weight:700;letter-spacing:-.01em}.side .brand small{font-size:12px;color:var(--mut);font-weight:400}
+.logo{width:30px;height:30px;border-radius:8px;background:var(--acc);display:grid;grid-template-columns:repeat(2,7px);place-content:center;gap:3px}.logo i{width:7px;height:7px;border-radius:2px;background:#fff}.logo i:nth-child(2),.logo i:nth-child(3){background:#9fd6cf}
+nav{display:flex;flex-direction:column;gap:18px}
+.ngroup{display:flex;flex-direction:column;gap:2px}
+.glabel{font-size:11.5px;font-weight:600;letter-spacing:.06em;color:var(--mut);padding:0 10px 6px;text-transform:uppercase}
+nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 10px;border-radius:8px;color:var(--ink);font-size:14px}
+nav button svg{flex:none;color:var(--mut)}nav button:hover{background:var(--cell);color:var(--ink)}
+nav button.on{background:var(--acc-soft);color:var(--acc);font-weight:600}nav button.on svg{color:var(--acc)}
+nav button .badge{margin-left:auto;background:var(--warn);color:#fff}
+.mcard{margin-top:auto;border:1px solid var(--line);border-radius:12px;padding:14px;background:#fafbf9;display:flex;flex-direction:column;gap:8px}
+.mcard #status{font-size:14px}.mcard #status b{text-transform:capitalize}.mcard .now{font-size:13px;color:#3f4750;min-height:20px}
+.mcard .who{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--mut)}.mcard .who button{margin-left:auto;background:none;border:0;color:var(--acc);font:inherit;cursor:pointer;padding:0}
+.mcard .estop{width:100%;border-radius:9px;padding:11px;font-size:14px;margin-top:4px}
+.content{flex:1;min-width:0}
+main{max-width:1380px;padding:26px 30px 40px}
+.phead{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;margin-bottom:18px}
+.phead .pt{flex:1 1 300px}.phead h1{margin:0;font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.2}.phead p{margin:3px 0 0;color:var(--mut)}
+.phead .acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+h2{font-size:16px;font-weight:600;letter-spacing:-.005em;text-transform:none;color:var(--ink);display:flex;align-items:center;gap:9px}
+h2 svg{color:var(--acc);flex:none}
+.card{border-radius:var(--r)}
+button.b{border-radius:9px;padding:9px 16px;font-weight:500;border-color:#d6d9d3}
+button.b.s{padding:5px 11px;font-size:13px;border-radius:8px}
+button.p{font-weight:600}button.big{padding:11px 18px}
+.attn{display:flex;flex-wrap:wrap;align-items:center;gap:12px;border-radius:12px;padding:12px 16px;margin-bottom:12px;border:1px solid}
+.attn.w{background:var(--warn-soft);border-color:#f1d9b5}.attn.w svg{color:var(--warn)}
+.attn .tx{flex:1 1 280px}.attn .tx span{color:#5d4a2e}
+.attn button{border:0;border-radius:9px;padding:9px 16px;font:inherit;font-weight:700;color:#fff;background:var(--warn);cursor:pointer}
+#msg{font-size:13px;margin-top:4px;min-height:19px}#strategy{max-width:250px}
+@media (max-width:900px){.app{flex-direction:column}.side{position:static;height:auto;flex:none;width:100%;flex-direction:row;flex-wrap:wrap;align-items:center;border-right:0;border-bottom:1px solid var(--line);padding:12px}
+ nav{flex-direction:row;flex-wrap:wrap;gap:4px;width:100%}.ngroup{flex-direction:row;flex-wrap:wrap}.glabel{display:none}nav button{width:auto}.mcard{margin:0;flex:1 1 100%}main{padding:18px 16px 30px}.content{width:100%;overflow-x:hidden}.card{overflow-x:auto}}
 </style></head><body>
-<header><div class="bar">
- <div class="brand"><span class="logo"><i></i><i></i><i></i><i></i></span>screwpick</div>
- <nav><button data-t="device" class="on">Device<span id="devbadge" class="badge" hidden></span></button><button data-t="setup">Setup<span id="setupbadge" class="badge" hidden></span></button><button data-t="calib">Calibrate</button><button data-t="print">Print bins</button><button data-t="models">Models</button><button data-t="files">Files</button><button data-t="photos">Photos</button><button data-t="users">Users</button></nav>
- <div class="right"><span id="status"><span class="dot"></span>…</span><span id="me"></span><button class="estop" onclick="cmd('estop')">STOP</button></div>
-</div></header>
+<div class="app">
+<aside class="side">
+ <div class="brand"><span class="logo"><i></i><i></i><i></i><i></i></span><span class="bl"><b>screwpick</b><small id="machname">pick-and-place sorter</small></span></div>
+ <nav aria-label="Sections">
+  <div class="ngroup"><span class="glabel">Operate</span><button data-t="device" class="on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Device</span><span id="devbadge" class="badge" hidden></span></button></div>
+  <div class="ngroup"><span class="glabel">Prepare</span><button data-t="setup"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Setup</span><span id="setupbadge" class="badge" hidden></span></button><button data-t="calib"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg><span>Calibrate</span></button><button data-t="print"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg><span>Print bins</span></button></div>
+  <div class="ngroup"><span class="glabel">Library</span><button data-t="models"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l9 5-9 5-9-5z"/><path d="M3 12l9 5 9-5M3 17l9 5 9-5"/></svg><span>Models</span></button><button data-t="files"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Files</span></button><button data-t="photos"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Real photos</span></button></div>
+  <div class="ngroup"><span class="glabel">Admin</span><button data-t="users"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-6 7-6s7 2.5 7 6M17 11a3 3 0 1 0 0-6M22 20c0-2.6-1.7-4.6-4-5.4"/></svg><span>Users</span></button></div>
+ </nav>
+ <div class="mcard"><span id="status"><span class="dot"></span>…</span><span class="now" id="nowline"></span>
+  <span class="who"><span id="me"></span><button onclick="logout()" id="logoutb" hidden>Log out</button></span>
+  <button class="estop" onclick="cmd('estop')" title="Stops the printer at once (Klipper emergency stop)">STOP</button></div>
+</aside>
+<div class="content">
 
 <div id="login"><form onsubmit="doLogin(event)">
  <div class="brand"><span class="logo"><i></i><i></i><i></i><i></i></span>screwpick</div>
@@ -178,7 +223,8 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 
 <main>
 <section id="setup">
- <div class="card"><h2>Setup</h2><p class="note" style="margin:0">Go through these steps once, in order, and again whenever something changes (picker, Z switch, camera, bins). <b>Sort</b> and <b>Automatic</b> start only when every step is checked. Until then the machine only makes the moves you ask for here. <span id="setupsum"></span></p></div>
+ <div class="phead"><div class="pt"><h1>Setup</h1><p>Once, in order, before the machine moves by itself</p></div></div>
+ <div class="card"><h2>How it works</h2><p class="note" style="margin:0">Go through these steps once, in order, and again whenever something changes (picker, Z switch, camera, bins). <b>Sort</b> and <b>Automatic</b> start only when every step is checked. Until then the machine only makes the moves you ask for here. <span id="setupsum"></span></p></div>
  <div id="steps"></div>
  <div class="card"><h2>On the machine</h2>
   <p class="note">Things only you can do on the real machine. They do not stop the sorting; some tick themselves off when the program notices.</p>
@@ -186,20 +232,18 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 </section>
 
 <section id="device" class="on">
- <div class="card ctl">
-  <div class="row"><button class="b p" onclick="cmd('auto')" title="Standby: looks for parts every minute and sorts them, until Stop. Stays on after a restart.">Automatic</button><button class="b" onclick="cmd('start')">Sort once</button><button class="b" onclick="cmd('step')">One pick</button><span class="vsep"></span><button class="b" onclick="cmd('pause')">Pause</button><button class="b" onclick="cmd('resume')">Resume</button><button class="b" onclick="cmd('stop')">Stop</button></div>
-  <span id="msg" class="note grow"></span>
-  <button id="setupchip" class="chip warnc" hidden onclick="go('setup')"></button>
- </div>
+ <div class="phead"><div class="pt"><h1>Device</h1><p>The tray, the bins and what the machine does, live</p><div id="msg" class="note"></div></div>
+  <div class="acts"><button class="b p big" onclick="cmd('auto')" title="Standby: looks for parts every minute and sorts them, until Stop. Stays on after a restart.">Automatic</button><button class="b big" onclick="cmd('start')">Sort once</button><button class="b big" onclick="cmd('step')">One pick</button><button class="b big" onclick="cmd('pause')">Pause</button><button class="b big" onclick="cmd('resume')">Resume</button><button class="b big" onclick="cmd('stop')">Stop</button></div></div>
+ <div id="attn"></div>
  <div class="dgrid">
   <div class="card dcard">
-   <div class="chead"><h2>Camera</h2><span class="note" id="camnote"></span>
+   <div class="chead"><h2><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Camera</h2><span class="note" id="camnote"></span>
     <span class="seg sm"><label><input type="checkbox" id="showlab" checked onchange="drawOverlay()">names</label><label><input type="checkbox" id="showout" checked onchange="drawOverlay()">outlines</label></span></div>
-   <div class="camwrap"><img id="view" alt="" onload="drawOverlay()"><svg id="ov"></svg><div id="camempty" class="empty">No photo yet: press <b>One pick</b> or <b>Sort once</b>.</div></div>
+   <div class="camwrap"><img id="view" alt="" onload="drawOverlay()"><svg id="ov"></svg><div id="camempty" class="empty"><span>No photo yet: press <b>One pick</b> or <b>Sort once</b>.</span></div></div>
    <div id="target" class="tline"></div>
   </div>
   <div class="card dcard">
-   <div class="chead"><h2>Bed</h2>
+   <div class="chead"><h2><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Bed</h2>
     <div class="row"><select id="strategy" title="How the parts are sorted"></select><button class="b s" onclick="scan()" title="Photo: where the baseplate lies, which bins stand where and which way round; the biggest bin becomes the tray unless you chose one">Resync</button><button class="b s" onclick="openSettings()" title="Grid size, where it lies, what a wild bin collects">Settings</button></div></div>
    <svg id="grid" class="bedsvg"></svg>
    <div id="bedbar"></div>
@@ -208,11 +252,11 @@ ul.plain{margin:8px 0 0;padding-left:18px}
    <div class="legend"><span><i class="sw" style="border-style:dashed"></i>free wild bin</span><span><i class="sw"></i>collecting</span><span><i class="sw" style="background:var(--ok-soft);border-color:var(--ok)"></i>finished</span><span><i class="sw" style="background:var(--warn-soft);border-color:var(--warn)"></i>to change</span><span><i class="sw" style="background:var(--work);border-color:#c9d6db"></i>tray</span><span><i class="sw" style="background:var(--cell);border-color:var(--line)"></i>no bin</span><span class="note">⋯ or right-click: options</span></div>
   </div>
   <div class="card dcard">
-   <div class="chead"><h2>In the tray</h2><span class="note" id="statnote"></span></div>
+   <div class="chead"><h2><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>In the tray</h2><span class="note" id="statnote"></span></div>
    <div id="bars" class="scrolly"></div>
   </div>
   <div class="card dcard">
-   <div class="chead"><h2>Activity</h2><span class="note" id="actnote"></span></div>
+   <div class="chead"><h2><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Activity</h2><span class="note" id="actnote"></span></div>
    <div id="now"></div>
    <div id="console" class="scrolly"></div>
   </div>
@@ -220,6 +264,7 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 </section>
 
 <section id="calib">
+ <div class="phead"><div class="pt"><h1>Calibrate</h1><p>The camera, the camera to the printer, and the picker tip</p></div></div>
  <div class="card"><h2>Camera calibration</h2>
   <p class="note" style="margin:0 0 12px">Tells the program how the camera sees: the lens, and where it stands over the tray. screwpick parks the bed itself; only the camera is screwrig's. Do it once, and again whenever the camera or the tray moved. The result lands in the Files tab by itself.</p>
   <ol class="calsteps">
@@ -263,6 +308,7 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 </section>
 
 <section id="print">
+ <div class="phead"><div class="pt"><h1>Print bins</h1><p>Bins, trays, baseplates and holders, ready to print</p></div></div>
  <div class="card"><h2>Bin sizes</h2>
   <p class="note">Each size has its own range of codes, so the camera knows a bin's size from its code, and whether the code sits on a shelf along the back or on a post in the back-right corner (codes 50–99). Use a corner tray as the plate: nothing overhangs there, so no part gets trapped. Every plate is a full build plate of one size for a 220 × 220 bed: all the same height, so one colour change at the rim (21 mm for 3u, 42 mm for 6u) makes all the codes black. The same files are in the repository under <code>prints/</code>.</p>
   <table id="sizelist" class="sizes"></table>
@@ -287,8 +333,9 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 </section>
 
 <section id="users">
+ <div class="phead"><div class="pt"><h1>Users</h1><p>Who may use this page</p></div></div>
  <div class="cols">
-  <div class="card"><h2>Users</h2><table id="ulist"></table>
+  <div class="card"><h2>Accounts</h2><table id="ulist"></table>
    <div class="row" style="margin-top:14px"><input id="nuser" placeholder="New user name"><input id="npass" type="password" placeholder="Password"><button class="b p" onclick="addUser()">Add user</button></div>
    <p class="note" style="margin-top:10px">Everyone with an account can do everything. Lost every password? On the Pi: <code>screwpick user add NAME</code>.</p><span id="umsg" class="note"></span></div>
   <div class="card"><h2>My password</h2><div style="display:grid;gap:8px"><input id="oldpw" type="password" placeholder="Current password"><input id="newpw" type="password" placeholder="New password"><div class="row"><button class="b" onclick="changePw()">Change</button><button class="b" onclick="logout()">Log out</button></div></div></div>
@@ -296,14 +343,16 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 </section>
 
 <section id="files">
- <div class="card"><h2>Files from the other projects</h2>
+ <div class="phead"><div class="pt"><h1>Files</h1><p>Files from the other projects, kept on this Pi</p></div></div>
+ <div class="card"><h2>How it works</h2>
   <p class="note">screwpick keeps its own copy of every file it uses, so it runs on its own. Fetch each one from where it says, and drop it on its card: it is checked, kept on this Pi and used at once. A file you leave out is not missing: the card says what is done without it. The models are in the Models tab.</p>
   <span id="fmsg" class="note"></span></div>
  <div id="flist" class="card frows"></div>
 </section>
 
 <section id="photos">
- <div class="card"><h2>Real photos</h2>
+ <div class="phead"><div class="pt"><h1>Real photos</h1><p>Photo sessions for checking the model on the PC</p></div></div>
+ <div class="card"><h2>New session</h2>
   <p class="note">Photos of real parts on the tray, for checking the model on the PC (screw-sorting project, real data). Make a session, write down on the PC what lies in the tray (inventory.csv), then take a photo after each change: the bed is parked first, the camera uses the locked settings. Download the session and put it in the screw-sorting project's data/real/.</p>
   <div class="row"><label>session<input id="sname" placeholder="e.g. s01_m3_m4"></label><label>by<input id="sop" style="width:110px"></label><label style="flex:1">notes<input id="snotes" style="flex:1"></label><button class="b s" onclick="newSession()">New session</button></div>
   <span id="smsg" class="note"></span></div>
@@ -311,6 +360,7 @@ ul.plain{margin:8px 0 0;padding-left:18px}
 </section>
 
 <section id="models">
+ <div class="phead"><div class="pt"><h1>Models</h1><p>The models that find and measure the parts</p></div></div>
  <div class="card"><h2>In use</h2><div id="loaded" class="note">…</div></div>
  <div class="card"><h2>Add a model</h2>
   <div id="drop" onclick="$('file').click()"><b>Drop a model here</b> or click to choose<br>
@@ -324,6 +374,7 @@ ul.plain{margin:8px 0 0;padding-left:18px}
  <div class="card" id="testcard" hidden><h2>Test result</h2><p id="testinfo" class="note"></p><img id="testimg" class="shot" alt=""></div>
 </section>
 </main>
+</div></div>
 <div id="menu" class="menu" hidden></div>
 <div id="modal" class="modal" hidden onclick="if(event.target===this)closeModal()"><div class="mbox"><h3 id="mtitle"></h3><div id="mbody"></div>
  <div class="row end"><button class="b" onclick="closeModal()">Cancel</button><button class="b p" id="mok">Queue the change</button></div></div></div>
@@ -340,7 +391,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;","
 // ---------------------------------------------------------------- login
 let first=false;
 function showLogin(isFirst){first=isFirst;$("login").classList.add("on");$("logtitle").textContent=isFirst?"Create the first account":"Log in";$("loghelp").hidden=!isFirst;$("lpass2").hidden=!isFirst;$("lpass2").required=isFirst;}
-async function session(){try{const j=await api("api/session");$("me").textContent=j.user||"";if(j.login&&!j.user)showLogin(j.first_account);else{$("login").classList.remove("on");poll();}}catch(e){}}
+async function session(){try{const j=await api("api/session");$("me").textContent=j.user?"Signed in as "+j.user:"";$("logoutb").hidden=!j.user;if(j.login&&!j.user)showLogin(j.first_account);else{$("login").classList.remove("on");poll();}}catch(e){}}
 async function doLogin(e){e.preventDefault();if(first&&$("lpass").value!==$("lpass2").value){flash("logmsg","the passwords differ",1);return;}
  try{await api(first?"api/setup":"api/login",{user:$("luser").value,password:$("lpass").value});$("lpass").value=$("lpass2").value="";flash("logmsg","");session();}catch(err){flash("logmsg",err.message,1);}}
 async function logout(){await api("api/logout",{});location.reload();}
@@ -366,8 +417,11 @@ async function poll(){try{S=await api("api/state");}catch(e){$("status").innerHT
  const img=S.view||S.shot;if(img&&img!==shownView){shownView=img;$("view").src="runs/"+encodeURIComponent(img);$("calshot").src="runs/"+encodeURIComponent(S.shot||img);}
  $("camempty").hidden=!!img;drawOverlay();renderStats();renderActivity();
  const su=S.setup||{},left=(su.missing||[]).length;$("setupbadge").hidden=!(su.required&&left);$("setupbadge").textContent=left;
- $("setupchip").hidden=!(su.required&&left);$("setupchip").textContent=`Setup: ${left} step${left===1?"":"s"} left`;
+
  const nreq=(S.requests||[]).length;$("devbadge").hidden=!nreq;$("devbadge").textContent=nreq;
+ $("machname").textContent=S.driver==="sim"?"simulated printer":"Klipper printer";
+ $("nowline").textContent=(["running","waiting","parked","standby","stopping"].includes(S.status)?S.phase||S.message:S.message)||"";
+ renderAttention();
  renderPairs(S.calib_pairs||[]);if(!maskSet&&S.mask_margin_mm!=null){$("mmargin").value=S.mask_margin_mm;maskSet=true;}
  if(!pending.length&&++layTick%3===0)loadLayout(true);else renderBed();}
 let layTick=0;
@@ -455,9 +509,14 @@ function renderBed(){const L=draft;if(!L)return;const W=L.cols*CELL,H=L.rows*CEL
  svg.querySelectorAll("g[data-cell]").forEach(g=>{const[x,y]=g.dataset.cell.split(",").map(Number);if(taken.has(`${x},${y}`))return;const open=e=>{e.preventDefault();e.stopPropagation();cellMenu(x,y,e);};g.onclick=open;g.oncontextmenu=open;});
  $("pending").hidden=!pending.length;$("pendtext").innerHTML=pending.length?`<b>${pending.length} change${pending.length===1?"":"s"} queued</b> · ${pending.map(esc).join(" · ")}`:"";
  renderBedBar();}
+const WARN_ICO='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17.5v.5"/></svg>';
+function renderAttention(){const reqs=S.requests||[],parked=S.swap_phase==="parked",su=S.setup||{},left=(su.missing||[]).length;
+ const why=x=>x.why==="full"?"is full":x.why==="asked"?"is to be changed":`is needed for ${esc(x.for_kind||"a new kind")}`;
+ $("attn").innerHTML=(su.required&&left?`<div class="attn w">${WARN_ICO}<span class="tx"><b>Setup is not finished</b> <span>· ${left} step${left===1?"":"s"} left: ${esc((su.missing||[]).join(", "))}. Until then the machine only moves when you ask.</span></span><button onclick="go('setup')">Open Setup</button></div>`:"")+
+  reqs.map(x=>`<div class="attn w">${WARN_ICO}<span class="tx"><b>Bin ${esc(x.cell)} ${why(x)}</b> <span>· ${esc(x.what)} · ${x.count} part${x.count===1?"":"s"}. ${parked?"The machine is parked: change the bin, then press the button.":"The machine keeps sorting everything else."}</span></span><button onclick="cmd('change')">${parked?`Bin ${esc(x.cell)} changed`:`Change bin ${esc(x.cell)}`}</button></div>`).join("");}
 function renderBedBar(){const reqs=S.requests||[],parked=S.swap_phase==="parked",L=draft;
  const cell=m=>{const b=L&&L.bins.find(b=>b.marker===m);return b?cellName(b.x,b.y):String(m);};
- $("bedbar").innerHTML=reqs.map(x=>`<span class="req chg"><b>${esc(x.cell)}</b> ${esc(x.what)} <span class="mut">${x.count} · ${x.why==="full"?"full":x.why==="asked"?"asked":"for "+esc(x.for_kind||"")}</span><button onclick="cmd('change')">${parked?`Bin ${esc(x.cell)} changed`:`Change bin ${esc(x.cell)}`}</button></span>`).join("")+
+ $("bedbar").innerHTML=
   (S.ready||[]).filter(x=>!reqs.some(r=>r.marker===x.marker)).map(x=>`<span class="req fin"><b>${esc(cell(x.marker))}</b> ${esc(x.what)} <span class="mut">${x.count} · finished</span><button onclick="emptied(${x.marker})">Emptied</button></span>`).join("");}
 // menus
 function closeMenu(){$("menu").hidden=true;}
@@ -559,7 +618,7 @@ function stepBody(st){const m=SU.machine||{},redo=st.done?` <button class="b s" 
   (SU.rotation?`<p class="note" style="margin-top:10px">Tweezers: at <b>0°</b> the jaws must close along the printer's X axis (left–right). If they don't, turn them there by hand and press <b>Set zero</b>.</p><button class="b s" onclick="setupCall('api/setup/rotate',{angle:0})">Turn to 0°</button> <button class="b s" onclick="setupCall('api/setup/rotate',{angle:90})">Turn to 90°</button> <button class="b s" onclick="setupCall('api/setup/rotate',{zero:true})">Set zero</button> `:"")+
   (["grab","release"].every(x=>(SU.picker_tried||[]).includes(x))&&(!SU.rotation||(SU.picker_tried||[]).includes("rotate"))&&!st.done?` <button class="b p s" onclick="setupCall('api/setup/confirm',{step:'picker'})">It holds and lets go</button>`:"")+redo;
  case "camera":return `<p class="note">In <b>Calibrate</b>: photo, the tip onto 3 or more markers, Fit. Checks itself when the worst error is below 1 mm.</p><button class="b s" onclick="go('calib')">Open Calibrate</button>`;
- case "layout":return `<p class="note">In <b>Layout</b>: <b>Resync with the camera</b>. Checks itself when the bins and a plate are found without problems.</p><button class="b s" onclick="go('layout')">Open Layout</button>`;
+ case "layout":return `<p class="note">In <b>Device</b>, next to the bed: <b>Resync</b>. Checks itself when the bins and a plate are found without problems.</p><button class="b s" onclick="go('device')">Open Device</button>`;
  }return "";}
 function renderSetup(){const left=SU.steps.filter(x=>!x.done).length;
  $("setupsum").innerHTML=SU.required?(left?`<b>${left}</b> step${left===1?"":"s"} to go.`:'<span class="ok">All done: the machine may sort.</span>'):"(Simulation: not required.)";

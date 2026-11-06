@@ -9,7 +9,10 @@ printer's firmware) and you use it from a web page on your phone or PC, or from 
 display.
 
 ![The Device tab](docs/images/device.png)
-*The Device tab, the page you land on. Top left the camera: the latest photo with every part
+*The Device tab, the page you land on. On the left the sections of the page, grouped by what
+you do (operate, prepare, library), and below them the machine: its state, what it is doing and
+the STOP button. Anything that needs you, like a full bin, shows as an orange banner at the top
+with its button. Top left the camera: the latest photo with every part
 outlined and named, and the part picked next boxed in red. Top right the bed, live: every bin with
 what it collects and how full it is; one bin waits for a change (amber), two are finished (green).
 Bottom left what lies in the tray, by class and length; bottom right what the machine is doing.
@@ -28,6 +31,9 @@ screwpick's web page. screwpick never reaches into the other projects' folders.
 
 ### What's new
 
+- **New look:** the sections are in a sidebar on the left, grouped by what you do, with the
+  machine's state and the STOP button always at its bottom. Every page has a title, and a full
+  bin or unfinished setup shows as an orange banner at the top of Device.
 - **Device tab:** one page with the live camera (every part outlined, the next one boxed), the
   live bed with a menu on every bin, what lies in the tray, and what the machine is doing.
   [See below](#first-time-setup).
@@ -35,7 +41,7 @@ screwpick's web page. screwpick never reaches into the other projects' folders.
   printer. The machine keeps sorting the rest meanwhile. [Everyday use](#everyday-use).
 - **Queued bin changes:** edit, add, turn or take off bins, then *Apply* them all at once, even
   while sorting.
-- **Camera calibration and real photos from the page** (Calibrate and Photos tabs): screwpick is
+- **Camera calibration and real photos from the page** (Calibrate and Real photos tabs): screwpick is
   the only program that moves the printer.
 - **Files tab:** one row per file from the other projects, each with its drop area.
 - **Faster page:** the Pi answers on IPv6 and IPv4 and no longer re-reads files every second.
@@ -264,7 +270,8 @@ program notices; they never block sorting.
    in the tray, and a line for everything the machine does (parking, taking a photo, running the
    model, picking X, leaving X in bin Y).
 4. **When a bin is full**, or a new kind needs a bin and none is free, the bin turns amber on the
-   bed and a **Change bin E1** button appears under it (and on the printer's display). The
+   bed and an orange banner with a **Change bin E1** button appears at the top of the Device tab
+   (and on the printer's display). The
    machine **keeps sorting everything else**.
    - Press **Change bin E1**: the machine parks with the bed out, so your hands are safe.
    - Empty the bin, or put an empty bin in its place, and press **Bin E1 changed**. A photo checks
@@ -272,7 +279,7 @@ program notices; they never block sorting.
    - You can also ask for any bin to be changed from its ⋯ menu.
 5. **Finished bins** (nothing left in the tray goes there) are green, with an **Emptied** button
    under the bed. Take them out, empty them and press it.
-6. **STOP** at the top right stops the printer at once.
+6. **STOP**, at the bottom of the sidebar, stops the printer at once.
 
 Everything on the page can also be done from the printer's display: **Screw sorter** in its
 menu has Automatic, Sort, One pick, Change bin, Pause, Resume and Stop.
