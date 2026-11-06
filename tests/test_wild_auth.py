@@ -245,6 +245,8 @@ def test_web_login_flow(machine, tmp_path, monkeypatch):
         jar = cookie.split(";")[0]
         assert call("/api/session", cookie=jar)[1]["user"] == "alex"
         assert call("/api/state", cookie=jar)[0] == 200
+        code, body, _ = call("/api/setup", cookie=jar)  # GET: the Setup tab's steps, not an account
+        assert code == 200 and len(body["steps"]) == 7
         assert call("/api/setup", {"user": "eve", "password": "secret2"})[0] == 403
         assert call("/api/login", {"user": "alex", "password": "bad"})[0] == 403
         code, body, _ = call("/api/users/add", {"user": "sam", "password": "secret3"}, jar)
