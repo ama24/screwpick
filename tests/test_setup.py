@@ -34,7 +34,7 @@ def make(machine, n: int = 3):
 def test_nothing_sorts_before_the_setup(machine):
     runner, world, printer = make(machine)
     for cmd in ("start", "step", "auto"):
-        assert runner.command(cmd).startswith("finish the Setup tab first: Printer, Homing")
+        assert runner.command(cmd).startswith("finish the Setup tab first: Printer, Picker, Homing")
     assert printer.log == []  # not a single command reached the printer
     with pytest.raises(PrinterError, match="home first"):
         runner.jog(0, 0, 1)  # setup moves never home by themselves
@@ -46,13 +46,24 @@ def test_the_whole_setup_then_sorting(machine):
     # 1 printer: questions only
     res = runner.setup_check_printer()
     assert res["ok"] and all(c["ok"] for c in res["checks"])
-    # 2 homing: watched, then confirmed
+    # 2 picker: on the printer (a button, not Mainsail), then both tried
+    printer.gcode("TOOL_HOTEND")
+    with pytest.raises(PrinterError, match="Grab and Release"):
+        runner.setup_confirm("picker")
+    runner.setup_picker("grab")
+    runner.setup_picker("release")
+    with pytest.raises(PrinterError, match="'hotend' mounted"):
+        runner.setup_confirm("picker")
+    assert runner.setup_tool("picker")["tool"] == "picker"
+    assert "TOOL_PICKER" in printer.log
+    runner.setup_confirm("picker")
+    # 3 homing: watched, then confirmed
     with pytest.raises(PrinterError, match="Home now"):
         runner.setup_confirm("homing")
     runner.setup_home()
     assert "G28" in printer.log
     runner.setup_confirm("homing")
-    # 3 machine: values checked, shown, confirmed
+    # 4 machine: values checked, shown, confirmed
     with pytest.raises(ValueError, match="minimum"):
         runner.save_machine({"limits_x": [220, 0]})
     with pytest.raises(PrinterError, match="limits"):
@@ -62,15 +73,9 @@ def test_the_whole_setup_then_sorting(machine):
     assert runner.setup_goto("photo")[:2] == [0.0, 210.0]
     runner.setup_goto("centre")
     runner.setup_confirm("machine")
-    # 4 tip height: checks itself
+    # 5 tip height: checks itself
     printer.gcode("G1 X100 Y100 Z3")
     runner.tip_touches_plate()
-    # 5 picker: both tried first
-    with pytest.raises(PrinterError, match="Grab and Release"):
-        runner.setup_confirm("picker")
-    runner.setup_picker("grab")
-    runner.setup_picker("release")
-    runner.setup_confirm("picker")
     # 6 camera: the calibration checks itself
     with pytest.raises(PrinterError, match="checked by the machine"):
         runner.setup_confirm("camera")
@@ -86,6 +91,20 @@ def test_the_whole_setup_then_sorting(machine):
     assert runner.command("start").startswith("start")
     runner.wait(60)
     assert runner.state.status == "done" and not world.parts
+
+
+def test_the_tool_buttons_switch_klippers_tool(machine):
+    runner, _, printer = make(machine)
+    runner.setup_check_printer()
+    runner.setup_home()
+    assert runner.setup_tool("hotend")["tool"] == "hotend"
+    with pytest.raises(PrinterError, match="The picker is on the printer"):
+        runner.jog(0, 0, 1)  # the hotend is on: nothing moves
+    with pytest.raises(ValueError, match="picker or hotend"):
+        runner.setup_tool("nozzle")
+    runner.setup_tool("picker")
+    runner.jog(0, 0, 1)
+    assert printer.log.count("TOOL_HOTEND") == printer.log.count("TOOL_PICKER") == 1
 
 
 def test_machine_values_are_kept_and_reset_the_step(machine):
@@ -136,9 +155,11 @@ def test_setup_web_api(machine):
             state = json.loads(r.read())
         assert state["required"] and not state["complete"] and len(state["steps"]) == 7
         assert post("/api/setup/printer", {})["ok"] is True
+        assert [s["key"] for s in state["steps"]][:3] == ["printer", "picker", "homing"]
+        assert post("/api/setup/tool", {"tool": "picker"})["tool"] == "picker"
         assert post("/api/setup/home", {})["homed_now"] is True
-        assert post("/api/setup/confirm", {"step": "homing"})["steps"][1]["done"] is True
-        assert post("/api/setup/reset", {"step": "homing"})["steps"][1]["done"] is False
+        assert post("/api/setup/confirm", {"step": "homing"})["steps"][2]["done"] is True
+        assert post("/api/setup/reset", {"step": "homing"})["steps"][2]["done"] is False
         assert post("/api/command", {"command": "start"})["result"].startswith("finish the Setup")
     finally:
         srv.shutdown()

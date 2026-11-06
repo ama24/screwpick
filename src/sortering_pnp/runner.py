@@ -119,6 +119,7 @@ class Runner:
         self.require_setup = self.m.printer.driver != "sim"
         self._setup_homed = False  # homed from the Setup tab since the program started
         self._setup_picker: set[str] = set()  # grab / release tried
+        self._tool: str | None = None  # the tool Klipper said is mounted, when last asked
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="analyse")
 
     # ------------------------------------------------------------------ files
@@ -1163,6 +1164,7 @@ class Runner:
             "machine": self.machine_values(),
             "homed_now": self._setup_homed,
             "picker_tried": sorted(self._setup_picker),
+            "tool": self._tool,  # the mounted tool, as Klipper last said (None: not asked yet)
             "rotation": bool(self.m.picker.rotate),
             "picker": {
                 "mode": self.m.picker.kind.key,
@@ -1227,19 +1229,13 @@ class Runner:
                 {"what": "Klipper is ready", "ok": st.ready, "detail": st.message or st.state}
             )
             if st.ready:
-                if pc.tool_macro:
+                if pc.tool_macro:  # which tool is on: the Picker step (it has the button)
+                    self._tool = st.tool
                     checks.append(
                         {
                             "what": "sortering_pnp.cfg is included",
                             "ok": st.tool is not None,
                             "detail": "[include sortering_pnp.cfg] in printer.cfg",
-                        }
-                    )
-                    checks.append(
-                        {
-                            "what": "the picker is mounted (TOOL_PICKER)",
-                            "ok": st.tool == "picker",
-                            "detail": f"active tool: {st.tool}",
                         }
                     )
                 hot = st.hotend_c
@@ -1257,6 +1253,32 @@ class Runner:
         else:
             self.setup.reset("printer")
         return {"ok": ok, "checks": checks, **self.setup_state()}
+
+    def _ask_tool(self) -> str | None:
+        """The tool Klipper has as mounted ("picker", "hotend"); None without a tool macro."""
+        pc = self.m.printer
+        if not pc.tool_macro:
+            return None
+        self._tool = self.printer.status(pc.tool_macro).tool
+        return self._tool
+
+    def setup_tool(self, tool: str) -> dict[str, Any]:
+        """The person says which tool is on the printer (Setup tab, Picker): runs TOOL_PICKER
+        or TOOL_HOTEND. Only a person can say it; nothing moves."""
+        self._idle()
+        pc = self.m.printer
+        macro = {"picker": pc.tool_picker, "hotend": pc.tool_hotend}.get(tool)
+        if macro is None:
+            raise ValueError("tool must be picker or hotend")
+        with self._lock:
+            self.printer.gcode(macro)
+            now = self._ask_tool()
+        if pc.tool_macro and now != tool:
+            raise PrinterError(
+                f"Klipper still has {now!r} mounted: is sortering_pnp.cfg included (step 1)?"
+            )
+        self.say("picker on the printer" if tool == "picker" else "hotend back on: sorting refused")
+        return self.setup_state()
 
     def setup_home(self) -> dict[str, Any]:
         """Home while the user watches: Z must come down over the middle of the plate."""
@@ -1343,6 +1365,13 @@ class Runner:
             raise PrinterError("try Grab and Release first")
         if key == "picker" and self.m.picker.rotate and "rotate" not in self._setup_picker:
             raise PrinterError("turn the tweezers to 0° and 90° first")
+        if key == "picker" and self.m.printer.tool_macro:
+            with self._lock:
+                tool = self._ask_tool()
+            if tool != "picker":
+                raise PrinterError(
+                    f"Klipper has {tool!r} mounted: press The picker is on the printer"
+                )
         if key in ("printer", "tip", "camera", "layout"):
             raise PrinterError("this step is checked by the machine, not by hand")
         self.setup.mark(key)

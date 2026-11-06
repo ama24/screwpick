@@ -210,16 +210,17 @@ Until the setup is complete, the machine only makes the moves you ask for on the
 
 Go through the seven steps once, in order:
 
-1. **Printer:** sortering-pnp asks Klipper a few questions (is the picker mounted, is the hotend cold).
-   Nothing moves.
-2. **Homing:** press *Home now* and watch. sortering-pnp lifts the head first, then homes Z over the
+1. **Printer:** sortering-pnp asks Klipper a few questions (is `sortering_pnp.cfg` included, is the
+   hotend cold). Nothing moves.
+2. **Picker:** choose yours, wire it as the page shows, install it in Klipper, press **The picker
+   is on the printer**, then try *Grab* and *Release* (see [The picker](#the-picker)). Nothing
+   moves until the picker is on.
+3. **Homing:** press *Home now* and watch. sortering-pnp lifts the head first, then homes Z over the
    middle of the tray, never over a bin.
-3. **Machine:** the bed limits, the travel height and the **photo position** (bed all the way out,
+4. **Machine:** the bed limits, the travel height and the **photo position** (bed all the way out,
    head out of the picture). *Show me* drives to each so you can check.
-4. **Tip height:** jog the picker tip down onto the plate until a sheet of paper just drags, then
+5. **Tip height:** jog the picker tip down onto the plate until a sheet of paper just drags, then
    press the button. Every height sortering-pnp uses counts from here.
-5. **Picker:** choose yours, wire it as the page shows, install it in Klipper, then try *Grab*
-   and *Release* (see [The picker](#the-picker)).
 6. **Camera to printer:** see step 3 below.
 7. **Layout:** see step 2 below.
 
@@ -263,7 +264,8 @@ Power comes straight from the printer's 24 V supply, as part of the conversion:
 
 Then press **Install in Klipper**: sortering-pnp writes `sortering_pnp_picker.cfg` for that type next
 to `printer.cfg` and restarts Klipper. Once, beforehand, the Pi has to be set up as a Klipper
-board; the page lists the commands (or use KIAUH). Finally test *Grab* and *Release*, and for
+board; the page lists the commands (or use KIAUH). Mount the picker and press **The picker is on
+the printer** (to print again: **The hotend is back on**). Finally test *Grab* and *Release*, and for
 tweezers *Turn to 0°* and *90°*: at 0° the jaws must close left–right; if they don't, set the
 offset.
 

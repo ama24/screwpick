@@ -77,10 +77,11 @@ The old names still work: `vacuum` = `suction`; `gripper`, `tweezers` and `both`
 
 ### Swappable tool
 
-Klipper remembers which tool is mounted. Run `TOOL_PICKER` (or *Screw sorter → Picker mounted* in
-the printer menu) after mounting the picker, and `TOOL_HOTEND` after putting the hotend back. The
-sorter refuses to move unless the picker is mounted and the hotend is cold. `TOOL_PICKER` also
-switches the heaters off.
+Klipper remembers which tool is mounted. After mounting the picker press **The picker is on the
+printer** (Setup tab, Picker), and **The hotend is back on** after putting the hotend back. They
+run `TOOL_PICKER` and `TOOL_HOTEND`, which also work from the printer menu (*Screw sorter →
+Picker mounted*) or Mainsail's console. The sorter refuses to move unless the picker is mounted
+and the hotend is cold. `TOOL_PICKER` also switches the heaters off.
 
 ## Installing and the pinned versions
 
@@ -125,16 +126,18 @@ visit asks you to create an account (see [Login](#login)).
 On a real printer, **Sort**, **One pick** and **Automatic** are refused, also from the printer
 menu, until every step of the **Setup** tab is checked:
 
-1. **Printer:** Klipper answers, `sortering_pnp.cfg` is included, the picker is mounted, the hotend is
-   cold. Only questions, nothing moves.
-2. **Homing:** press *Home now* and watch. Z must come down over the middle of the plate, not
+1. **Printer:** Klipper answers, `sortering_pnp.cfg` is included, the hotend is cold, nothing is
+   printing. Only questions, nothing moves.
+2. **Picker:** choose the type (the page draws its wiring to the Pi), *Install in Klipper* (it
+   restarts Klipper, so it comes before homing), *The picker is on the printer* (`TOOL_PICKER`:
+   nothing moves without it), then *Grab* and *Release* without moving; tweezers also *Turn to
+   0°* / *90°* and the offset. Then confirm. Choosing another type or installing again un-checks
+   the step.
+3. **Homing:** press *Home now* and watch. Z must come down over the middle of the plate, not
    over a bin. Then confirm.
-3. **Machine:** limits, travel height and photo position, editable on the page. *Show me*
+4. **Machine:** limits, travel height and photo position, editable on the page. *Show me*
    buttons drive to each position (at travel height) so you can check them.
-4. **Tip height:** checks itself when you measure it (Calibrate tab).
-5. **Picker:** choose the type (the page draws its wiring to the Pi), *Install in Klipper*, then
-   *Grab* and *Release* without moving; tweezers also *Turn to 0°* / *90°* and the offset. Then
-   confirm. Choosing another type or installing again un-checks the step.
+5. **Tip height:** checks itself when you measure it (Calibrate tab).
 6. **Camera to printer:** checks itself when the calibration's worst error is under 1 mm.
 7. **Layout:** checks itself when Resync finds the bins and a plate without problems.
 
@@ -156,7 +159,7 @@ The steps below are the same work in more detail.
    and a TPU sheet cut to size in the tray. To hold the baseplate down, print the version that
    **covers the whole bed** (Ender 3 or Prusa MK3, slim or standard, in 4 pieces that fit the
    printer) and clamp it with binder clips, or on the Prusa stick it onto a spare steel sheet.
-4. Mount the picker and run `TOOL_PICKER`. Set `tool.offset` in
+4. Mount the picker and press *The picker is on the printer* (Setup tab). Set `tool.offset` in
    [configs/machine.yaml](../configs/machine.yaml) if the picker tip is not where the nozzle was.
 5. Set `printer.photo_position`: where the head waits during photos, out of the picture.
 6. **Camera calibration** (screw-synth, tool 03): lay the ChArUco board **in the

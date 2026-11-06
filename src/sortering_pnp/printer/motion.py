@@ -41,7 +41,8 @@ class Motion:
                 )
             if st.tool != "picker":
                 raise PrinterError(
-                    f"the active tool is {st.tool!r}: mount the picker and run TOOL_PICKER"
+                    f"the active tool is {st.tool!r}: mount the picker, then Setup tab, Picker: "
+                    f"The picker is on the printer (or {pc.tool_picker} in Klipper)"
                 )
         if not all(a in st.homed for a in "xyz"):
             if not home or not pc.auto_home:

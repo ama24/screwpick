@@ -23,20 +23,23 @@ class Step:
     goal: str
 
 
+# The picker comes before anything moves: installing it restarts Klipper (homing is lost), and
+# every move needs it on the printer (TOOL_PICKER, a button in this step).
 STEPS = (
     Step(
         "printer",
         "Printer",
-        "Klipper answers, sortering_pnp.cfg is included and the picker is mounted",
+        "Klipper answers, sortering_pnp.cfg is included and the hotend is cold",
+    ),
+    Step(
+        "picker",
+        "Picker",
+        "The kind of picker, wired to the Pi, installed in Klipper and on the printer; "
+        "grab and release work",
     ),
     Step("homing", "Homing", "Z homes over the middle of the plate, never over a bin"),
     Step("machine", "Machine", "Bed limits, travel height and the photo position are right"),
     Step("tip", "Tip height", "Where the picker tip touches the plate"),
-    Step(
-        "picker",
-        "Picker",
-        "The kind of picker, wired to the Pi, installed in Klipper; grab and release work",
-    ),
     Step(
         "camera", "Camera to printer", "The camera's millimetres match the printer's (error < 1 mm)"
     ),
