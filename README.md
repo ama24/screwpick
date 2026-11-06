@@ -130,8 +130,26 @@ See [prints/README.md](prints/README.md) for which files to print and how.
 
 ## Install
 
-1. **Install Klipper and Moonraker** the usual way (MainsailOS, or KIAUH on Raspberry Pi OS), and
-   make sure the printer works from Mainsail.
+1. **Install Klipper, Moonraker and Mainsail** (skip this if you flashed the MainsailOS image: they
+   are already there). On a fresh Raspberry Pi OS, with [KIAUH](https://github.com/dw-0/kiauh):
+
+   ```bash
+   sudo apt-get install -y git
+   git clone https://github.com/dw-0/kiauh.git ~/kiauh
+   ~/kiauh/kiauh.sh
+   ```
+
+   In its menu choose **Install**, then **Klipper**, **Moonraker** and **Mainsail** one after
+   the other (the defaults are fine). Then make Klipper drive your printer:
+   - **Firmware:** build and flash Klipper's firmware for the printer's board (KIAUH,
+     *Advanced*; the settings for your board are at the top of its example config in
+     `~/klipper/config/`).
+   - **printer.cfg:** copy that example config, e.g.
+     `cp ~/klipper/config/printer-creality-ender3-v2-2020.cfg ~/printer_data/config/printer.cfg`,
+     and set `[mcu] serial:` to what `ls /dev/serial/by-id/*` shows.
+   - **Check:** open `http://<your-pi>` (Mainsail), home and move the axes.
+
+   More in [Klipper's installation guide](https://www.klipper3d.org/Installation.html).
 2. **Install sortering-pnp:**
 
    ```bash
