@@ -85,7 +85,7 @@ TODOS: tuple[Todo, ...] = (
     Todo(
         "menu",
         "Printer menu tested",
-        "On the printer's display: Screw sorter > OK (bin change) reaches the program (the "
+        "On the printer's display: Screw sorter > Change bin reaches the program (the "
         "console says it); Pause, Resume and Stop too.",
     ),
     Todo(
@@ -105,7 +105,7 @@ TODOS: tuple[Todo, ...] = (
     Todo(
         "full",
         "Full taught once",
-        "When a bin is really full, press Full in its panel (Layout tab): the fill estimates "
+        "When a bin is really full, choose It is full in its ⋯ menu (Device tab): the fill estimates "
         "learn how densely the parts pack.",
         _full_taught,
     ),

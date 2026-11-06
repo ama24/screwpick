@@ -94,14 +94,14 @@ def test_a_new_kind_asks_for_a_bin_and_the_ok_checks_it(machine, swap):
     assert req.marker == 103 and req.what == "DIN934_M4" and req.count == 3  # done, fullest
     assert "ISO7380_M4x8 needs a bin: empty bin D1" in runner.state.message
     assert len(world.parts) == 1  # everything else is sorted
-    assert runner.command("ok").startswith("OK: parking")  # first OK: park
+    assert runner.command("ok").startswith("parking")  # first OK: park
     _wait_for(runner, "parked")
     assert runner.snapshot()["swap_phase"] == "parked"
     if swap:
         seen = Layout.from_dict(lay.to_dict())
         seen.bins = [b for b in seen.bins if b.marker != 103] + [Bin(marker=135, x=3, y=0)]
         cam["layout"] = seen
-    assert runner.command("ok").startswith("OK: checking")  # second OK: bins changed
+    assert runner.command("ok").startswith("checking")  # second OK: bins changed
     _wait_for(runner, "done")
     saved = runner.layout()
     target = 135 if swap else 103
@@ -125,8 +125,8 @@ def test_ok_while_idle_checks_the_bins(machine):
     runner.printer.gcode("G28")  # the OK checks with a photo: the printer is homed
     runner.requests.append(BinRequest(104, "E1", "full", "B", 30))
     runner.bin_counts[104] = 30
-    assert runner.command("ok") == "OK: change the bins, then OK again"
-    assert runner.command("ok") == "OK: bin E1 emptied: it starts again"
+    assert runner.command("ok") == "change the bins, then press Change bin again"
+    assert runner.command("ok") == "bin E1 emptied: it starts again"
     assert runner.requests == [] and 104 not in runner.bin_counts
 
 
@@ -147,10 +147,10 @@ def test_a_full_bin_does_not_stop_the_rest_and_ok_parks_mid_run(machine):
     end = time.time() + 10
     while runner.state.picks < 1 and time.time() < end:
         time.sleep(0.01)
-    assert runner.command("ok").startswith("OK: parking")
+    assert runner.command("ok").startswith("parking")
     _wait_for(runner, "parked")
     assert world.parts and world.held is None  # parked between moves, parts still on the plate
-    assert runner.command("ok").startswith("OK: checking")
+    assert runner.command("ok").startswith("checking")
     _wait_for(runner, "done")
     assert len(world.dropped) == n  # all sorted: the nuts went on in another wild bin
     assert runner.requests == []  # the same code came back: bin D1 counts as emptied
@@ -192,7 +192,7 @@ def test_ok_counts_parts_still_in_an_emptied_bin(machine):
     runner.requests.append(BinRequest(104, "E1", "full", "DIN934_M4", 30))
     runner.bin_counts[104], runner.bin_volume[104] = 30, 3000.0
     runner.command("ok")
-    assert runner.command("ok") == "OK: bin E1 still has 2 part(s) in it: counted 2"
+    assert runner.command("ok") == "bin E1 still has 2 part(s) in it: counted 2"
     assert runner.bin_counts[104] == 2 and runner.bin_volume[104] == pytest.approx(200.0)
 
 

@@ -60,6 +60,10 @@ class State:
     timing: dict[str, float] = field(default_factory=dict)  # the last pick cycle (pipeline)
     parts: list[dict[str, Any]] = field(default_factory=list)
     markers: list[dict[str, Any]] = field(default_factory=list)
+    phase: str = ""  # what the machine does right now, in a few words
+    target: dict[str, Any] | None = None  # the part it picks next (Device tab: boxed)
+    view: str | None = None  # the latest photo without drawings (the page draws on it)
+    view_h: list[list[float]] | None = None  # plate mm -> view pixels (3x3 homography)
 
 
 class Runner:
@@ -93,6 +97,7 @@ class Runner:
         self.requests: list[BinRequest] = self._loaded_requests  # bin changes, until the OK
         # a bin change takes two OKs (web page or printer menu): the first parks the machine
         # (bed out, hands safe), the second says the bins are changed: a photo checks them
+        self._layout_changed = threading.Event()  # the page saved the layout while sorting
         self._park = threading.Event()  # first OK, while sorting: park after this move
         self._ok = threading.Event()  # second OK: the bins are changed
         self.swap_phase = ""  # "" sorting | parked (waiting for the second OK)
@@ -156,6 +161,11 @@ class Runner:
         """One short line on the page's console: what the machine sees and decides."""
         self.console.append(time.strftime("%H:%M:%S ") + text)
 
+    def phase(self, text: str) -> None:
+        """What the machine does right now (the Device tab's activity), and a console line."""
+        self._set(phase=text)
+        self.say(text)
+
     def _say_seen(self, parts: list[Any], layout: Layout) -> None:
         """What lies on the plate, grouped: '7 on the plate: 3 DIN912_M4x16 · 2 DIN934_M4'."""
         from collections import Counter
@@ -205,6 +215,10 @@ class Runner:
             "auto": self.saved_mode()[0],
             "tip_offset_z": self.m.tool.offset[2],
             "timing": self.state.timing,
+            "phase": self.state.phase,
+            "target": self.state.target,
+            "view": self.state.view,
+            "view_h": self.state.view_h,
             "setup": {
                 "required": self.require_setup,
                 "complete": not self.setup.missing(),
@@ -272,20 +286,22 @@ class Runner:
             )
             self._thread.start()
             return f"automatic: {strat}"
-        if cmd == "ok":  # first OK: park; second OK: the bins are changed, check them
+        if cmd in ("change", "change_bin"):
+            cmd = "ok"
+        if cmd == "ok":  # Change bin: the first press parks; the second checks the bins
             if self.swap_phase != "parked":
                 self.swap_phase = "parked"
                 if running:
                     self._park.set()
-                    return "OK: parking after this move; change the bins, then OK again"
+                    return "parking after this move; change the bins, then Change bin again"
                 self.note("parked for a bin change")
-                return "OK: change the bins, then OK again"
+                return "change the bins, then press Change bin again"
             if running:
                 self._ok.set()
-                return "OK: checking the bins, then sorting on"
+                return "checking the bins, then sorting on"
             self.swap_phase = ""
             res = self.bins_ok()
-            return "OK: " + ("; ".join(res["resolved"]) or "nothing was asked for")
+            return "; ".join(res["resolved"]) or "the bins were checked: nothing was asked for"
         if cmd == "pause":
             if running:
                 self._pause.set()
@@ -344,9 +360,26 @@ class Runner:
             return self._head_shot(layout, T, area, work)
         with self._lock:
             if move:
+                self.phase("parking at the photo position")
                 self.motion.photo_position()
             name = self._photo_name()
-            shot = self.vision.capture(name, lambda mid: _marker_plate_height(layout, mid), work)
+            heights = lambda mid: _marker_plate_height(layout, mid)  # noqa: E731
+            if hasattr(self.vision, "snap") and hasattr(self.vision, "analyse"):
+                self.phase("taking a photo")
+                photo = self.vision.snap(name)
+                self.phase("running the model")
+                shot = (
+                    self.vision.analyse(photo, name, heights, work)
+                    if work is not None
+                    else self.vision.analyse(photo, name, heights)
+                )
+            else:
+                self.phase("taking a photo")
+                shot = (
+                    self.vision.capture(name, heights, work)
+                    if work is not None
+                    else self.vision.capture(name, heights)
+                )
         return self._finish_shot(shot, layout, T)
 
     def _work_area(self, layout: Layout, T: Transform2D | None) -> WorkArea | None:
@@ -365,7 +398,7 @@ class Runner:
 
     # ------------------------------------------------------------------ what the model sees
     def mask_preview(self, margin_mm: float) -> dict[str, Any]:
-        """A photo painted with this margin (not saved): the Run tab's picture shows what the
+        """A photo painted with this margin (not saved): the Device tab's photo shows what the
         model sees."""
         self._idle()
         layout, T = self.layout(), self.transform()
@@ -499,9 +532,14 @@ class Runner:
         self._prune_photos()
         self._set(
             shot=shot.vis.name if shot.vis else None,
+            view=shot.view.name if getattr(shot, "view", None) else None,
+            view_h=getattr(shot, "view_h", None),
             parts=[
                 {
+                    "id": p.id,
                     "cls": p.cls,
+                    "poly": _poly_for_page(p.polygon),
+                    "xy": [round(float(v), 1) for v in p.plate_xy],
                     "length": p.length_mm,
                     "score": round(p.score, 2),
                     "bed": [round(v, 1) for v in p.bed_xy] if T is not None else None,
@@ -614,6 +652,11 @@ class Runner:
                     break
                 prev = None
                 first = None
+            if self._layout_changed.is_set():  # changes from the page: use them from now on
+                self._layout_changed.clear()
+                layout = self.layout()
+                planner.layout = layout
+                self.note("layout changes applied")
             if self._ok.is_set():  # after a bin change: a new photo, with the bins
                 first = None
             check = self._ok.is_set()  # it must look into the bins: nothing painted over
@@ -663,7 +706,7 @@ class Runner:
                 return "steps"
             here = tuple(self.motion.current_tip()[:2])
             plan = planner.next(shot.parts, here)  # type: ignore[arg-type]
-            self._set(plan=_describe(plan))
+            self._set(plan=_describe(plan), target=self._target(plan, layout))
             if plan.note:
                 self.note(plan.note)
                 self.say(plan.note)
@@ -674,8 +717,8 @@ class Runner:
                     waiting_for = asked
                     self.note(f"waiting for a bin change: {plan.reason}")
                     self.say("waiting: " + asked)
-                    self.motion.message("Bin change: OK=park")
-                self._set(status="waiting", message=asked + "; press OK to park")
+                    self.motion.message("Change bin: press it")
+                self._set(status="waiting", message=asked + "; press Change bin to park")
                 # look again now and then: parts thrown in meanwhile are sorted while it waits
                 end = time.monotonic() + self.m.standby.interval_s
                 while (
@@ -755,7 +798,7 @@ class Runner:
         tried: list[Any] | None = None  # the parts of a stuck plate: wait until they change
         errors = 0
         self.note(f"automatic mode on: {STRATEGIES[strategy]}")
-        self.say("automatic: waiting for parts")
+        self.phase("automatic: waiting for parts")
         while not self._stop.is_set():
             try:
                 if self._pause.is_set():
@@ -871,9 +914,11 @@ class Runner:
         t0 = time.perf_counter()
         with self._lock:
             self._pick(plan, layout)
+            self.phase("taking a photo, the part in the picker")
             self.motion.photo_position()
             name = self._photo_name()
             photo = self.vision.snap(name)
+        self.phase("running the model while the part is carried to its bin")
         t_photo = time.perf_counter()
         heights = lambda mid: _marker_plate_height(layout, mid)  # noqa: E731
         job = self._pool.submit(
@@ -913,7 +958,7 @@ class Runner:
             if pk.rotate and pk.mode in ("gripper", "tweezers", "both")
             else ""
         )
-        self.say(f"pick {name} at X{x:.0f} Y{y:.0f}{turn} → bin {b.marker}")
+        self.phase(f"picking {name} at X{x:.0f} Y{y:.0f}{turn}, for bin {layout.bin_name(b)}")
         self.motion.message(f"pick {name}")
         self.motion.pick(x, y, z, jaws)
 
@@ -921,8 +966,10 @@ class Runner:
         b = plan.bin
         assert b is not None
         cx, cy = layout.bin_centre(b)
+        p = plan.part
+        name = (p.cls + (f"x{p.length_mm:g}" if p.length_mm is not None else "")) if p else "it"
+        self.phase(f"leaving {name} in bin {layout.bin_name(b)} ({b.marker})")
         self.motion.drop(cx, cy, layout.bin_rim_z(b))
-        self.say(f"dropped in bin {b.marker}")
 
     # ------------------------------------------------------------------ web-page helpers
     def _idle(self) -> None:
@@ -1385,18 +1432,66 @@ class Runner:
                 self.motion.message(f"bin {mk} ready")
             self.ready = ready
 
+    def _target(self, plan: Plan, layout: Layout) -> dict[str, Any] | None:
+        """The part picked next, for the Device tab's box: its outline, name and bin."""
+        p, b = plan.part, plan.bin
+        if plan.kind != "pick" or p is None:
+            return None
+        return {
+            "id": p.id,
+            "name": p.cls + (f"x{p.length_mm:g}" if p.length_mm is not None else ""),
+            "poly": _poly_for_page(p.polygon),
+            "xy": [round(float(v), 1) for v in p.plate_xy],
+            "bin": b.marker if b is not None else None,
+            "cell": layout.bin_name(b) if b is not None else None,
+        }
+
+    def ask_change(self, marker: int) -> dict[str, Any]:
+        """The user wants a bin changed (its ⋯ menu): the same two steps as a full bin."""
+        layout = self.layout()
+        b = layout.bin_by_marker(int(marker))
+        if b is None:
+            raise ValueError(f"bin {marker} is not on the bed")
+        with self._claims_lock:
+            if not any(r.marker == b.marker for r in self.requests):
+                what = self.claims.get(b.marker) or b.label or ", ".join(b.holds) or b.role
+                req = BinRequest(
+                    b.marker, layout.bin_name(b), "asked", what, self.bin_counts.get(b.marker, 0)
+                )
+                self.requests = self.requests + [req]
+                self._save_claims()
+                self.motion.message(req.short())
+        self.note(f"bin {layout.bin_name(b)} to be changed (asked on the page)")
+        return self.bins_state()
+
+    def save_layout(self, lay: Layout) -> dict[str, Any]:
+        """Layout changes from the page (queued there, applied together). While sorting they
+        are used from the next pick; a layout with problems is refused then."""
+        problems = lay.problems()
+        running = self._thread is not None and self._thread.is_alive()
+        if running and problems:
+            raise ValueError("not applied while sorting: " + "; ".join(problems))
+        lay.save(self.layout_path)
+        if problems:
+            self.setup.reset("layout")
+        if running:
+            self._layout_changed.set()
+        self.note("layout changes saved" + (": used from the next pick" if running else ""))
+        return {"layout": lay.to_dict(), "problems": problems}
+
     def _parked_for_bins(self) -> bool:
         """After the first OK: park (bed out, hands safe) until the second OK; True = stopped."""
         with self._lock:
             self.motion.photo_position()
             self.printer.gcode("M400")
-            self.motion.message("Change bins, OK")
+            self.motion.message("Swap bins, Change bin")
         asked = "; ".join(r.text() for r in self.requests)
         self.note("parked for a bin change")
-        self.say("parked: change the bins, then OK")
+        self.phase("parked: change the bins, then press Change bin again")
         self._set(
             status="parked",
-            message=(asked + "; " if asked else "") + "change the bins, then press OK again",
+            message=(asked + "; " if asked else "")
+            + "change the bins, then press Change bin again",
         )
         while not self._ok.is_set() and not self._stop.is_set():
             time.sleep(0.2)
@@ -1666,7 +1761,7 @@ class Runner:
         if test is None:
             raise ModelError("testing models needs the camera (not available in simulation)")
         if self.last_shot is None or self.last_shot.photo is None:
-            raise ModelError("take a photo first (Run tab: One pick, or Calibrate: Take photo)")
+            raise ModelError("take a photo first (Device tab: One pick, or Calibrate: Take photo)")
         from .vision import active_choice
 
         m = store.get(model_id)
@@ -1700,6 +1795,14 @@ class Runner:
 def _marker_plate_height(layout: Layout, marker: int) -> float:
     b = layout.bin_by_marker(marker)
     return layout.marker_plate_height(b.height_u if b else 3)
+
+
+def _poly_for_page(poly: Any, most: int = 32) -> list[list[float]]:
+    """An outline for the page: at most `most` points, mm rounded to 0.1."""
+    pts = np.asarray(poly, dtype=float).reshape(-1, 2)
+    if len(pts) > most:
+        pts = pts[np.linspace(0, len(pts) - 1, most).astype(int)]
+    return [[round(float(x), 1), round(float(y), 1)] for x, y in pts]
 
 
 def _describe(plan: Plan) -> str:

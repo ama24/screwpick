@@ -68,18 +68,18 @@ def test_automatic_mode_waits_for_parts_to_lie_still(machine):
     machine.standby.settle_s = 0.05
     runner, world, printer, lay = make(machine, n=1)
     moving = {"n": 0}
-    original = runner.vision.capture
+    original = runner.vision.snap
 
-    def jittery(name, height, work=None):  # a hand is still moving the part around
+    def jittery(name):  # a hand is still moving the part around
         moving["n"] += 1
         world.parts[0].x += 5.0 if moving["n"] % 2 else -5.0
-        return original(name, height, work)
+        return original(name)
 
-    runner.vision.capture = jittery  # type: ignore[method-assign]
+    runner.vision.snap = jittery  # type: ignore[method-assign]
     runner.command("auto")
     time.sleep(1.0)
     assert len(world.dropped) == 0  # never sorted while it moves
-    runner.vision.capture = original  # type: ignore[method-assign]
+    runner.vision.snap = original  # type: ignore[method-assign]
     assert until(lambda: len(world.dropped) == 1)
     runner.command("stop")
     runner.wait(10)

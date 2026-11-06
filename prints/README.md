@@ -19,7 +19,7 @@ camera recognises it and knows how tall its rim is.
 | 200–219 | 2 × 2 cells, 6 units | **storage**: large quantities | [200–203](bins/2x2x6u/bins_2x2x6u_200-203.3mf) … [216–219](bins/2x2x6u/bins_2x2x6u_216-219.3mf) (4) |
 | 220–229 | 3 × 3 cells, 3 units: a tray | **the plate**: parts are thrown in here | [220](bins/3x3x3u/bins_3x3x3u_220-220.3mf), [221](bins/3x3x3u/bins_3x3x3u_221-221.3mf) (1) |
 | 230–239 | 4 × 4 cells, 3 units: a tray | **the plate** for big jobs (167 mm: fits the bed alone) | [230](bins/4x4x3u/bins_4x4x3u_230-230.3mf), [231](bins/4x4x3u/bins_4x4x3u_231-231.3mf) (1) |
-| 240–249 | any other size | set by hand in the Layout tab, printed from the web page | |
+| 240–249 | any other size | set by hand on the Device tab, printed from the web page | |
 
 ### Corner bins: the code on a post, nothing overhangs
 
