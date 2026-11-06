@@ -34,6 +34,7 @@ screwpick's web page. screwpick never reaches into the other projects' folders.
 - **New look:** the sections are in a sidebar on the left, grouped by what you do, with the
   machine's state and the STOP button always at its bottom. Every page has a title, and a full
   bin or unfinished setup shows as an orange banner at the top of Device.
+  [Finding your way around the page](#finding-your-way-around-the-page).
 - **Device tab:** one page with the live camera (every part outlined, the next one boxed), the
   live bed with a menu on every bin, what lies in the tray, and what the machine is doing.
   [See below](#first-time-setup).
@@ -167,6 +168,25 @@ rules, press **Sort once** and watch them get sorted.
 
 From now on **screwpick is the only program that moves the printer**. Even the camera calibration
 photos are taken from its page.
+
+### Finding your way around the page
+
+The sections are in the sidebar on the left, grouped by what you do:
+
+| Group | Section | What it's for |
+|---|---|---|
+| Operate | **Device** | the machine live: camera, bed, what's in the tray, what it's doing. You land here. |
+| Prepare | **Setup** | the steps to do once, in order, before the machine moves by itself |
+| | **Calibrate** | the camera, the camera to the printer, and the picker tip |
+| | **Print bins** | the bins, trays, baseplates and holders to print |
+| Library | **Models** | the models that find and measure the parts |
+| | **Files** | files from the other projects (calibration, parts table) |
+| | **Real photos** | photo sessions for checking the model on the PC |
+| Admin | **Users** | who may use the page |
+
+An orange number next to a section means it needs you (a bin to change, setup steps left). At
+the bottom of the sidebar is the machine: its state, what it is doing, and **STOP**. On a phone
+the sidebar becomes a bar across the top.
 
 ---
 
@@ -327,9 +347,9 @@ always comes down over the tray, never over a bin. And no other program sends mo
 
 ## Real photos for checking the model
 
-![The Photos tab](docs/images/photos.png)
+![The Real photos tab](docs/images/photos.png)
 
-To see how well the model does on real parts, the **Photos** tab takes sessions of real photos:
+To see how well the model does on real parts, the **Real photos** tab takes sessions of real photos:
 make a session, write down on the PC what lies in the tray, then take a photo after each change.
 The bed is parked first, and the camera uses its locked settings. **Download** the session and put
 it in the screw-sorting project's `data/real/` on your PC.
