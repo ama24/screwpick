@@ -634,7 +634,7 @@ function wiring(t){let s="";
  const servos=t.servos>0,bot=servos?354:296;
  // power: the printer's 24 V supply, and a 5 V buck converter for the servos
  s+=box(640,300,120,80,"Printer PSU","24 V","#f4f5f2");
- if(servos){s+=box(430,312,150,56,"5 V buck converter","set to 5.0 V","#fff7e6","#7a4b00","#efd39b")+ln([[408,52],[408,326]],WC.v5)+ln([[408,326],[430,326]],WC.v5)+dot(408,326,WC.v5);}
+ if(servos){s+=box(430,312,150,56,"5 V buck converter","at the tip, set to 5.0 V","#fff7e6","#7a4b00","#efd39b")+ln([[408,52],[408,326]],WC.v5)+ln([[408,326],[430,326]],WC.v5)+dot(408,326,WC.v5);}
  s+=ln([[392,t.pump&&!t.rotates?194:36],[392,bot]],WC.gnd)+ln([[222,296],[392,296]],WC.gnd)+dot(392,296,WC.gnd);
  if(servos)s+=ln([[392,354],[430,354]],WC.gnd)+dot(392,354,WC.gnd);
  if(!t.pump){ // servo pickers: the action servo on GPIO12, the turn servo on GPIO13
@@ -669,7 +669,9 @@ function pickerPins(t){const r=[[WC.sig,"32 · GPIO12",t.pump?"SIG of the MOSFET
 function pickerBody(st,redo){const PK=SU.picker||{types:[]},t=PK.types.find(x=>x.key===PK.mode)||PK.types[0];if(!t)return "";
  const opts=`<div class="pkgrid">${PK.types.map((x,i)=>`<button class="pkopt ${x.key===t.key?"on":""}" onclick="setupCall('api/setup/picker/type',{type:'${x.key}'})"><span class="pkn">${i+1}</span><b>${esc(x.title)}</b><span class="note">${esc(x.summary)}</span><span class="pktags"><span class="tag a">aims at the ${x.aim==="head"?"head":"centre of gravity"}</span>${x.rotates?'<span class="tag">turns 0–180°</span>':""}${x.pump?'<span class="tag">pump + MOSFET</span>':""}</span></button>`).join("")}</div>`;
  const inst=PK.installed===t.key;
- const notes=[t.servos?"Servo cable: brown = GND, red = 5 V, orange = signal.":"",t.servos?"Power the servos from the 5 V buck converter, never from the Pi's 5 V pin: a stalling servo resets the Pi.":"",
+ const notes=["Every signal comes from the Pi, never from the printer's board: the same wiring on any printer.",
+  "Power straight from the printer's 24 V supply, not from the bed or hotend heater outputs (Klipper switches those off for safety).",
+  t.servos?"Servo cable: brown = GND, red = 5 V, orange = signal.":"",t.servos?"Run a 24 V pair to the tip and put the 5 V buck converter there, next to the servos. Never the Pi's 5 V pin: a stalling servo resets the Pi.":"",
   `Join every GND: the Pi's pin 34${t.servos?", the converter's minus":""}${t.pump?", the MOSFET module's GND":""} and the PSU's minus. The Pi's pins give 3.3 V signals.`,
   t.pump?"The diode goes across the pump, its stripe on the + side: it stops the pump's kick when it switches off.":"",
   t.pump?"A logic-level MOSFET module (AOD4184 / D4184) switches fully at 3.3 V; the classic IRF520 module only half-opens.":""].filter(Boolean);

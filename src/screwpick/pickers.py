@@ -1,7 +1,10 @@
 """The four kinds of picker, how each is wired to the Raspberry Pi and its Klipper config.
 
 Everything hangs on two pins of the Pi, used by Klipper as a second micro-controller (its
-"host" MCU, the Linux process), so nothing is wired to the printer's board:
+"host" MCU, the Linux process). Every signal comes from the Pi, never from the printer's board,
+so the wiring is the same on any printer (Ender 3, Prusa MK3, ...). Power comes straight from the
+printer's 24 V supply (never its heater outputs): a 24 V pair to the tip, with the 5 V buck
+converter for the servos there.
 
 - GPIO12 (header pin 32), hardware PWM 0: the "action" pin. Jaw servo, magnet servo, or the
   signal of a MOSFET module that switches a pump.
@@ -47,7 +50,8 @@ PICKERS: tuple[PickerType, ...] = (
         2,
         (
             "2 × micro servo (MG90S, metal gears)",
-            "5 V buck converter, 3 A (e.g. LM2596 or XL4015), fed from the printer's 24 V",
+            "5 V buck converter, 3 A (e.g. LM2596 or XL4015), at the tip, fed by a 24 V pair "
+            "from the printer's supply",
             "Dupont jumper wires",
         ),
     ),
@@ -82,7 +86,7 @@ PICKERS: tuple[PickerType, ...] = (
         (
             "1 × micro servo (MG90S)",
             "Neodymium magnet, iron rod (a nail or a 3-4 mm soft iron rod)",
-            "5 V buck converter, 3 A, fed from the printer's 24 V",
+            "5 V buck converter, 3 A, at the tip, fed by a 24 V pair from the printer's supply",
         ),
     ),
     PickerType(
@@ -99,7 +103,7 @@ PICKERS: tuple[PickerType, ...] = (
             "24 V pump (or 12 V behind a buck converter) and pneumatic tweezers",
             "MOSFET module, logic level (AOD4184 / D4184) as for the suction cup",
             "Flyback diode 1N4007 or 1N5819 across the pump",
-            "1 × micro servo (MG90S) and a 5 V buck converter, 3 A",
+            "1 × micro servo (MG90S) and a 5 V buck converter, 3 A, at the tip",
         ),
     ),
 )

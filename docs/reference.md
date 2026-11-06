@@ -59,9 +59,12 @@ The old names still work: `vacuum` = `suction`; `gripper`, `tweezers` and `both`
 - **Pins:** GPIO12 and GPIO13 are the Pi's two hardware PWM channels (`host:pwmchip0/pwm0` and
   `pwm1` in Klipper), enabled with `dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4` in
   `/boot/firmware/config.txt`. GND is pin 34.
-- **Power:** servos from a 5 V buck converter on the printer's 24 V, never from the Pi's 5 V pin.
-  Pumps from the 24 V supply through a MOSFET module (logic level, e.g. AOD4184: the IRF520
-  module only half-opens at 3.3 V), with a flyback diode across the pump. All grounds joined.
+- **Signals:** always from the Pi, never from the printer's board (the same wiring on any printer).
+- **Power:** straight from the printer's 24 V supply, never from the heater outputs (Klipper
+  switches those under heater safety). Servos: a 24 V pair to the tip and a 5 V buck converter
+  there, never the Pi's 5 V pin. Pumps: 24 V through a MOSFET module (logic level, e.g. AOD4184:
+  the IRF520 module only half-opens at 3.3 V), with a flyback diode across the pump. All grounds
+  joined.
 - **Klipper file:** *Install in Klipper* writes `screwpick_picker.cfg` (from
   [pickers.py](../src/screwpick/pickers.py)) into Klipper's config folder through Moonraker and
   restarts the firmware; `screwpick.cfg` includes it. Its macros: `SCREWPICK_GRAB`,

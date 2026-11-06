@@ -243,8 +243,9 @@ In the **Setup tab → Picker**, choose one of four (numbered in this order):
 The cup and the magnet are put on the screw's **head**. Both tweezers close at the **centre of
 gravity**, on the shank, turned across the part.
 
-Everything is wired to the **Raspberry Pi**, not to the printer's board: Klipper uses the Pi's
-pins as a second board. The page draws the wiring for the type you chose:
+Every signal comes from the **Raspberry Pi**, never from the printer's board, so the wiring is
+the same on any printer: Klipper uses the Pi's pins as a second board. The page draws the wiring
+for the type you chose:
 
 | Pi pin | Does |
 |---|---|
@@ -252,10 +253,15 @@ pins as a second board. The page draws the wiring for the type you chose:
 | 33 (GPIO13) | turns: the rotation servo (tweezers only) |
 | 34 (GND) | joined with the ground of the 5 V converter, the MOSFET module and the 24 V supply |
 
-Servos get their 5 V from a small buck converter on the printer's 24 V supply, never from the Pi.
-Pumps run from the 24 V supply through the MOSFET module, with a diode across the pump; a
-logic-level module (AOD4184 / D4184) switches fully at the Pi's 3.3 V, the classic IRF520 module
-only half.
+Power comes straight from the printer's 24 V supply, as part of the conversion:
+
+- **Servos:** run a pair of wires from the 24 V supply to the tip and put a small 5 V buck
+  converter there, next to the servos. Never power them from the Pi's 5 V pin.
+- **Pumps:** they run from the 24 V supply through the MOSFET module, with a diode across the pump.
+  A logic-level module (AOD4184 / D4184) switches fully at the Pi's 3.3 V; the classic IRF520
+  module only switches halfway.
+- **Not the heater outputs:** don't take power from the bed or hotend heater outputs. Klipper
+  switches them under its heater safety checks.
 
 Then press **Install in Klipper**: screwpick writes `screwpick_picker.cfg` for that type next
 to `printer.cfg` and restarts Klipper. Once, beforehand, the Pi has to be set up as a Klipper
