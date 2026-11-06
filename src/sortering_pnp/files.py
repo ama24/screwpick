@@ -5,11 +5,12 @@ Each file it can use has a slot: where to find it, what it is for, and what happ
 The user fetches the file and drops it in; it is checked and kept in paths.files.
 
 Which copy is in use, first found:
-  1. the file dropped in the Files tab;
-  2. the path set in machine.yaml (paths.calibration, ...), for whoever prefers that;
-  3. for the settings, classes and calibration only: what the installed screw-sorting code
-     brings along (it is needed anyway to run the models);
-  4. nothing: each slot says what is done without it.
+  1. for the parts table and the class list: the active model's package (screw-synth puts them
+     in every dataset, training-synth into every package), so they always match the model;
+  2. the file dropped in the Files tab;
+  3. the path set in machine.yaml (paths.calibration, ...), for whoever prefers that;
+  4. the copy that comes with sortering-pnp (defaults/: vision settings, parts, classes);
+  5. nothing: each slot says what is done without it.
 The model itself is not here: the Models tab keeps any number of them.
 """
 
@@ -47,10 +48,18 @@ def _calibration(d: Any) -> str:
     return f"{w} x {h} px, {plate} the plate's position"
 
 
-def _settings(d: Any) -> str:
-    if not isinstance(d, dict) or not ({"paths", "catalogue", "measure", "calibration"} & set(d)):
-        raise ValueError("not a screw-sorting config.yaml (no paths/catalogue/measure section)")
-    return f"{len(d)} sections"
+def _vision(d: Any) -> str:
+    if not isinstance(d, dict) or not ({"nominal_camera", "measure"} & set(d)):
+        raise ValueError("not a vision.yaml (no nominal_camera or measure section)")
+    h = (d.get("nominal_camera") or {}).get("height_mm")
+    return f"camera at {h} mm until calibrated" if h else f"{len(d)} sections"
+
+
+def _parts(d: Any) -> str:
+    from .measure.geometry import check_parts
+
+    check_parts(d)
+    return f"{len(d['classes'])} classes with a length"
 
 
 def _classes(d: Any) -> str:
@@ -76,8 +85,7 @@ SLOTS: tuple[Slot, ...] = (
         "Camera calibration",
         "calibration.json",
         "json",
-        "Made here: Calibrate tab, Camera calibration (it lands in this slot by itself). Or the "
-        "screw-sorting project's data/calibration/calibration.json.",
+        "Made here: Calibrate tab, Camera calibration (it lands in this slot by itself).",
         "Turns pixels into millimetres on the plate, without the lens' distortion: where the "
         "parts are, and their lengths.",
         "The nominal camera (straight down from the set height): positions and lengths less exact.",
@@ -94,26 +102,36 @@ SLOTS: tuple[Slot, ...] = (
         _calibration,
     ),
     Slot(
-        "settings",
-        "Screw-sorting settings",
-        "config.yaml",
+        "vision",
+        "Vision settings",
+        "vision.yaml",
         "yaml",
-        "screw-sorting project: configs/config.yaml, or better output/<recipe>/config.yaml of the "
-        "dataset the model was trained on (the same settings as its pictures).",
-        "How lengths are measured, the camera's nominal height, which parts the catalogue has "
-        "(head sizes for the grip point).",
-        "The settings that come with the installed screw-sorting code.",
-        _settings,
+        "Comes with sortering-pnp (src/sortering_pnp/defaults/vision.yaml): download it from here, "
+        "change it, drop it back.",
+        "The camera's height until it is calibrated, and how lengths are measured.",
+        "The settings that come with sortering-pnp.",
+        _vision,
+    ),
+    Slot(
+        "parts",
+        "Parts geometry",
+        "parts.json",
+        "json",
+        "Inside every model package (screw-synth writes it into the dataset). Drop one here only "
+        "for a model without it: screw-synth, `screwsynth-catalogue parts --out parts.json`.",
+        "Per class: the standard lengths a measurement snaps to, the thread and head sizes (the "
+        "grip point) and how high the axis lies.",
+        "The table that comes with sortering-pnp (the full screw-synth catalogue).",
+        _parts,
     ),
     Slot(
         "classes",
         "Class list",
         "classes.yaml",
         "yaml",
-        "screw-sorting project: configs/classes.yaml (made by `screwsynth-catalogue classes`).",
+        "Inside every model package. Or screw-synth's configs/classes.yaml.",
         "The Models tab checks that a model knows the classes the catalogue expects.",
-        "The list from the settings above; without that either, models are not checked (any "
-        "model works, e.g. one of another project).",
+        "The list that comes with sortering-pnp (the full screw-synth catalogue).",
         _classes,
     ),
     Slot(
@@ -121,7 +139,7 @@ SLOTS: tuple[Slot, ...] = (
         "Parts table (volumes)",
         "items.json",
         "json",
-        "screw-sorting project: run `screwsynth-partgen items --out items.json` (after building "
+        "screw-synth: run `screwsynth-partgen items --out items.json` (after building "
         "the parts); about 250 kB.",
         "The exact volume of each catalogued part, for how full the bins are and how many more "
         "fit.",
@@ -190,50 +208,48 @@ def store_of(m: Any) -> FileStore | None:
     return FileStore(root) if root is not None else None
 
 
-def _screwsynth_default(key: str, settings: Path | None) -> Path | None:
-    """What the installed screw-sorting code brings along (step 3), or None."""
-    try:
-        from screwsynth.common.config import load_config
-        from screwsynth.common.paths import resolve
-    except ImportError:
-        return None
-    try:
-        if key == "settings":
-            p = resolve("configs/config.yaml")
-            return p if p.is_file() else None
-        cfg = load_config(settings)
-        if key == "calibration":
-            p = resolve(
-                Path(cfg.get("paths.calibration_dir", "data/calibration")) / "calibration.json"
-            )
-        elif key == "classes":
-            p = resolve(cfg.get("paths.classes", "configs/classes.yaml"))
-        else:
-            return None
-    except Exception:  # noqa: BLE001 - not set up: as if there were none
-        return None
-    return p if p.is_file() else None
-
+DEFAULTS = Path(__file__).resolve().parent / "defaults"  # what comes with sortering-pnp
+IN_MODEL = ("parts", "classes")  # slots a model package brings along
 
 MACHINE_PATH = {
     "calibration": "calibration",
     "head_calibration": "head_calibration",
-    "settings": "screwsynth_config",
+    "vision": "vision",
 }
 
 
-def find(m: Any, key: str) -> tuple[Path | None, str]:
-    """(the copy in use, where it comes from: dropped | machine.yaml | screw-sorting | none)."""
+def model_file(m: Any, key: str) -> Path | None:
+    """This slot's file inside the active stage-1 model's package, or None."""
+    if key not in IN_MODEL:
+        return None
+    root = m.path(m.paths.models)
+    if root is None or not root.is_dir():
+        return None
+    from .models import ModelStore
+
+    sm = ModelStore(root).active_model("stage1")
+    if sm is None:
+        return None
+    found = sorted(
+        ModelStore(root).folder(sm).rglob(BY_KEY[key].filename), key=lambda p: len(p.parts)
+    )
+    return found[0] if found else None
+
+
+def find(m: Any, key: str, model: bool = True) -> tuple[Path | None, str]:
+    """(the copy in use, where it comes from: model | dropped | machine.yaml | sortering-pnp |
+    none). model=False skips the model's own copy (to check a model against the catalogue)."""
+    if model and (p := model_file(m, key)) is not None:
+        return p, "model"
     store = store_of(m)
     if store is not None and (p := store.path(key)) is not None:
         return p, "dropped"
     attr = MACHINE_PATH.get(key)
     if attr and (p := m.path(getattr(m.paths, attr))) is not None and p.is_file():
         return p, "machine.yaml"
-    settings = find(m, "settings")[0] if key in ("calibration", "classes") else None
-    p = _screwsynth_default(key, settings)
-    if p is not None:
-        return p, "screw-sorting"
+    p = DEFAULTS / BY_KEY[key].filename
+    if p.is_file():
+        return p, "sortering-pnp"
     return None, "none"
 
 

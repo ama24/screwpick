@@ -1,8 +1,8 @@
 """Run the chosen models on a photo: stage 1 (segment / obb / detect), the optional classifier on
-close-up crops, then screwsynth's length measurement (stage 2 keypoints and/or classical edges).
+close-up crops, then the length measurement (measure/) (stage 2 keypoints and/or classical edges).
 
 Segmentation models give the full result. Box models (detect, obb) give class and position: their
-outline is the (rotated) box, and lengths are not measured. Needs screwsynth and ultralytics.
+outline is the (rotated) box, and lengths are not measured. Needs ultralytics.
 """
 
 from __future__ import annotations
@@ -26,15 +26,16 @@ class ModelChoice:
     stage1: Path
     stage2: Path | None = None
     classifier: Path | None = None
-    imgsz: int | None = None  # stage 1 image size (from the model card); None = screwsynth config
-    conf: float | None = None  # stage 1 confidence; None = screwsynth config
+    imgsz: int | None = None  # stage 1 image size (from the model card); None = vision.yaml
+    conf: float | None = None  # stage 1 confidence; None = vision.yaml
     label: str = ""
 
 
 def run_boxes(model: Any, scene: Any, names: Mapping[int, str], st: Any, task: str) -> list[Any]:
     """Stage 1 with a detect or OBB model: Detections whose outline is the (rotated) box."""
     import cv2
-    from screwsynth.measure.infer import Detection
+
+    from sortering_pnp.measure.infer import Detection
 
     h, w = scene.image.shape[:2]
     s = st.stage1_imgsz / max(h, w)
@@ -71,7 +72,7 @@ def run_boxes(model: Any, scene: Any, names: Mapping[int, str], st: Any, task: s
 
 
 class Analyzer:
-    """Loaded models; `analyse(scene)` gives screwsynth-infer style results."""
+    """Loaded models; `analyse(scene)` gives measure/infer.py style results."""
 
     def __init__(
         self,
@@ -81,8 +82,9 @@ class Analyzer:
         classes_yaml: Path | None = None,
         classifier_conf: float = 0.6,
     ) -> None:
-        from screwsynth.measure.modelcard import check_classes
         from ultralytics import YOLO
+
+        from sortering_pnp.measure.modelcard import check_classes
 
         self.choice = choice
         self.stage1 = YOLO(str(choice.stage1))
@@ -134,8 +136,8 @@ class Analyzer:
     def analyse(self, scene: Any, name: str = "") -> dict[str, Any]:
         import time
 
-        from screwsynth.common.naming import UNKNOWN
-        from screwsynth.measure.infer import measure_screw, plate_pose, run_pose, run_stage1
+        from sortering_pnp.measure.infer import measure_screw, plate_pose, run_pose, run_stage1
+        from sortering_pnp.naming import UNKNOWN
 
         t0 = time.perf_counter()
         if self.task == "segment":

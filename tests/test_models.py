@@ -270,7 +270,6 @@ class _Model:
 
 
 def test_run_boxes_detect_and_obb():
-    pytest.importorskip("screwsynth")
     from sortering_pnp.analysis import run_boxes
 
     scene = type("S", (), {"image": np.zeros((2048, 2048, 3), np.uint8)})()

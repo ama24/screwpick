@@ -1,0 +1,4806 @@
+{
+ "format": "screwsynth-parts",
+ "version": 1,
+ "catalogue_hash": "c502b6560eaf5ca9",
+ "units": "mm",
+ "classes": {
+  "DIN7991_M10": {
+   "family": "DIN7991",
+   "size": "M10",
+   "kind": "screw",
+   "shape": "countersunk",
+   "mode": "head_top_to_tip",
+   "d": 10.0,
+   "head_radius": 10.0,
+   "head_height": 5.5,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0,
+    55.0,
+    60.0,
+    65.0,
+    70.0,
+    80.0
+   ],
+   "heights": {
+    "12": {
+     "head_top": 9.1832,
+     "bearing": 6.7509,
+     "tip": 3.8764
+    },
+    "16": {
+     "head_top": 9.5601,
+     "bearing": 7.6851,
+     "tip": 4.1056
+    },
+    "20": {
+     "head_top": 9.7613,
+     "bearing": 8.2988,
+     "tip": 4.443
+    },
+    "25": {
+     "head_top": 9.8606,
+     "bearing": 8.6738,
+     "tip": 4.4661
+    },
+    "30": {
+     "head_top": 9.9183,
+     "bearing": 8.9431,
+     "tip": 4.5988
+    },
+    "35": {
+     "head_top": 9.9484,
+     "bearing": 9.1153,
+     "tip": 4.6466
+    },
+    "40": {
+     "head_top": 9.9664,
+     "bearing": 9.2396,
+     "tip": 4.6801
+    },
+    "45": {
+     "head_top": 9.9777,
+     "bearing": 9.3333,
+     "tip": 4.7048
+    },
+    "50": {
+     "head_top": 9.9853,
+     "bearing": 9.408,
+     "tip": 4.7376
+    },
+    "55": {
+     "head_top": 9.9904,
+     "bearing": 9.4689,
+     "tip": 4.7761
+    },
+    "60": {
+     "head_top": 9.9937,
+     "bearing": 9.5162,
+     "tip": 4.7849
+    },
+    "65": {
+     "head_top": 9.996,
+     "bearing": 9.5565,
+     "tip": 4.8025
+    },
+    "70": {
+     "head_top": 9.9976,
+     "bearing": 9.5913,
+     "tip": 4.8268
+    },
+    "80": {
+     "head_top": 9.9994,
+     "bearing": 9.6442,
+     "tip": 4.8325
+    }
+   }
+  },
+  "DIN7991_M3": {
+   "family": "DIN7991",
+   "size": "M3",
+   "kind": "screw",
+   "shape": "countersunk",
+   "mode": "head_top_to_tip",
+   "d": 3.0,
+   "head_radius": 3.0,
+   "head_height": 1.7,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0
+   ],
+   "heights": {
+    "6": {
+     "head_top": 2.9346,
+     "bearing": 2.4639,
+     "tip": 1.2733
+    },
+    "8": {
+     "head_top": 2.9739,
+     "bearing": 2.6261,
+     "tip": 1.3372
+    },
+    "10": {
+     "head_top": 2.9891,
+     "bearing": 2.7133,
+     "tip": 1.3664
+    },
+    "12": {
+     "head_top": 2.9962,
+     "bearing": 2.7687,
+     "tip": 1.3901
+    },
+    "16": {
+     "head_top": 3.0015,
+     "bearing": 2.8334,
+     "tip": 1.4192
+    },
+    "20": {
+     "head_top": 3.0028,
+     "bearing": 2.8697,
+     "tip": 1.4364
+    },
+    "25": {
+     "head_top": 3.003,
+     "bearing": 2.8972,
+     "tip": 1.4469
+    },
+    "30": {
+     "head_top": 3.0027,
+     "bearing": 2.9151,
+     "tip": 1.4558
+    }
+   }
+  },
+  "DIN7991_M4": {
+   "family": "DIN7991",
+   "size": "M4",
+   "kind": "screw",
+   "shape": "countersunk",
+   "mode": "head_top_to_tip",
+   "d": 4.0,
+   "head_radius": 4.0,
+   "head_height": 2.3,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0
+   ],
+   "heights": {
+    "8": {
+     "head_top": 3.9222,
+     "bearing": 3.2858,
+     "tip": 1.7086
+    },
+    "10": {
+     "head_top": 3.9627,
+     "bearing": 3.4545,
+     "tip": 1.753
+    },
+    "12": {
+     "head_top": 3.9828,
+     "bearing": 3.563,
+     "tip": 1.7923
+    },
+    "16": {
+     "head_top": 3.9992,
+     "bearing": 3.6893,
+     "tip": 1.8437
+    },
+    "20": {
+     "head_top": 4.0044,
+     "bearing": 3.76,
+     "tip": 1.8789
+    },
+    "25": {
+     "head_top": 4.0063,
+     "bearing": 3.8129,
+     "tip": 1.9049
+    },
+    "30": {
+     "head_top": 4.0064,
+     "bearing": 3.8465,
+     "tip": 1.9216
+    },
+    "35": {
+     "head_top": 4.0059,
+     "bearing": 3.8697,
+     "tip": 1.9321
+    },
+    "40": {
+     "head_top": 4.0053,
+     "bearing": 3.8865,
+     "tip": 1.9384
+    }
+   }
+  },
+  "DIN7991_M5": {
+   "family": "DIN7991",
+   "size": "M5",
+   "kind": "screw",
+   "shape": "countersunk",
+   "mode": "head_top_to_tip",
+   "d": 5.0,
+   "head_radius": 5.0,
+   "head_height": 2.8,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0
+   ],
+   "heights": {
+    "8": {
+     "head_top": 4.7913,
+     "bearing": 3.8263,
+     "tip": 2.034
+    },
+    "10": {
+     "head_top": 4.889,
+     "bearing": 4.1319,
+     "tip": 2.1848
+    },
+    "12": {
+     "head_top": 4.9313,
+     "bearing": 4.2943,
+     "tip": 2.2012
+    },
+    "16": {
+     "head_top": 4.9732,
+     "bearing": 4.5017,
+     "tip": 2.2789
+    },
+    "20": {
+     "head_top": 4.9895,
+     "bearing": 4.6172,
+     "tip": 2.3301
+    },
+    "25": {
+     "head_top": 4.9978,
+     "bearing": 4.7033,
+     "tip": 2.3681
+    },
+    "30": {
+     "head_top": 5.0011,
+     "bearing": 4.7576,
+     "tip": 2.3919
+    },
+    "35": {
+     "head_top": 5.0025,
+     "bearing": 4.7949,
+     "tip": 2.4082
+    },
+    "40": {
+     "head_top": 5.0029,
+     "bearing": 4.8215,
+     "tip": 2.4111
+    },
+    "45": {
+     "head_top": 5.003,
+     "bearing": 4.8423,
+     "tip": 2.4211
+    },
+    "50": {
+     "head_top": 5.0028,
+     "bearing": 4.8587,
+     "tip": 2.429
+    }
+   }
+  },
+  "DIN7991_M6": {
+   "family": "DIN7991",
+   "size": "M6",
+   "kind": "screw",
+   "shape": "countersunk",
+   "mode": "head_top_to_tip",
+   "d": 6.0,
+   "head_radius": 6.0,
+   "head_height": 3.3,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0,
+    55.0,
+    60.0
+   ],
+   "heights": {
+    "8": {
+     "head_top": 5.6161,
+     "bearing": 4.3013,
+     "tip": 2.4286
+    },
+    "10": {
+     "head_top": 5.7545,
+     "bearing": 4.6626,
+     "tip": 2.4457
+    },
+    "12": {
+     "head_top": 5.8467,
+     "bearing": 4.9449,
+     "tip": 2.5674
+    },
+    "16": {
+     "head_top": 5.928,
+     "bearing": 5.2551,
+     "tip": 2.6654
+    },
+    "20": {
+     "head_top": 5.9628,
+     "bearing": 5.4309,
+     "tip": 2.7391
+    },
+    "25": {
+     "head_top": 5.982,
+     "bearing": 5.5603,
+     "tip": 2.7875
+    },
+    "30": {
+     "head_top": 5.991,
+     "bearing": 5.6429,
+     "tip": 2.8269
+    },
+    "35": {
+     "head_top": 5.9955,
+     "bearing": 5.6993,
+     "tip": 2.8537
+    },
+    "40": {
+     "head_top": 5.9979,
+     "bearing": 5.7401,
+     "tip": 2.8732
+    },
+    "45": {
+     "head_top": 5.9992,
+     "bearing": 5.771,
+     "tip": 2.8878
+    },
+    "50": {
+     "head_top": 5.9998,
+     "bearing": 5.7948,
+     "tip": 2.8931
+    },
+    "55": {
+     "head_top": 6.0002,
+     "bearing": 5.8143,
+     "tip": 2.9029
+    },
+    "60": {
+     "head_top": 6.0003,
+     "bearing": 5.8304,
+     "tip": 2.911
+    }
+   }
+  },
+  "DIN7991_M8": {
+   "family": "DIN7991",
+   "size": "M8",
+   "kind": "screw",
+   "shape": "countersunk",
+   "mode": "head_top_to_tip",
+   "d": 8.0,
+   "head_radius": 8.0,
+   "head_height": 4.4,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0,
+    55.0,
+    60.0,
+    65.0,
+    70.0,
+    80.0
+   ],
+   "heights": {
+    "10": {
+     "head_top": 7.3853,
+     "bearing": 5.492,
+     "tip": 3.0824
+    },
+    "12": {
+     "head_top": 7.5891,
+     "bearing": 5.9898,
+     "tip": 3.2274
+    },
+    "16": {
+     "head_top": 7.7986,
+     "bearing": 6.6035,
+     "tip": 3.4527
+    },
+    "20": {
+     "head_top": 7.8876,
+     "bearing": 6.9355,
+     "tip": 3.5597
+    },
+    "25": {
+     "head_top": 7.9403,
+     "bearing": 7.1845,
+     "tip": 3.6461
+    },
+    "30": {
+     "head_top": 7.9661,
+     "bearing": 7.341,
+     "tip": 3.7039
+    },
+    "35": {
+     "head_top": 7.9802,
+     "bearing": 7.4487,
+     "tip": 3.7526
+    },
+    "40": {
+     "head_top": 7.9881,
+     "bearing": 7.5255,
+     "tip": 3.7827
+    },
+    "45": {
+     "head_top": 7.9929,
+     "bearing": 7.5838,
+     "tip": 3.809
+    },
+    "50": {
+     "head_top": 7.9959,
+     "bearing": 7.6293,
+     "tip": 3.8294
+    },
+    "55": {
+     "head_top": 7.9978,
+     "bearing": 7.6656,
+     "tip": 3.8457
+    },
+    "60": {
+     "head_top": 7.9989,
+     "bearing": 7.6953,
+     "tip": 3.8591
+    },
+    "65": {
+     "head_top": 7.9996,
+     "bearing": 7.7196,
+     "tip": 3.8633
+    },
+    "70": {
+     "head_top": 8.0,
+     "bearing": 7.7406,
+     "tip": 3.8732
+    },
+    "80": {
+     "head_top": 8.0004,
+     "bearing": 7.7742,
+     "tip": 3.889
+    }
+   }
+  },
+  "DIN912_M10": {
+   "family": "DIN912",
+   "size": "M10",
+   "kind": "screw",
+   "shape": "socket_cap",
+   "mode": "bearing_to_tip",
+   "d": 10.0,
+   "head_radius": 8.0,
+   "head_height": 10.0,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0,
+    55.0,
+    60.0,
+    65.0,
+    70.0,
+    80.0
+   ],
+   "heights": {
+    "16": {
+     "head_top": 9.7681,
+     "bearing": 7.744,
+     "tip": 4.5054
+    },
+    "20": {
+     "head_top": 9.4295,
+     "bearing": 7.8222,
+     "tip": 4.6076
+    },
+    "25": {
+     "head_top": 9.1528,
+     "bearing": 7.8735,
+     "tip": 4.6754
+    },
+    "30": {
+     "head_top": 8.9575,
+     "bearing": 7.9037,
+     "tip": 4.7422
+    },
+    "35": {
+     "head_top": 8.8207,
+     "bearing": 7.9221,
+     "tip": 4.7771
+    },
+    "40": {
+     "head_top": 8.7166,
+     "bearing": 7.9346,
+     "tip": 4.8068
+    },
+    "45": {
+     "head_top": 8.6338,
+     "bearing": 7.9437,
+     "tip": 4.8383
+    },
+    "50": {
+     "head_top": 8.5708,
+     "bearing": 7.9501,
+     "tip": 4.8467
+    },
+    "55": {
+     "head_top": 8.519,
+     "bearing": 7.9551,
+     "tip": 4.8534
+    },
+    "60": {
+     "head_top": 8.4747,
+     "bearing": 7.9591,
+     "tip": 4.8656
+    },
+    "65": {
+     "head_top": 8.4381,
+     "bearing": 7.9623,
+     "tip": 4.8695
+    },
+    "70": {
+     "head_top": 8.4051,
+     "bearing": 7.965,
+     "tip": 4.8843
+    },
+    "80": {
+     "head_top": 8.3536,
+     "bearing": 7.9691,
+     "tip": 4.8932
+    }
+   }
+  },
+  "DIN912_M2": {
+   "family": "DIN912",
+   "size": "M2",
+   "kind": "screw",
+   "shape": "socket_cap",
+   "mode": "bearing_to_tip",
+   "d": 2.0,
+   "head_radius": 1.9,
+   "head_height": 2.0,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0
+   ],
+   "heights": {
+    "3": {
+     "head_top": 2.1728,
+     "bearing": 1.8307,
+     "tip": 1.3176
+    },
+    "4": {
+     "head_top": 2.2716,
+     "bearing": 1.8489,
+     "tip": 1.0036
+    },
+    "5": {
+     "head_top": 2.2337,
+     "bearing": 1.8463,
+     "tip": 0.8777
+    },
+    "6": {
+     "head_top": 2.1807,
+     "bearing": 1.8604,
+     "tip": 0.8993
+    },
+    "8": {
+     "head_top": 2.1124,
+     "bearing": 1.8748,
+     "tip": 0.9244
+    },
+    "10": {
+     "head_top": 2.0699,
+     "bearing": 1.8818,
+     "tip": 0.9411
+    },
+    "12": {
+     "head_top": 2.0414,
+     "bearing": 1.8857,
+     "tip": 0.9517
+    },
+    "16": {
+     "head_top": 2.006,
+     "bearing": 1.8899,
+     "tip": 0.9611
+    },
+    "20": {
+     "head_top": 1.9843,
+     "bearing": 1.892,
+     "tip": 0.9689
+    }
+   }
+  },
+  "DIN912_M2.5": {
+   "family": "DIN912",
+   "size": "M2.5",
+   "kind": "screw",
+   "shape": "socket_cap",
+   "mode": "bearing_to_tip",
+   "d": 2.5,
+   "head_radius": 2.25,
+   "head_height": 2.5,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    4.0,
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0
+   ],
+   "heights": {
+    "4": {
+     "head_top": 2.5119,
+     "bearing": 2.228,
+     "tip": 1.7739
+    },
+    "5": {
+     "head_top": 2.7134,
+     "bearing": 2.1724,
+     "tip": 1.0905
+    },
+    "6": {
+     "head_top": 2.6392,
+     "bearing": 2.1935,
+     "tip": 1.1238
+    },
+    "8": {
+     "head_top": 2.5462,
+     "bearing": 2.2141,
+     "tip": 1.1513
+    },
+    "10": {
+     "head_top": 2.4871,
+     "bearing": 2.2243,
+     "tip": 1.1733
+    },
+    "12": {
+     "head_top": 2.4474,
+     "bearing": 2.2301,
+     "tip": 1.187
+    },
+    "16": {
+     "head_top": 2.3979,
+     "bearing": 2.2361,
+     "tip": 1.2008
+    },
+    "20": {
+     "head_top": 2.3677,
+     "bearing": 2.2392,
+     "tip": 1.2107
+    },
+    "25": {
+     "head_top": 2.3436,
+     "bearing": 2.2413,
+     "tip": 1.2184
+    }
+   }
+  },
+  "DIN912_M3": {
+   "family": "DIN912",
+   "size": "M3",
+   "kind": "screw",
+   "shape": "socket_cap",
+   "mode": "bearing_to_tip",
+   "d": 3.0,
+   "head_radius": 2.75,
+   "head_height": 3.0,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0
+   ],
+   "heights": {
+    "5": {
+     "head_top": 3.0795,
+     "bearing": 2.7164,
+     "tip": 2.1114
+    },
+    "6": {
+     "head_top": 3.3169,
+     "bearing": 2.6517,
+     "tip": 1.3212
+    },
+    "8": {
+     "head_top": 3.1852,
+     "bearing": 2.689,
+     "tip": 1.3657
+    },
+    "10": {
+     "head_top": 3.1015,
+     "bearing": 2.7071,
+     "tip": 1.3921
+    },
+    "12": {
+     "head_top": 3.0436,
+     "bearing": 2.7173,
+     "tip": 1.4123
+    },
+    "16": {
+     "head_top": 2.9703,
+     "bearing": 2.728,
+     "tip": 1.4361
+    },
+    "20": {
+     "head_top": 2.9265,
+     "bearing": 2.7333,
+     "tip": 1.4451
+    },
+    "25": {
+     "head_top": 2.8906,
+     "bearing": 2.7369,
+     "tip": 1.4561
+    },
+    "30": {
+     "head_top": 2.8667,
+     "bearing": 2.7391,
+     "tip": 1.4632
+    }
+   }
+  },
+  "DIN912_M4": {
+   "family": "DIN912",
+   "size": "M4",
+   "kind": "screw",
+   "shape": "socket_cap",
+   "mode": "bearing_to_tip",
+   "d": 4.0,
+   "head_radius": 3.5,
+   "head_height": 4.0,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0
+   ],
+   "heights": {
+    "6": {
+     "head_top": 3.927,
+     "bearing": 3.4642,
+     "tip": 2.77
+    },
+    "8": {
+     "head_top": 4.2002,
+     "bearing": 3.3912,
+     "tip": 1.7732
+    },
+    "10": {
+     "head_top": 4.0679,
+     "bearing": 3.4245,
+     "tip": 1.8163
+    },
+    "12": {
+     "head_top": 3.9748,
+     "bearing": 3.4436,
+     "tip": 1.8498
+    },
+    "16": {
+     "head_top": 3.8568,
+     "bearing": 3.4631,
+     "tip": 1.8881
+    },
+    "20": {
+     "head_top": 3.7848,
+     "bearing": 3.4726,
+     "tip": 1.912
+    },
+    "25": {
+     "head_top": 3.7271,
+     "bearing": 3.4791,
+     "tip": 1.9292
+    },
+    "30": {
+     "head_top": 3.6888,
+     "bearing": 3.4829,
+     "tip": 1.9386
+    },
+    "35": {
+     "head_top": 3.6612,
+     "bearing": 3.4854,
+     "tip": 1.9472
+    },
+    "40": {
+     "head_top": 3.6404,
+     "bearing": 3.4871,
+     "tip": 1.9536
+    }
+   }
+  },
+  "DIN912_M5": {
+   "family": "DIN912",
+   "size": "M5",
+   "kind": "screw",
+   "shape": "socket_cap",
+   "mode": "bearing_to_tip",
+   "d": 5.0,
+   "head_radius": 4.25,
+   "head_height": 5.0,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0
+   ],
+   "heights": {
+    "8": {
+     "head_top": 5.2497,
+     "bearing": 4.0804,
+     "tip": 2.2095
+    },
+    "10": {
+     "head_top": 5.0662,
+     "bearing": 4.133,
+     "tip": 2.2665
+    },
+    "12": {
+     "head_top": 4.939,
+     "bearing": 4.1623,
+     "tip": 2.2981
+    },
+    "16": {
+     "head_top": 4.7697,
+     "bearing": 4.1936,
+     "tip": 2.3498
+    },
+    "20": {
+     "head_top": 4.6653,
+     "bearing": 4.2089,
+     "tip": 2.3831
+    },
+    "25": {
+     "head_top": 4.5811,
+     "bearing": 4.2193,
+     "tip": 2.4104
+    },
+    "30": {
+     "head_top": 4.5264,
+     "bearing": 4.2251,
+     "tip": 2.4173
+    },
+    "35": {
+     "head_top": 4.4861,
+     "bearing": 4.229,
+     "tip": 2.4291
+    },
+    "40": {
+     "head_top": 4.4559,
+     "bearing": 4.2316,
+     "tip": 2.4378
+    },
+    "45": {
+     "head_top": 4.4324,
+     "bearing": 4.2336,
+     "tip": 2.4444
+    },
+    "50": {
+     "head_top": 4.4136,
+     "bearing": 4.235,
+     "tip": 2.4497
+    }
+   }
+  },
+  "DIN912_M6": {
+   "family": "DIN912",
+   "size": "M6",
+   "kind": "screw",
+   "shape": "socket_cap",
+   "mode": "bearing_to_tip",
+   "d": 6.0,
+   "head_radius": 5.0,
+   "head_height": 6.0,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0,
+    55.0,
+    60.0
+   ],
+   "heights": {
+    "10": {
+     "head_top": 6.1257,
+     "bearing": 4.8227,
+     "tip": 2.6509
+    },
+    "12": {
+     "head_top": 5.9445,
+     "bearing": 4.8703,
+     "tip": 2.722
+    },
+    "16": {
+     "head_top": 5.7184,
+     "bearing": 4.9172,
+     "tip": 2.7805
+    },
+    "20": {
+     "head_top": 5.5739,
+     "bearing": 4.9408,
+     "tip": 2.8303
+    },
+    "25": {
+     "head_top": 5.4578,
+     "bearing": 4.9565,
+     "tip": 2.8676
+    },
+    "30": {
+     "head_top": 5.3798,
+     "bearing": 4.9655,
+     "tip": 2.8937
+    },
+    "35": {
+     "head_top": 5.3262,
+     "bearing": 4.971,
+     "tip": 2.8989
+    },
+    "40": {
+     "head_top": 5.2845,
+     "bearing": 4.9749,
+     "tip": 2.9116
+    },
+    "45": {
+     "head_top": 5.252,
+     "bearing": 4.9778,
+     "tip": 2.9213
+    },
+    "50": {
+     "head_top": 5.2261,
+     "bearing": 4.9799,
+     "tip": 2.9289
+    },
+    "55": {
+     "head_top": 5.2048,
+     "bearing": 4.9816,
+     "tip": 2.935
+    },
+    "60": {
+     "head_top": 5.1872,
+     "bearing": 4.9829,
+     "tip": 2.9401
+    }
+   }
+  },
+  "DIN912_M8": {
+   "family": "DIN912",
+   "size": "M8",
+   "kind": "screw",
+   "shape": "socket_cap",
+   "mode": "bearing_to_tip",
+   "d": 8.0,
+   "head_radius": 6.5,
+   "head_height": 8.0,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0,
+    55.0,
+    60.0,
+    65.0,
+    70.0,
+    80.0
+   ],
+   "heights": {
+    "12": {
+     "head_top": 8.0604,
+     "bearing": 6.2517,
+     "tip": 3.5387
+    },
+    "16": {
+     "head_top": 7.6896,
+     "bearing": 6.3463,
+     "tip": 3.6596
+    },
+    "20": {
+     "head_top": 7.4586,
+     "bearing": 6.3915,
+     "tip": 3.7236
+    },
+    "25": {
+     "head_top": 7.2657,
+     "bearing": 6.4222,
+     "tip": 3.7864
+    },
+    "30": {
+     "head_top": 7.1366,
+     "bearing": 6.4396,
+     "tip": 3.8258
+    },
+    "35": {
+     "head_top": 7.0436,
+     "bearing": 6.4506,
+     "tip": 3.8561
+    },
+    "40": {
+     "head_top": 6.9771,
+     "bearing": 6.4577,
+     "tip": 3.8605
+    },
+    "45": {
+     "head_top": 6.9229,
+     "bearing": 6.463,
+     "tip": 3.8762
+    },
+    "50": {
+     "head_top": 6.8796,
+     "bearing": 6.467,
+     "tip": 3.8886
+    },
+    "55": {
+     "head_top": 6.8442,
+     "bearing": 6.4701,
+     "tip": 3.8986
+    },
+    "60": {
+     "head_top": 6.8147,
+     "bearing": 6.4725,
+     "tip": 3.9068
+    },
+    "65": {
+     "head_top": 6.7897,
+     "bearing": 6.4745,
+     "tip": 3.9136
+    },
+    "70": {
+     "head_top": 6.7683,
+     "bearing": 6.4762,
+     "tip": 3.9194
+    },
+    "80": {
+     "head_top": 6.7337,
+     "bearing": 6.4787,
+     "tip": 3.9288
+    }
+   }
+  },
+  "DIN913_M10": {
+   "family": "DIN913",
+   "size": "M10",
+   "kind": "screw",
+   "shape": "set_screw",
+   "mode": "head_top_to_tip",
+   "d": 10.0,
+   "head_radius": 5.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0
+   ],
+   "heights": {
+    "10": {
+     "head_top": 5.2172,
+     "bearing": 5.2172,
+     "tip": 4.9939
+    },
+    "12": {
+     "head_top": 5.1392,
+     "bearing": 5.1392,
+     "tip": 4.9329
+    },
+    "16": {
+     "head_top": 4.9846,
+     "bearing": 4.9846,
+     "tip": 4.9846
+    },
+    "20": {
+     "head_top": 4.9846,
+     "bearing": 4.9846,
+     "tip": 4.9846
+    },
+    "25": {
+     "head_top": 4.9846,
+     "bearing": 4.9846,
+     "tip": 4.9846
+    },
+    "30": {
+     "head_top": 4.9846,
+     "bearing": 4.9846,
+     "tip": 4.9846
+    }
+   }
+  },
+  "DIN913_M2": {
+   "family": "DIN913",
+   "size": "M2",
+   "kind": "screw",
+   "shape": "set_screw",
+   "mode": "head_top_to_tip",
+   "d": 2.0,
+   "head_radius": 1.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    2.0,
+    3.0,
+    4.0,
+    5.0,
+    6.0
+   ],
+   "heights": {
+    "2": {
+     "head_top": 1.0462,
+     "bearing": 1.0462,
+     "tip": 1.005
+    },
+    "3": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "4": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "5": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "6": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    }
+   }
+  },
+  "DIN913_M2.5": {
+   "family": "DIN913",
+   "size": "M2.5",
+   "kind": "screw",
+   "shape": "set_screw",
+   "mode": "head_top_to_tip",
+   "d": 2.5,
+   "head_radius": 1.25,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    8.0
+   ],
+   "heights": {
+    "3": {
+     "head_top": 1.3022,
+     "bearing": 1.3022,
+     "tip": 1.2256
+    },
+    "4": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "5": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "6": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "8": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    }
+   }
+  },
+  "DIN913_M3": {
+   "family": "DIN913",
+   "size": "M3",
+   "kind": "screw",
+   "shape": "set_screw",
+   "mode": "head_top_to_tip",
+   "d": 3.0,
+   "head_radius": 1.5,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    8.0,
+    10.0
+   ],
+   "heights": {
+    "3": {
+     "head_top": 1.5697,
+     "bearing": 1.5697,
+     "tip": 1.5012
+    },
+    "4": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "5": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "6": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "8": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "10": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    }
+   }
+  },
+  "DIN913_M4": {
+   "family": "DIN913",
+   "size": "M4",
+   "kind": "screw",
+   "shape": "set_screw",
+   "mode": "head_top_to_tip",
+   "d": 4.0,
+   "head_radius": 2.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    4.0,
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0
+   ],
+   "heights": {
+    "4": {
+     "head_top": 2.0893,
+     "bearing": 2.0893,
+     "tip": 2.006
+    },
+    "5": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    },
+    "6": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    },
+    "8": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    },
+    "10": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    },
+    "12": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    }
+   }
+  },
+  "DIN913_M5": {
+   "family": "DIN913",
+   "size": "M5",
+   "kind": "screw",
+   "shape": "set_screw",
+   "mode": "head_top_to_tip",
+   "d": 5.0,
+   "head_radius": 2.5,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    16.0
+   ],
+   "heights": {
+    "5": {
+     "head_top": 2.6135,
+     "bearing": 2.6135,
+     "tip": 2.5004
+    },
+    "6": {
+     "head_top": 2.5743,
+     "bearing": 2.5743,
+     "tip": 2.4641
+    },
+    "8": {
+     "head_top": 2.4923,
+     "bearing": 2.4923,
+     "tip": 2.4923
+    },
+    "10": {
+     "head_top": 2.4923,
+     "bearing": 2.4923,
+     "tip": 2.4923
+    },
+    "12": {
+     "head_top": 2.4923,
+     "bearing": 2.4923,
+     "tip": 2.4923
+    },
+    "16": {
+     "head_top": 2.4923,
+     "bearing": 2.4923,
+     "tip": 2.4923
+    }
+   }
+  },
+  "DIN913_M6": {
+   "family": "DIN913",
+   "size": "M6",
+   "kind": "screw",
+   "shape": "set_screw",
+   "mode": "head_top_to_tip",
+   "d": 6.0,
+   "head_radius": 3.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0
+   ],
+   "heights": {
+    "6": {
+     "head_top": 3.1387,
+     "bearing": 3.1387,
+     "tip": 3.0006
+    },
+    "8": {
+     "head_top": 2.9908,
+     "bearing": 2.9908,
+     "tip": 2.9908
+    },
+    "10": {
+     "head_top": 2.9908,
+     "bearing": 2.9908,
+     "tip": 2.9908
+    },
+    "12": {
+     "head_top": 2.9908,
+     "bearing": 2.9908,
+     "tip": 2.9908
+    },
+    "16": {
+     "head_top": 2.9908,
+     "bearing": 2.9908,
+     "tip": 2.9908
+    },
+    "20": {
+     "head_top": 2.9908,
+     "bearing": 2.9908,
+     "tip": 2.9908
+    }
+   }
+  },
+  "DIN913_M8": {
+   "family": "DIN913",
+   "size": "M8",
+   "kind": "screw",
+   "shape": "set_screw",
+   "mode": "head_top_to_tip",
+   "d": 8.0,
+   "head_radius": 4.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0
+   ],
+   "heights": {
+    "8": {
+     "head_top": 4.1766,
+     "bearing": 4.1766,
+     "tip": 3.9987
+    },
+    "10": {
+     "head_top": 3.9877,
+     "bearing": 3.9877,
+     "tip": 3.9877
+    },
+    "12": {
+     "head_top": 3.9877,
+     "bearing": 3.9877,
+     "tip": 3.9877
+    },
+    "16": {
+     "head_top": 3.9877,
+     "bearing": 3.9877,
+     "tip": 3.9877
+    },
+    "20": {
+     "head_top": 3.9877,
+     "bearing": 3.9877,
+     "tip": 3.9877
+    },
+    "25": {
+     "head_top": 3.9877,
+     "bearing": 3.9877,
+     "tip": 3.9877
+    }
+   }
+  },
+  "DIN933_M10": {
+   "family": "DIN933",
+   "size": "M10",
+   "kind": "screw",
+   "shape": "hex",
+   "mode": "bearing_to_tip",
+   "d": 10.0,
+   "head_radius": 8.0,
+   "head_height": 6.4,
+   "headless": false,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0,
+    55.0,
+    60.0,
+    65.0,
+    70.0,
+    80.0
+   ],
+   "heights": {
+    "16": {
+     "head_top": 8.953,
+     "bearing": 7.7419,
+     "tip": 4.7144
+    },
+    "20": {
+     "head_top": 8.8229,
+     "bearing": 7.8018,
+     "tip": 4.611
+    },
+    "25": {
+     "head_top": 8.6626,
+     "bearing": 7.8622,
+     "tip": 4.7356
+    },
+    "30": {
+     "head_top": 8.5584,
+     "bearing": 7.8946,
+     "tip": 4.7834
+    },
+    "35": {
+     "head_top": 8.4851,
+     "bearing": 7.9147,
+     "tip": 4.7953
+    },
+    "40": {
+     "head_top": 8.4237,
+     "bearing": 7.9299,
+     "tip": 4.8434
+    },
+    "45": {
+     "head_top": 8.3818,
+     "bearing": 7.9394,
+     "tip": 4.8288
+    },
+    "50": {
+     "head_top": 8.3429,
+     "bearing": 7.9477,
+     "tip": 4.8603
+    },
+    "55": {
+     "head_top": 8.3109,
+     "bearing": 7.9541,
+     "tip": 4.8879
+    },
+    "60": {
+     "head_top": 8.2879,
+     "bearing": 7.9585,
+     "tip": 4.8709
+    },
+    "65": {
+     "head_top": 8.265,
+     "bearing": 7.9627,
+     "tip": 4.8932
+    },
+    "70": {
+     "head_top": 8.2454,
+     "bearing": 7.9662,
+     "tip": 4.9121
+    },
+    "80": {
+     "head_top": 8.2159,
+     "bearing": 7.9712,
+     "tip": 4.9131
+    }
+   }
+  },
+  "DIN933_M2": {
+   "family": "DIN933",
+   "size": "M2",
+   "kind": "screw",
+   "shape": "hex",
+   "mode": "bearing_to_tip",
+   "d": 2.0,
+   "head_radius": 2.0,
+   "head_height": 1.4,
+   "headless": false,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    4.0,
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0
+   ],
+   "heights": {
+    "4": {
+     "head_top": 2.2244,
+     "bearing": 1.8735,
+     "tip": 0.871
+    },
+    "5": {
+     "head_top": 2.1941,
+     "bearing": 1.9055,
+     "tip": 0.8745
+    },
+    "6": {
+     "head_top": 2.1676,
+     "bearing": 1.9275,
+     "tip": 0.8987
+    },
+    "8": {
+     "head_top": 2.1298,
+     "bearing": 1.9521,
+     "tip": 0.9367
+    },
+    "10": {
+     "head_top": 2.1067,
+     "bearing": 1.9641,
+     "tip": 0.9454
+    },
+    "12": {
+     "head_top": 2.0906,
+     "bearing": 1.9715,
+     "tip": 0.9509
+    },
+    "16": {
+     "head_top": 2.0694,
+     "bearing": 1.98,
+     "tip": 0.9583
+    },
+    "20": {
+     "head_top": 2.0559,
+     "bearing": 1.9847,
+     "tip": 0.9668
+    }
+   }
+  },
+  "DIN933_M2.5": {
+   "family": "DIN933",
+   "size": "M2.5",
+   "kind": "screw",
+   "shape": "hex",
+   "mode": "bearing_to_tip",
+   "d": 2.5,
+   "head_radius": 2.5,
+   "head_height": 1.7,
+   "headless": false,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0
+   ],
+   "heights": {
+    "5": {
+     "head_top": 2.7806,
+     "bearing": 2.3609,
+     "tip": 1.1266
+    },
+    "6": {
+     "head_top": 2.7539,
+     "bearing": 2.3872,
+     "tip": 1.0932
+    },
+    "8": {
+     "head_top": 2.6958,
+     "bearing": 2.4302,
+     "tip": 1.1803
+    },
+    "10": {
+     "head_top": 2.6646,
+     "bearing": 2.4476,
+     "tip": 1.1711
+    },
+    "12": {
+     "head_top": 2.6398,
+     "bearing": 2.4593,
+     "tip": 1.1857
+    },
+    "16": {
+     "head_top": 2.6077,
+     "bearing": 2.4721,
+     "tip": 1.196
+    },
+    "20": {
+     "head_top": 2.5873,
+     "bearing": 2.479,
+     "tip": 1.2052
+    },
+    "25": {
+     "head_top": 2.5705,
+     "bearing": 2.484,
+     "tip": 1.2123
+    }
+   }
+  },
+  "DIN933_M3": {
+   "family": "DIN933",
+   "size": "M3",
+   "kind": "screw",
+   "shape": "hex",
+   "mode": "bearing_to_tip",
+   "d": 3.0,
+   "head_radius": 2.75,
+   "head_height": 2.0,
+   "headless": false,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0
+   ],
+   "heights": {
+    "5": {
+     "head_top": 3.0596,
+     "bearing": 2.5664,
+     "tip": 1.3333
+    },
+    "6": {
+     "head_top": 3.0217,
+     "bearing": 2.6075,
+     "tip": 1.365
+    },
+    "8": {
+     "head_top": 2.9696,
+     "bearing": 2.6513,
+     "tip": 1.3777
+    },
+    "10": {
+     "head_top": 2.9296,
+     "bearing": 2.6777,
+     "tip": 1.4184
+    },
+    "12": {
+     "head_top": 2.9033,
+     "bearing": 2.6925,
+     "tip": 1.428
+    },
+    "16": {
+     "head_top": 2.8683,
+     "bearing": 2.7096,
+     "tip": 1.4393
+    },
+    "20": {
+     "head_top": 2.8462,
+     "bearing": 2.719,
+     "tip": 1.4473
+    },
+    "25": {
+     "head_top": 2.8276,
+     "bearing": 2.7262,
+     "tip": 1.458
+    },
+    "30": {
+     "head_top": 2.8151,
+     "bearing": 2.7307,
+     "tip": 1.465
+    }
+   }
+  },
+  "DIN933_M4": {
+   "family": "DIN933",
+   "size": "M4",
+   "kind": "screw",
+   "shape": "hex",
+   "mode": "bearing_to_tip",
+   "d": 4.0,
+   "head_radius": 3.5,
+   "head_height": 2.8,
+   "headless": false,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0
+   ],
+   "heights": {
+    "6": {
+     "head_top": 3.9979,
+     "bearing": 3.2808,
+     "tip": 1.7443
+    },
+    "8": {
+     "head_top": 3.9015,
+     "bearing": 3.3544,
+     "tip": 1.7912
+    },
+    "10": {
+     "head_top": 3.8312,
+     "bearing": 3.3949,
+     "tip": 1.8368
+    },
+    "12": {
+     "head_top": 3.7736,
+     "bearing": 3.4221,
+     "tip": 1.9156
+    },
+    "16": {
+     "head_top": 3.7157,
+     "bearing": 3.4449,
+     "tip": 1.8978
+    },
+    "20": {
+     "head_top": 3.6705,
+     "bearing": 3.46,
+     "tip": 1.9566
+    },
+    "25": {
+     "head_top": 3.6405,
+     "bearing": 3.4689,
+     "tip": 1.9363
+    },
+    "30": {
+     "head_top": 3.6177,
+     "bearing": 3.4751,
+     "tip": 1.9472
+    },
+    "35": {
+     "head_top": 3.6015,
+     "bearing": 3.4792,
+     "tip": 1.9495
+    },
+    "40": {
+     "head_top": 3.5878,
+     "bearing": 3.4825,
+     "tip": 1.9783
+    }
+   }
+  },
+  "DIN933_M5": {
+   "family": "DIN933",
+   "size": "M5",
+   "kind": "screw",
+   "shape": "hex",
+   "mode": "bearing_to_tip",
+   "d": 5.0,
+   "head_radius": 4.0,
+   "head_height": 3.5,
+   "headless": false,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0
+   ],
+   "heights": {
+    "8": {
+     "head_top": 4.5,
+     "bearing": 3.8305,
+     "tip": 2.3001
+    },
+    "10": {
+     "head_top": 4.4123,
+     "bearing": 3.8762,
+     "tip": 2.3447
+    },
+    "12": {
+     "head_top": 4.3497,
+     "bearing": 3.9037,
+     "tip": 2.3743
+    },
+    "16": {
+     "head_top": 4.2704,
+     "bearing": 3.9332,
+     "tip": 2.3917
+    },
+    "20": {
+     "head_top": 4.2198,
+     "bearing": 3.9494,
+     "tip": 2.4047
+    },
+    "25": {
+     "head_top": 4.1762,
+     "bearing": 3.9619,
+     "tip": 2.4306
+    },
+    "30": {
+     "head_top": 4.1485,
+     "bearing": 3.9691,
+     "tip": 2.4318
+    },
+    "35": {
+     "head_top": 4.1268,
+     "bearing": 3.9744,
+     "tip": 2.4507
+    },
+    "40": {
+     "head_top": 4.1118,
+     "bearing": 3.978,
+     "tip": 2.4489
+    },
+    "45": {
+     "head_top": 4.099,
+     "bearing": 3.9808,
+     "tip": 2.4614
+    },
+    "50": {
+     "head_top": 4.0896,
+     "bearing": 3.9829,
+     "tip": 2.4588
+    }
+   }
+  },
+  "DIN933_M6": {
+   "family": "DIN933",
+   "size": "M6",
+   "kind": "screw",
+   "shape": "hex",
+   "mode": "bearing_to_tip",
+   "d": 6.0,
+   "head_radius": 5.0,
+   "head_height": 4.0,
+   "headless": false,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0,
+    55.0,
+    60.0
+   ],
+   "heights": {
+    "8": {
+     "head_top": 5.7179,
+     "bearing": 4.7148,
+     "tip": 2.7087
+    },
+    "10": {
+     "head_top": 5.6133,
+     "bearing": 4.7901,
+     "tip": 2.7321
+    },
+    "12": {
+     "head_top": 5.5375,
+     "bearing": 4.8342,
+     "tip": 2.7241
+    },
+    "16": {
+     "head_top": 5.4074,
+     "bearing": 4.8946,
+     "tip": 2.8435
+    },
+    "20": {
+     "head_top": 5.3345,
+     "bearing": 4.9217,
+     "tip": 2.8577
+    },
+    "25": {
+     "head_top": 5.2721,
+     "bearing": 4.9416,
+     "tip": 2.8756
+    },
+    "30": {
+     "head_top": 5.2292,
+     "bearing": 4.9537,
+     "tip": 2.8869
+    },
+    "35": {
+     "head_top": 5.1973,
+     "bearing": 4.9619,
+     "tip": 2.9026
+    },
+    "40": {
+     "head_top": 5.173,
+     "bearing": 4.9678,
+     "tip": 2.9151
+    },
+    "45": {
+     "head_top": 5.1541,
+     "bearing": 4.9721,
+     "tip": 2.9246
+    },
+    "50": {
+     "head_top": 5.1388,
+     "bearing": 4.9754,
+     "tip": 2.9322
+    },
+    "55": {
+     "head_top": 5.1264,
+     "bearing": 4.978,
+     "tip": 2.9383
+    },
+    "60": {
+     "head_top": 5.1159,
+     "bearing": 4.9801,
+     "tip": 2.9433
+    }
+   }
+  },
+  "DIN933_M8": {
+   "family": "DIN933",
+   "size": "M8",
+   "kind": "screw",
+   "shape": "hex",
+   "mode": "bearing_to_tip",
+   "d": 8.0,
+   "head_radius": 6.5,
+   "head_height": 5.3,
+   "headless": false,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0,
+    55.0,
+    60.0,
+    65.0,
+    70.0,
+    80.0
+   ],
+   "heights": {
+    "10": {
+     "head_top": 7.4913,
+     "bearing": 6.1261,
+     "tip": 3.5504
+    },
+    "12": {
+     "head_top": 7.3444,
+     "bearing": 6.2277,
+     "tip": 3.6993
+    },
+    "16": {
+     "head_top": 7.184,
+     "bearing": 6.313,
+     "tip": 3.6835
+    },
+    "20": {
+     "head_top": 7.0496,
+     "bearing": 6.3692,
+     "tip": 3.8015
+    },
+    "25": {
+     "head_top": 6.9507,
+     "bearing": 6.4032,
+     "tip": 3.8208
+    },
+    "30": {
+     "head_top": 6.8807,
+     "bearing": 6.4242,
+     "tip": 3.8399
+    },
+    "35": {
+     "head_top": 6.8294,
+     "bearing": 6.4379,
+     "tip": 3.8529
+    },
+    "40": {
+     "head_top": 6.7899,
+     "bearing": 6.4477,
+     "tip": 3.8653
+    },
+    "45": {
+     "head_top": 6.7582,
+     "bearing": 6.455,
+     "tip": 3.8809
+    },
+    "50": {
+     "head_top": 6.7328,
+     "bearing": 6.4606,
+     "tip": 3.8931
+    },
+    "55": {
+     "head_top": 6.7119,
+     "bearing": 6.465,
+     "tip": 3.9029
+    },
+    "60": {
+     "head_top": 6.6944,
+     "bearing": 6.4685,
+     "tip": 3.9111
+    },
+    "65": {
+     "head_top": 6.6796,
+     "bearing": 6.4714,
+     "tip": 3.9178
+    },
+    "70": {
+     "head_top": 6.6669,
+     "bearing": 6.4738,
+     "tip": 3.9236
+    },
+    "80": {
+     "head_top": 6.6462,
+     "bearing": 6.4776,
+     "tip": 3.9329
+    }
+   }
+  },
+  "DIN975_M10": {
+   "family": "DIN975",
+   "size": "M10",
+   "kind": "screw",
+   "shape": "threaded_rod",
+   "mode": "head_top_to_tip",
+   "d": 10.0,
+   "head_radius": 5.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": true,
+   "lengths": [
+    60.0,
+    65.0,
+    70.0,
+    75.0,
+    80.0
+   ],
+   "heights": {
+    "60": {
+     "head_top": 4.9846,
+     "bearing": 4.9846,
+     "tip": 4.9846
+    },
+    "65": {
+     "head_top": 4.9846,
+     "bearing": 4.9846,
+     "tip": 4.9846
+    },
+    "70": {
+     "head_top": 4.9846,
+     "bearing": 4.9846,
+     "tip": 4.9846
+    },
+    "75": {
+     "head_top": 4.9846,
+     "bearing": 4.9846,
+     "tip": 4.9846
+    },
+    "80": {
+     "head_top": 4.9846,
+     "bearing": 4.9846,
+     "tip": 4.9846
+    }
+   }
+  },
+  "DIN975_M2": {
+   "family": "DIN975",
+   "size": "M2",
+   "kind": "screw",
+   "shape": "threaded_rod",
+   "mode": "head_top_to_tip",
+   "d": 2.0,
+   "head_radius": 1.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": true,
+   "lengths": [
+    12.0,
+    15.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0,
+    55.0,
+    60.0,
+    65.0,
+    70.0,
+    75.0,
+    80.0
+   ],
+   "heights": {
+    "12": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "15": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "20": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "25": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "30": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "35": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "40": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "45": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "50": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "55": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "60": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "65": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "70": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "75": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    },
+    "80": {
+     "head_top": 0.9969,
+     "bearing": 0.9969,
+     "tip": 0.9969
+    }
+   }
+  },
+  "DIN975_M2.5": {
+   "family": "DIN975",
+   "size": "M2.5",
+   "kind": "screw",
+   "shape": "threaded_rod",
+   "mode": "head_top_to_tip",
+   "d": 2.5,
+   "head_radius": 1.25,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": true,
+   "lengths": [
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0,
+    55.0,
+    60.0,
+    65.0,
+    70.0,
+    75.0,
+    80.0
+   ],
+   "heights": {
+    "16": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "20": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "25": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "30": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "35": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "40": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "45": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "50": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "55": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "60": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "65": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "70": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "75": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    },
+    "80": {
+     "head_top": 1.2461,
+     "bearing": 1.2461,
+     "tip": 1.2461
+    }
+   }
+  },
+  "DIN975_M3": {
+   "family": "DIN975",
+   "size": "M3",
+   "kind": "screw",
+   "shape": "threaded_rod",
+   "mode": "head_top_to_tip",
+   "d": 3.0,
+   "head_radius": 1.5,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": true,
+   "lengths": [
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0,
+    55.0,
+    60.0,
+    65.0,
+    70.0,
+    75.0,
+    80.0
+   ],
+   "heights": {
+    "20": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "25": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "30": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "35": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "40": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "45": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "50": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "55": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "60": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "65": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "70": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "75": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    },
+    "80": {
+     "head_top": 1.4954,
+     "bearing": 1.4954,
+     "tip": 1.4954
+    }
+   }
+  },
+  "DIN975_M4": {
+   "family": "DIN975",
+   "size": "M4",
+   "kind": "screw",
+   "shape": "threaded_rod",
+   "mode": "head_top_to_tip",
+   "d": 4.0,
+   "head_radius": 2.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": true,
+   "lengths": [
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0,
+    55.0,
+    60.0,
+    65.0,
+    70.0,
+    75.0,
+    80.0
+   ],
+   "heights": {
+    "25": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    },
+    "30": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    },
+    "35": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    },
+    "40": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    },
+    "45": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    },
+    "50": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    },
+    "55": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    },
+    "60": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    },
+    "65": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    },
+    "70": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    },
+    "75": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    },
+    "80": {
+     "head_top": 1.9938,
+     "bearing": 1.9938,
+     "tip": 1.9938
+    }
+   }
+  },
+  "DIN975_M5": {
+   "family": "DIN975",
+   "size": "M5",
+   "kind": "screw",
+   "shape": "threaded_rod",
+   "mode": "head_top_to_tip",
+   "d": 5.0,
+   "head_radius": 2.5,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": true,
+   "lengths": [
+    35.0,
+    40.0,
+    45.0,
+    50.0,
+    55.0,
+    60.0,
+    65.0,
+    70.0,
+    75.0,
+    80.0
+   ],
+   "heights": {
+    "35": {
+     "head_top": 2.4923,
+     "bearing": 2.4923,
+     "tip": 2.4923
+    },
+    "40": {
+     "head_top": 2.4923,
+     "bearing": 2.4923,
+     "tip": 2.4923
+    },
+    "45": {
+     "head_top": 2.4923,
+     "bearing": 2.4923,
+     "tip": 2.4923
+    },
+    "50": {
+     "head_top": 2.4923,
+     "bearing": 2.4923,
+     "tip": 2.4923
+    },
+    "55": {
+     "head_top": 2.4923,
+     "bearing": 2.4923,
+     "tip": 2.4923
+    },
+    "60": {
+     "head_top": 2.4923,
+     "bearing": 2.4923,
+     "tip": 2.4923
+    },
+    "65": {
+     "head_top": 2.4923,
+     "bearing": 2.4923,
+     "tip": 2.4923
+    },
+    "70": {
+     "head_top": 2.4923,
+     "bearing": 2.4923,
+     "tip": 2.4923
+    },
+    "75": {
+     "head_top": 2.4923,
+     "bearing": 2.4923,
+     "tip": 2.4923
+    },
+    "80": {
+     "head_top": 2.4923,
+     "bearing": 2.4923,
+     "tip": 2.4923
+    }
+   }
+  },
+  "DIN975_M6": {
+   "family": "DIN975",
+   "size": "M6",
+   "kind": "screw",
+   "shape": "threaded_rod",
+   "mode": "head_top_to_tip",
+   "d": 6.0,
+   "head_radius": 3.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": true,
+   "lengths": [
+    40.0,
+    45.0,
+    50.0,
+    55.0,
+    60.0,
+    65.0,
+    70.0,
+    75.0,
+    80.0
+   ],
+   "heights": {
+    "40": {
+     "head_top": 2.9908,
+     "bearing": 2.9908,
+     "tip": 2.9908
+    },
+    "45": {
+     "head_top": 2.9908,
+     "bearing": 2.9908,
+     "tip": 2.9908
+    },
+    "50": {
+     "head_top": 2.9908,
+     "bearing": 2.9908,
+     "tip": 2.9908
+    },
+    "55": {
+     "head_top": 2.9908,
+     "bearing": 2.9908,
+     "tip": 2.9908
+    },
+    "60": {
+     "head_top": 2.9908,
+     "bearing": 2.9908,
+     "tip": 2.9908
+    },
+    "65": {
+     "head_top": 2.9908,
+     "bearing": 2.9908,
+     "tip": 2.9908
+    },
+    "70": {
+     "head_top": 2.9908,
+     "bearing": 2.9908,
+     "tip": 2.9908
+    },
+    "75": {
+     "head_top": 2.9908,
+     "bearing": 2.9908,
+     "tip": 2.9908
+    },
+    "80": {
+     "head_top": 2.9908,
+     "bearing": 2.9908,
+     "tip": 2.9908
+    }
+   }
+  },
+  "DIN975_M8": {
+   "family": "DIN975",
+   "size": "M8",
+   "kind": "screw",
+   "shape": "threaded_rod",
+   "mode": "head_top_to_tip",
+   "d": 8.0,
+   "head_radius": 4.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": true,
+   "lengths": [
+    50.0,
+    55.0,
+    60.0,
+    65.0,
+    70.0,
+    75.0,
+    80.0
+   ],
+   "heights": {
+    "50": {
+     "head_top": 3.9877,
+     "bearing": 3.9877,
+     "tip": 3.9877
+    },
+    "55": {
+     "head_top": 3.9877,
+     "bearing": 3.9877,
+     "tip": 3.9877
+    },
+    "60": {
+     "head_top": 3.9877,
+     "bearing": 3.9877,
+     "tip": 3.9877
+    },
+    "65": {
+     "head_top": 3.9877,
+     "bearing": 3.9877,
+     "tip": 3.9877
+    },
+    "70": {
+     "head_top": 3.9877,
+     "bearing": 3.9877,
+     "tip": 3.9877
+    },
+    "75": {
+     "head_top": 3.9877,
+     "bearing": 3.9877,
+     "tip": 3.9877
+    },
+    "80": {
+     "head_top": 3.9877,
+     "bearing": 3.9877,
+     "tip": 3.9877
+    }
+   }
+  },
+  "ISO7380_M10": {
+   "family": "ISO7380",
+   "size": "M10",
+   "kind": "screw",
+   "shape": "button",
+   "mode": "bearing_to_tip",
+   "d": 10.0,
+   "head_radius": 8.75,
+   "head_height": 5.5,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0
+   ],
+   "heights": {
+    "16": {
+     "head_top": 9.8581,
+     "bearing": 8.4469,
+     "tip": 4.3414
+    },
+    "20": {
+     "head_top": 9.6677,
+     "bearing": 8.5606,
+     "tip": 4.5346
+    },
+    "25": {
+     "head_top": 9.5073,
+     "bearing": 8.6267,
+     "tip": 4.6242
+    },
+    "30": {
+     "head_top": 9.3923,
+     "bearing": 8.6621,
+     "tip": 4.6789
+    },
+    "35": {
+     "head_top": 9.3066,
+     "bearing": 8.6831,
+     "tip": 4.7155
+    },
+    "40": {
+     "head_top": 9.239,
+     "bearing": 8.6969,
+     "tip": 4.7547
+    },
+    "45": {
+     "head_top": 9.1844,
+     "bearing": 8.7064,
+     "tip": 4.7957
+    },
+    "50": {
+     "head_top": 9.1424,
+     "bearing": 8.7128,
+     "tip": 4.8071
+    }
+   }
+  },
+  "ISO7380_M3": {
+   "family": "ISO7380",
+   "size": "M3",
+   "kind": "screw",
+   "shape": "button",
+   "mode": "bearing_to_tip",
+   "d": 3.0,
+   "head_radius": 2.85,
+   "head_height": 1.65,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    4.0,
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0
+   ],
+   "heights": {
+    "4": {
+     "head_top": 3.2139,
+     "bearing": 2.66,
+     "tip": 1.317
+    },
+    "5": {
+     "head_top": 3.2026,
+     "bearing": 2.7244,
+     "tip": 1.2755
+    },
+    "6": {
+     "head_top": 3.1626,
+     "bearing": 2.7609,
+     "tip": 1.3
+    },
+    "8": {
+     "head_top": 3.097,
+     "bearing": 2.8001,
+     "tip": 1.3605
+    },
+    "10": {
+     "head_top": 3.0535,
+     "bearing": 2.8172,
+     "tip": 1.3857
+    },
+    "12": {
+     "head_top": 3.0218,
+     "bearing": 2.8266,
+     "tip": 1.4071
+    },
+    "16": {
+     "head_top": 2.9803,
+     "bearing": 2.8356,
+     "tip": 1.4322
+    },
+    "20": {
+     "head_top": 2.9546,
+     "bearing": 2.8397,
+     "tip": 1.4464
+    },
+    "25": {
+     "head_top": 2.9339,
+     "bearing": 2.8422,
+     "tip": 1.4525
+    },
+    "30": {
+     "head_top": 2.9196,
+     "bearing": 2.8435,
+     "tip": 1.4603
+    }
+   }
+  },
+  "ISO7380_M4": {
+   "family": "ISO7380",
+   "size": "M4",
+   "kind": "screw",
+   "shape": "button",
+   "mode": "bearing_to_tip",
+   "d": 4.0,
+   "head_radius": 3.8,
+   "head_height": 2.2,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0
+   ],
+   "heights": {
+    "5": {
+     "head_top": 4.3492,
+     "bearing": 3.5042,
+     "tip": 1.5837
+    },
+    "6": {
+     "head_top": 4.2518,
+     "bearing": 3.5921,
+     "tip": 1.7928
+    },
+    "8": {
+     "head_top": 4.2198,
+     "bearing": 3.679,
+     "tip": 1.7125
+    },
+    "10": {
+     "head_top": 4.1494,
+     "bearing": 3.7237,
+     "tip": 1.7887
+    },
+    "12": {
+     "head_top": 4.0997,
+     "bearing": 3.7461,
+     "tip": 1.8171
+    },
+    "16": {
+     "head_top": 4.0296,
+     "bearing": 3.7686,
+     "tip": 1.8707
+    },
+    "20": {
+     "head_top": 3.9859,
+     "bearing": 3.7785,
+     "tip": 1.8929
+    },
+    "25": {
+     "head_top": 3.9493,
+     "bearing": 3.7848,
+     "tip": 1.9156
+    },
+    "30": {
+     "head_top": 3.9246,
+     "bearing": 3.7881,
+     "tip": 1.9263
+    },
+    "35": {
+     "head_top": 3.9066,
+     "bearing": 3.7901,
+     "tip": 1.937
+    },
+    "40": {
+     "head_top": 3.8929,
+     "bearing": 3.7914,
+     "tip": 1.9447
+    }
+   }
+  },
+  "ISO7380_M5": {
+   "family": "ISO7380",
+   "size": "M5",
+   "kind": "screw",
+   "shape": "button",
+   "mode": "bearing_to_tip",
+   "d": 5.0,
+   "head_radius": 4.75,
+   "head_height": 2.75,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0
+   ],
+   "heights": {
+    "6": {
+     "head_top": 5.3851,
+     "bearing": 4.3708,
+     "tip": 2.158
+    },
+    "8": {
+     "head_top": 5.2882,
+     "bearing": 4.5256,
+     "tip": 2.3073
+    },
+    "10": {
+     "head_top": 5.2699,
+     "bearing": 4.6024,
+     "tip": 2.1753
+    },
+    "12": {
+     "head_top": 5.1993,
+     "bearing": 4.6479,
+     "tip": 2.242
+    },
+    "16": {
+     "head_top": 5.101,
+     "bearing": 4.6913,
+     "tip": 2.3077
+    },
+    "20": {
+     "head_top": 5.0356,
+     "bearing": 4.7111,
+     "tip": 2.351
+    },
+    "25": {
+     "head_top": 4.9809,
+     "bearing": 4.7234,
+     "tip": 2.3834
+    },
+    "30": {
+     "head_top": 4.9432,
+     "bearing": 4.73,
+     "tip": 2.404
+    },
+    "35": {
+     "head_top": 4.9165,
+     "bearing": 4.7338,
+     "tip": 2.409
+    },
+    "40": {
+     "head_top": 4.8955,
+     "bearing": 4.7363,
+     "tip": 2.4205
+    },
+    "45": {
+     "head_top": 4.8791,
+     "bearing": 4.738,
+     "tip": 2.4293
+    },
+    "50": {
+     "head_top": 4.8659,
+     "bearing": 4.7392,
+     "tip": 2.4362
+    }
+   }
+  },
+  "ISO7380_M6": {
+   "family": "ISO7380",
+   "size": "M6",
+   "kind": "screw",
+   "shape": "button",
+   "mode": "bearing_to_tip",
+   "d": 6.0,
+   "head_radius": 5.25,
+   "head_height": 3.3,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    8.0,
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0,
+    60.0
+   ],
+   "heights": {
+    "8": {
+     "head_top": 5.9302,
+     "bearing": 4.9902,
+     "tip": 2.7112
+    },
+    "10": {
+     "head_top": 5.9002,
+     "bearing": 5.0785,
+     "tip": 2.5887
+    },
+    "12": {
+     "head_top": 5.8084,
+     "bearing": 5.1325,
+     "tip": 2.675
+    },
+    "16": {
+     "head_top": 5.6835,
+     "bearing": 5.183,
+     "tip": 2.7562
+    },
+    "20": {
+     "head_top": 5.601,
+     "bearing": 5.206,
+     "tip": 2.8119
+    },
+    "25": {
+     "head_top": 5.5325,
+     "bearing": 5.2201,
+     "tip": 2.8533
+    },
+    "30": {
+     "head_top": 5.4859,
+     "bearing": 5.2276,
+     "tip": 2.8794
+    },
+    "35": {
+     "head_top": 5.4521,
+     "bearing": 5.232,
+     "tip": 2.8973
+    },
+    "40": {
+     "head_top": 5.4273,
+     "bearing": 5.2347,
+     "tip": 2.9003
+    },
+    "45": {
+     "head_top": 5.4072,
+     "bearing": 5.2367,
+     "tip": 2.9114
+    },
+    "50": {
+     "head_top": 5.391,
+     "bearing": 5.238,
+     "tip": 2.9202
+    },
+    "60": {
+     "head_top": 5.3667,
+     "bearing": 5.2398,
+     "tip": 2.9331
+    }
+   }
+  },
+  "ISO7380_M8": {
+   "family": "ISO7380",
+   "size": "M8",
+   "kind": "screw",
+   "shape": "button",
+   "mode": "bearing_to_tip",
+   "d": 8.0,
+   "head_radius": 7.0,
+   "head_height": 4.4,
+   "headless": false,
+   "socket": true,
+   "cut_to_length": false,
+   "lengths": [
+    10.0,
+    12.0,
+    16.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0
+   ],
+   "heights": {
+    "10": {
+     "head_top": 7.9359,
+     "bearing": 6.6156,
+     "tip": 3.6151
+    },
+    "12": {
+     "head_top": 7.9314,
+     "bearing": 6.7225,
+     "tip": 3.4256
+    },
+    "16": {
+     "head_top": 7.7405,
+     "bearing": 6.8453,
+     "tip": 3.5901
+    },
+    "20": {
+     "head_top": 7.6105,
+     "bearing": 6.8997,
+     "tip": 3.6691
+    },
+    "25": {
+     "head_top": 7.4957,
+     "bearing": 6.9345,
+     "tip": 3.7454
+    },
+    "30": {
+     "head_top": 7.4161,
+     "bearing": 6.9527,
+     "tip": 3.7929
+    },
+    "35": {
+     "head_top": 7.3579,
+     "bearing": 6.9634,
+     "tip": 3.8251
+    },
+    "40": {
+     "head_top": 7.3136,
+     "bearing": 6.9702,
+     "tip": 3.8483
+    },
+    "45": {
+     "head_top": 7.2788,
+     "bearing": 6.9749,
+     "tip": 3.8659
+    },
+    "50": {
+     "head_top": 7.2519,
+     "bearing": 6.978,
+     "tip": 3.8662
+    }
+   }
+  },
+  "STANDOFF_FF_M2": {
+   "family": "STANDOFF_FF",
+   "size": "M2",
+   "kind": "standoff",
+   "shape": "standoff_ff",
+   "mode": "head_top_to_tip",
+   "d": 2.0,
+   "head_radius": 2.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    15.0,
+    20.0
+   ],
+   "heights": {
+    "3": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "4": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "5": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "6": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "8": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "10": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "12": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "15": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "20": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    }
+   }
+  },
+  "STANDOFF_FF_M2.5": {
+   "family": "STANDOFF_FF",
+   "size": "M2.5",
+   "kind": "standoff",
+   "shape": "standoff_ff",
+   "mode": "head_top_to_tip",
+   "d": 2.5,
+   "head_radius": 2.5,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    15.0,
+    20.0,
+    25.0
+   ],
+   "heights": {
+    "3": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "4": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "5": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "6": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "8": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "10": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "12": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "15": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "20": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "25": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    }
+   }
+  },
+  "STANDOFF_FF_M3": {
+   "family": "STANDOFF_FF",
+   "size": "M3",
+   "kind": "standoff",
+   "shape": "standoff_ff",
+   "mode": "head_top_to_tip",
+   "d": 3.0,
+   "head_radius": 2.75,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    15.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0
+   ],
+   "heights": {
+    "5": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "6": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "8": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "10": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "12": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "15": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "20": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "25": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "30": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "35": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "40": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    }
+   }
+  },
+  "STANDOFF_FF_M4": {
+   "family": "STANDOFF_FF",
+   "size": "M4",
+   "kind": "standoff",
+   "shape": "standoff_ff",
+   "mode": "head_top_to_tip",
+   "d": 4.0,
+   "head_radius": 3.5,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    15.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0
+   ],
+   "heights": {
+    "6": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "8": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "10": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "12": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "15": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "20": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "25": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "30": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "35": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "40": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "45": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "50": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    }
+   }
+  },
+  "STANDOFF_FF_M5": {
+   "family": "STANDOFF_FF",
+   "size": "M5",
+   "kind": "standoff",
+   "shape": "standoff_ff",
+   "mode": "head_top_to_tip",
+   "d": 5.0,
+   "head_radius": 4.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    8.0,
+    10.0,
+    12.0,
+    15.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    50.0
+   ],
+   "heights": {
+    "8": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "10": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "12": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "15": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "20": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "25": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "30": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "35": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "40": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "50": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    }
+   }
+  },
+  "STANDOFF_FF_M6": {
+   "family": "STANDOFF_FF",
+   "size": "M6",
+   "kind": "standoff",
+   "shape": "standoff_ff",
+   "mode": "head_top_to_tip",
+   "d": 6.0,
+   "head_radius": 5.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    10.0,
+    12.0,
+    15.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    50.0,
+    60.0
+   ],
+   "heights": {
+    "10": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "12": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "15": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "20": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "25": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "30": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "35": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "40": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "50": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "60": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    }
+   }
+  },
+  "STANDOFF_MF_M2": {
+   "family": "STANDOFF_MF",
+   "size": "M2",
+   "kind": "standoff",
+   "shape": "standoff_mf",
+   "mode": "head_top_to_tip",
+   "d": 2.0,
+   "head_radius": 2.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    15.0,
+    20.0
+   ],
+   "heights": {
+    "3": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "4": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "5": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "6": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "8": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "10": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "12": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "15": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "20": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    }
+   }
+  },
+  "STANDOFF_MF_M2.5": {
+   "family": "STANDOFF_MF",
+   "size": "M2.5",
+   "kind": "standoff",
+   "shape": "standoff_mf",
+   "mode": "head_top_to_tip",
+   "d": 2.5,
+   "head_radius": 2.5,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    15.0,
+    20.0,
+    25.0
+   ],
+   "heights": {
+    "3": {
+     "head_top": 2.8598,
+     "bearing": 2.8598,
+     "tip": 2.4433
+    },
+    "4": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "5": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "6": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "8": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "10": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "12": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "15": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "20": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "25": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    }
+   }
+  },
+  "STANDOFF_MF_M3": {
+   "family": "STANDOFF_MF",
+   "size": "M3",
+   "kind": "standoff",
+   "shape": "standoff_mf",
+   "mode": "head_top_to_tip",
+   "d": 3.0,
+   "head_radius": 2.75,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    15.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0
+   ],
+   "heights": {
+    "5": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "6": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "8": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "10": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "12": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "15": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "20": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "25": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "30": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "35": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "40": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    }
+   }
+  },
+  "STANDOFF_MF_M4": {
+   "family": "STANDOFF_MF",
+   "size": "M4",
+   "kind": "standoff",
+   "shape": "standoff_mf",
+   "mode": "head_top_to_tip",
+   "d": 4.0,
+   "head_radius": 3.5,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    15.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0
+   ],
+   "heights": {
+    "6": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "8": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "10": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "12": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "15": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "20": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "25": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "30": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "35": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "40": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "45": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "50": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    }
+   }
+  },
+  "STANDOFF_MF_M5": {
+   "family": "STANDOFF_MF",
+   "size": "M5",
+   "kind": "standoff",
+   "shape": "standoff_mf",
+   "mode": "head_top_to_tip",
+   "d": 5.0,
+   "head_radius": 4.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    8.0,
+    10.0,
+    12.0,
+    15.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    50.0
+   ],
+   "heights": {
+    "8": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "10": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "12": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "15": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "20": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "25": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "30": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "35": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "40": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "50": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    }
+   }
+  },
+  "STANDOFF_MF_M6": {
+   "family": "STANDOFF_MF",
+   "size": "M6",
+   "kind": "standoff",
+   "shape": "standoff_mf",
+   "mode": "head_top_to_tip",
+   "d": 6.0,
+   "head_radius": 5.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    10.0,
+    12.0,
+    15.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    50.0,
+    60.0
+   ],
+   "heights": {
+    "10": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "12": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "15": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "20": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "25": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "30": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "35": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "40": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "50": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "60": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    }
+   }
+  },
+  "STANDOFF_MM_M2": {
+   "family": "STANDOFF_MM",
+   "size": "M2",
+   "kind": "standoff",
+   "shape": "standoff_mm",
+   "mode": "head_top_to_tip",
+   "d": 2.0,
+   "head_radius": 2.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    15.0,
+    20.0
+   ],
+   "heights": {
+    "3": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "4": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "5": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "6": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "8": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "10": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "12": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "15": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    },
+    "20": {
+     "head_top": 2.0,
+     "bearing": 2.0,
+     "tip": 2.0
+    }
+   }
+  },
+  "STANDOFF_MM_M2.5": {
+   "family": "STANDOFF_MM",
+   "size": "M2.5",
+   "kind": "standoff",
+   "shape": "standoff_mm",
+   "mode": "head_top_to_tip",
+   "d": 2.5,
+   "head_radius": 2.5,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    15.0,
+    20.0,
+    25.0
+   ],
+   "heights": {
+    "3": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "4": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "5": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "6": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "8": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "10": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "12": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "15": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "20": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    },
+    "25": {
+     "head_top": 2.5,
+     "bearing": 2.5,
+     "tip": 2.5
+    }
+   }
+  },
+  "STANDOFF_MM_M3": {
+   "family": "STANDOFF_MM",
+   "size": "M3",
+   "kind": "standoff",
+   "shape": "standoff_mm",
+   "mode": "head_top_to_tip",
+   "d": 3.0,
+   "head_radius": 2.75,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    5.0,
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    15.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0
+   ],
+   "heights": {
+    "5": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "6": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "8": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "10": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "12": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "15": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "20": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "25": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "30": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "35": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    },
+    "40": {
+     "head_top": 2.75,
+     "bearing": 2.75,
+     "tip": 2.75
+    }
+   }
+  },
+  "STANDOFF_MM_M4": {
+   "family": "STANDOFF_MM",
+   "size": "M4",
+   "kind": "standoff",
+   "shape": "standoff_mm",
+   "mode": "head_top_to_tip",
+   "d": 4.0,
+   "head_radius": 3.5,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    6.0,
+    8.0,
+    10.0,
+    12.0,
+    15.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    45.0,
+    50.0
+   ],
+   "heights": {
+    "6": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "8": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "10": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "12": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "15": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "20": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "25": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "30": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "35": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "40": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "45": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    },
+    "50": {
+     "head_top": 3.5,
+     "bearing": 3.5,
+     "tip": 3.5
+    }
+   }
+  },
+  "STANDOFF_MM_M5": {
+   "family": "STANDOFF_MM",
+   "size": "M5",
+   "kind": "standoff",
+   "shape": "standoff_mm",
+   "mode": "head_top_to_tip",
+   "d": 5.0,
+   "head_radius": 4.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    8.0,
+    10.0,
+    12.0,
+    15.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    50.0
+   ],
+   "heights": {
+    "8": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "10": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "12": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "15": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "20": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "25": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "30": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "35": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "40": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    },
+    "50": {
+     "head_top": 4.0,
+     "bearing": 4.0,
+     "tip": 4.0
+    }
+   }
+  },
+  "STANDOFF_MM_M6": {
+   "family": "STANDOFF_MM",
+   "size": "M6",
+   "kind": "standoff",
+   "shape": "standoff_mm",
+   "mode": "head_top_to_tip",
+   "d": 6.0,
+   "head_radius": 5.0,
+   "head_height": 0.0,
+   "headless": true,
+   "socket": false,
+   "cut_to_length": false,
+   "lengths": [
+    10.0,
+    12.0,
+    15.0,
+    20.0,
+    25.0,
+    30.0,
+    35.0,
+    40.0,
+    50.0,
+    60.0
+   ],
+   "heights": {
+    "10": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "12": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "15": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "20": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "25": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "30": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "35": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "40": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "50": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    },
+    "60": {
+     "head_top": 5.0,
+     "bearing": 5.0,
+     "tip": 5.0
+    }
+   }
+  }
+ }
+}

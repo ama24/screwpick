@@ -31,7 +31,9 @@ class ConfigError(ValueError):
 
 @dataclass
 class Paths:
-    screwsynth_config: str | None = None  # screwsynth's configs/config.yaml (classes, geometry)
+    vision: str | None = (
+        None  # vision.yaml (nominal camera, measurement); None = Files tab / built-in
+    )
     calibration: str | None = None  # calibration.json of the camera; None = nominal camera
     head_calibration: str | None = None  # the same for the head camera (camera.source: head)
     models: str = "../models"  # models uploaded in the web page (Models tab)
@@ -49,13 +51,13 @@ class Paths:
     files: str = "../data/files"  # files dropped in the Files tab (calibration, items.json, ...)
     todo: str = "../data/todo.json"  # the Setup tab's "On the machine" ticks
     captures: str = "../data/captures"  # calibration photos, locked camera settings
-    sessions: str = "../data/real"  # real-photo sessions (Photos tab), screwsynth's format
+    sessions: str = "../data/real"  # real-photo sessions (Photos tab), the format screw-synth reads
 
 
 @dataclass
 class Camera:
     settings: str | None = (
-        None  # screwrig lock settings (locked focus/exposure); None = rpicam-still
+        None  # locked camera settings (camlock.py: focus/exposure); None = rpicam-still
     )
     # overview: fixed above the bed, one photo sees everything | head: on the tool head, moved
     # over the tray (sorting) or the whole grid (Resync, bin changes); see headcam.py

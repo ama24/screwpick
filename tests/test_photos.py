@@ -1,5 +1,5 @@
 """Calibration and real photos taken by sortering_pnp (the only program that moves the printer);
-screwrig only for the camera. The camera here renders a synthetic ChArUco board."""
+The camera here renders a synthetic ChArUco board."""
 
 from __future__ import annotations
 
@@ -15,8 +15,9 @@ from sortering_pnp.runner import Runner
 from sortering_pnp.transform import Transform2D
 
 cv2 = pytest.importorskip("cv2")
-synthetic = pytest.importorskip("screwsynth.calibration.synthetic")
-pytest.importorskip("screwrig.camera")
+import synthetic_board as synthetic  # noqa: E402
+
+pytest.importorskip("sortering_pnp.camera")
 
 
 def _runner(machine):

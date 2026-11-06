@@ -1435,7 +1435,7 @@ class Runner:
             self.volumes = self._load_volumes()
             return
         if self.store is not None:
-            self.store.classes_yaml = files_mod.find(self.m, "classes")[0]
+            self.store.classes_yaml = files_mod.find(self.m, "classes", model=False)[0]
         reload = getattr(self.vision, "reload_setup", None)
         if reload is not None:
             reload()
@@ -1779,6 +1779,10 @@ class Runner:
         }
 
     def _reload_models(self) -> None:
+        reload = getattr(self.vision, "reload_setup", None)
+        if reload is not None:  # the parts table and class list follow the stage-1 model
+            reload(strict=True)
+            return
         use = getattr(self.vision, "use_models", None)
         if use is not None:
             from .vision import active_choice

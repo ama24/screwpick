@@ -99,13 +99,12 @@ echo "[include sortering_pnp.cfg]" >> ~/printer_data/config/printer.cfg
 - [requirements-pi.lock.txt](../requirements-pi.lock.txt) lists every Python package with its
   exact version **and a checksum of the file**. It's installed with `--no-deps --require-hashes`,
   so pip installs nothing else and refuses a file that differs in any way.
-- screw-synth, the model and camera code, is checked out at a fixed commit
-  (`SUPREME_COMMIT` in [install-pi.sh](../install-pi.sh)).
-- The script puts everything in the same Python environment as `screwrig` (`~/screwrig`),
+- Nothing else is fetched: the camera, calibration and measurement code are part of
+  sortering-pnp, and the trained model is uploaded in the web page (Models tab).
+- The script puts everything in a Python environment inside the clone (`~/sortering-pnp/.venv`),
   checks that OpenCV has ArUco and that PyTorch is the CPU build, and says what to do next.
 
-To upgrade on purpose: run `python scripts/lock_pi.py` and change `SUPREME_COMMIT`, test it on
-the Pi, then commit.
+To upgrade on purpose: run `python scripts/lock_pi.py`, test it on the Pi, then commit.
 
 Then restart Klipper (`FIRMWARE_RESTART`); the picker is chosen and installed later in the
 Setup tab. Check everything with:
@@ -118,9 +117,8 @@ Start it with `sortering-pnp serve`, and open `http://<pi>:8080` on the PC or ph
 visit asks you to create an account (see [Login](#login)).
 
 > **sortering-pnp is the only program that moves the printer.** The camera calibration and the
-> real photos are taken from its web page (Calibrate and Photos tabs): sortering-pnp parks the bed,
-> screwrig only works the camera. (`screwrig` on its own also goes through Klipper, never the
-> printer's USB port, for use without sortering-pnp.)
+> real photos are taken from its web page (Calibrate and Photos tabs): sortering-pnp parks the bed
+> and works the camera.
 
 ## The Setup tab, step by step
 
@@ -214,21 +212,23 @@ If the card has a recommended confidence, it is used for stage 1 (`models.use_re
 ## Files tab: files from the other projects
 
 sortering-pnp keeps its own copy of every file it uses from the other projects, so it runs on its
-own and never reads their folders. The **Files** tab has a card for each one, saying where to
+own and never reads their folders. It comes with working defaults for all of them except the
+calibration, which the Calibrate tab makes. The **Files** tab has a card for each one, saying where to
 find it, what it is for and what is done without it, and which copy is in use. Fetch the file,
 drop it on its card: it is checked, kept on the Pi (`paths.files`) and used at once.
 
 | File | Where to get it | Without it |
 |---|---|---|
-| `calibration.json` | screw-sorting: `data/calibration/calibration.json` (calibration tool) | nominal camera |
-| `head_calibration.json` | the same, from the head camera's photos | only needed with a head camera |
-| `config.yaml` | screw-sorting: `output/<recipe>/config.yaml` of the model's dataset (or `configs/config.yaml`) | the settings of the installed screw-sorting code |
-| `classes.yaml` | screw-sorting: `configs/classes.yaml` | models are not checked against the catalogue |
-| `items.json` | screw-sorting: `screwsynth-partgen items --out items.json` | volumes estimated from the camera |
+| `calibration.json` | made here: Calibrate tab | nominal camera |
+| `head_calibration.json` | the same, with a head camera | only needed with a head camera |
+| `vision.yaml` | comes with sortering-pnp (`src/sortering_pnp/defaults/`): change and drop it back | the built-in one |
+| `parts.json` | inside every model package; or screw-synth: `screwsynth-catalogue parts --out parts.json` | the built-in one (the whole screw-synth catalogue) |
+| `classes.yaml` | inside every model package; or screw-synth: `configs/classes.yaml` | the built-in one |
+| `items.json` | screw-synth: `screwsynth-partgen items --out items.json` | volumes estimated from the camera |
 
-A dropped file comes first, then a path set in machine.yaml, then (settings, classes and
-calibration only) what the installed screw-sorting code brings along. Models, including ones
-from anywhere else, go in the Models tab.
+`parts.json` and `classes.yaml` come from the **active model** first, so they always match it.
+After that: a dropped file, then a path set in machine.yaml, then the copy that comes with
+sortering-pnp. Models, including ones from anywhere else, go in the Models tab.
 
 ## Camera calibration (Calibrate tab)
 
@@ -237,7 +237,7 @@ Everything on the Pi, from the page; the result lands in the Files tab by itself
    3 x 3 tray, away from the corner post). Print at 100 %, glue it on stiff card, measure one
    square with a caliper and enter it (and the board's thickness).
 2. **Lock the camera** with the tray empty and the lights as when sorting: exposure, colours and
-   focus are frozen for every photo after this (screwrig's lock, about a minute).
+   focus are frozen for every photo after this (about a minute).
 3. **Lens:** hold the board under the camera in a different place and a little tilted each time,
    until the whole picture is covered: 25 to 40 photos, then *Solve the lens*.
 4. **Position:** the board flat in the tray, on the TPU sheet. This also sets where the model's
@@ -529,10 +529,10 @@ look).
 
 ## Real photos (Photos tab)
 
-Photos of real parts, for checking the model on the PC (the screw-sorting project's real data):
+Photos of real parts, for checking the model on the PC (screw-synth's real data):
 make a session, note on the PC what lies in the tray (inventory.csv), take a photo after each
 change (the bed is parked first, the camera uses the locked settings), then **Download** the
-session and put the folder in the screw-sorting project's `data/real/`.
+session and put the folder in screw-synth's `data/real/`.
 
 ## On the machine (Setup tab)
 

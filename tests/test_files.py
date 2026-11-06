@@ -34,7 +34,7 @@ def test_store_checks_keeps_and_removes(tmp_path):
     with pytest.raises(ValueError, match="not an items.json"):
         st.save("items", b'{"hello": 1}')
     with pytest.raises(ValueError, match="cannot be read"):
-        st.save("settings", b"a: [unclosed")
+        st.save("vision", b"a: [unclosed")
     with pytest.raises(ValueError, match="no file slot"):
         st.save("nope", b"{}")
     info = st.save("items", json.dumps(ITEMS).encode(), "items (3).json")

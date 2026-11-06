@@ -41,14 +41,13 @@ def test_work_area_contains():
 
 
 def test_painted_where_the_tray_is_in_the_real_camera_model(machine):
-    from screwsynth.calibration.geometry import (
+    from sortering_pnp.calib.geometry import (
         Camera,
         nominal_camera,
         roi_camera_matrix,
         roi_for_area,
     )
-    from screwsynth.measure.infer import Scene
-
+    from sortering_pnp.measure.infer import Scene
     from sortering_pnp.vision import CameraVision
 
     full = nominal_camera()
