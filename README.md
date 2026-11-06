@@ -68,6 +68,7 @@ project works without the others.
 - [How it works, in more detail](#how-it-works-in-more-detail)
 - [Real photos for checking the model](#real-photos-for-checking-the-model)
 - [Updating](#updating)
+- [On a PC](#on-a-pc)
 - [More](#more)
 
 ---
@@ -128,22 +129,6 @@ See [prints/README.md](prints/README.md) for which files to print and how.
 ---
 
 ## Install
-
-### Try it on a PC first
-
-You don't need a printer to see how it works. On any PC with Python 3.10 or newer:
-
-```bash
-git clone https://github.com/ama24/sortering-pnp.git
-cd sortering-pnp
-pip install -e ".[dev]" opencv-python   # OpenCV draws the simulated photos
-sortering-pnp serve --sim
-```
-
-Open the address it prints. Everything works with a simulated printer, camera and parts: give bins
-rules, press **Sort once** and watch them get sorted.
-
-### On the Raspberry Pi
 
 1. **Install Klipper and Moonraker** the usual way (MainsailOS, or KIAUH on Raspberry Pi OS), and
    make sure the printer works from Mainsail.
@@ -421,6 +406,21 @@ The install script brings everything to the versions this release was tested wit
 
 ---
 
+## On a PC
+
+To try it without a printer (simulated printer, camera and parts), with Python 3.10 or newer:
+
+```bash
+git clone https://github.com/ama24/sortering-pnp.git && cd sortering-pnp
+python3 -m venv .venv && . .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e ".[dev]" opencv-contrib-python
+sortering-pnp serve --sim
+```
+
+Open the address it prints. This is for a PC only: on the Pi use [install-pi.sh](#install).
+
+---
+
 ## More
 
 - **[docs/reference.md](docs/reference.md):** every tab, setting and rule in detail (homing with a
@@ -428,5 +428,5 @@ The install script brings everything to the versions this release was tested wit
   users, and so on).
 - **[prints/README.md](prints/README.md):** which parts to print and how.
 - **[configs/machine.yaml](configs/machine.yaml):** all settings, each with a comment.
-- **Development:** `pip install -e ".[dev]"`, then `pytest` and `ruff check .` before every commit.
+- **Development:** set up as in [On a PC](#on-a-pc), then `pytest` and `ruff check .` before every commit.
   The code is in [src/sortering_pnp/](src/sortering_pnp/); [CLAUDE.md](CLAUDE.md) explains how it is built.
