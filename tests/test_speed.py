@@ -49,6 +49,11 @@ def test_the_server_answers_on_ipv4_and_ipv6(machine):
             with urllib.request.urlopen(f"http://{host}:{port}/api/state", timeout=10) as r:
                 assert json.loads(r.read())["status"]
         assert server.request_queue_size >= 64
+        second = make_server(_runner(machine), "", port, None)  # a second one moves on
+        try:
+            assert second.server_address[1] != port
+        finally:
+            second.server_close()
     finally:
         server.shutdown()
         server.server_close()

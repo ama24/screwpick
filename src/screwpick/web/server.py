@@ -42,6 +42,7 @@ import json
 import logging
 import shutil
 import socket
+import sys
 import threading
 import urllib.parse
 import uuid
@@ -499,6 +500,9 @@ class Server(http.server.ThreadingHTTPServer):
 
     request_queue_size = 64
     daemon_threads = True
+    # Windows' address reuse lets a second server share the port silently (it should move on
+    # to the next free port instead); elsewhere it only allows a quick restart
+    allow_reuse_address = sys.platform != "win32"
 
 
 class DualStackServer(Server):
