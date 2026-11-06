@@ -5,14 +5,12 @@ metadata; the calibration maths are in calib/, the session format in session.py 
 reads both). The bed is parked by sortering_pnp's own motion (photo position, soft limits, busy checks), so nothing
 else ever sends G-code.
 
-Camera calibration (Calibrate tab), in order:
-  1. the board: a ChArUco board small enough to lie flat inside the tray (7 x 6 squares of 15 mm:
-     105 x 90 mm, for the 3x3 tray), printed from the page; measure a square and enter it;
-  2. lock the camera: exposure, gain, white balance and focus are frozen for every photo;
-  3. lens: 25-40 photos of the board held in different places and tilts (the whole frame);
-  4. position: the board flat in the tray (where the parts lie); the plate frame starts at the
-     board, so the camera-to-printer step must be redone afterwards.
-The result is a calibration.json in the Files tab, used at once.
+Camera calibration (Calibrate tab): the board (a ChArUco board small enough to lie flat inside
+the tray: 7 x 6 squares of 15 mm, 105 x 90 mm), printed from the page, then one button, Calibrate:
+calibjob.py parks the bed, locks the camera, takes the lens photos by itself while the board is
+moved about under the camera, solves the lens, and measures the position from the board lying
+flat in the tray. The result is a calibration.json in the Files tab, used at once; the plate
+frame starts at the board, so the camera-to-printer step must be redone afterwards.
 
 Real photos (Photos tab): sessions in the format screw-synth reads (data/real/<session>/ with session.json,
 inventory.csv, images/img_NNNN.png + sidecar), downloaded as a zip for labelling on the PC.
@@ -53,10 +51,32 @@ class Calibration:
     margin_mm: float = 5.0
 
 
+def placeholder(text: str, size: tuple[int, int] = (1280, 720)) -> np.ndarray:
+    """A dark picture with a line of text: what the live picture shows when it cannot."""
+    import cv2
+
+    img = np.full((size[1], size[0], 3), 38, np.uint8)
+    words, lines, line = text.split(), [], ""
+    for w in words:
+        if len(line) + len(w) > 48:
+            lines.append(line)
+            line = ""
+        line = f"{line} {w}".strip()
+    lines.append(line)
+    for i, ln in enumerate(lines):
+        y = size[1] // 2 - 30 * (len(lines) - 1) + 60 * i
+        cv2.putText(
+            img, ln, (60, y), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (220, 220, 220), 2, cv2.LINE_AA
+        )
+    return img
+
+
 class Photos:
     def __init__(self, runner: Any) -> None:
         self.r = runner
         self.m = runner.m
+        self.job: Any = None  # calibjob.CalibrationJob: the Calibrate button's run
+        self._jpeg: tuple[Any, bytes] | None = None  # the last live frame sent, encoded
 
     # ------------------------------------------------------------------ places
     @property
@@ -128,11 +148,18 @@ class Photos:
 
     def take_view(self) -> dict[str, Any]:
         """One lens photo: the board held somewhere in the frame, tilted a little."""
-        from sortering_pnp.calib.board import detect
-
         d = self._dir() / "lens"
         if not list(d.glob("view_*.png")):
             self._park()  # once: the board is held by hand, nothing moves after that
+        n = self.lens_photo()
+        i = len(list(d.glob("view_*.png"))) - 1
+        return {**self.state(), "last": {"view": i, "corners": n}}
+
+    def lens_photo(self) -> int:
+        """Take and keep one full-resolution lens photo; returns the board corners in it."""
+        from sortering_pnp.calib.board import detect
+
+        d = self._dir() / "lens"
         img, md = self._grab()
         det = detect(img, self.spec())
         n = det.n if det else 0
@@ -142,7 +169,81 @@ class Photos:
         if det is not None:
             cov.add(det.corners)
             write_json(d / "coverage.json", {"grid": cov.grid.tolist()})
-        return {**self.state(), "last": {"view": i, "corners": n}}
+        return n
+
+    def coverage_grid(self) -> np.ndarray | None:
+        p = self._dir() / "lens" / "coverage.json"
+        return np.asarray(read_json(p)["grid"]) if p.is_file() else None
+
+    def reset_lens(self) -> None:
+        """A fresh set of lens photos (the camera was just locked again)."""
+        shutil.rmtree(self._dir() / "lens", ignore_errors=True)
+        (self._dir() / "lens.json").unlink(missing_ok=True)
+
+    def board_tilt_deg(self) -> float | None:
+        """How far the board in a new full-resolution photo is tilted to the camera (needs the
+        solved lens; None without it or without the board)."""
+        from sortering_pnp.calib import extrinsic
+        from sortering_pnp.calib.geometry import Camera
+
+        lens_p = self._dir() / "lens.json"
+        if not lens_p.is_file():
+            return None
+        img, _ = self._grab()
+        try:
+            T, _, _ = extrinsic.board_pose(
+                img, self.spec(), Camera.from_calibration(read_json(lens_p))
+            )
+        except ValueError:
+            return None
+        return float(np.degrees(np.arccos(min(1.0, abs(float(T[2, 2]))))))
+
+    # ------------------------------------------------------------------ the Calibrate button
+    def start_calibration(self, frame: Any = None, **job_args: Any) -> dict[str, Any]:
+        """The whole camera calibration in one go (calibjob.py), watching the live picture."""
+        from .calibjob import CalibrationJob
+
+        if self.job is not None and self.job.running:
+            raise ValueError("the calibration is already running")
+        frame = frame or getattr(self.r.vision, "frame", None)
+        if frame is None:
+            raise ValueError("this camera has no live picture (simulator): nothing to calibrate")
+        self.r._idle()  # noqa: SLF001
+        self._park()  # now, so a printer that is not homed says so at once
+        self.job = CalibrationJob(self, frame, **job_args)
+        self.job.start()
+        return self.state()
+
+    def cancel_calibration(self) -> dict[str, Any]:
+        if self.job is not None:
+            self.job.cancel()
+        return self.state()
+
+    def live_jpeg(self, view: str = "live") -> bytes:
+        """One frame of the live picture for the page: as the camera sees it (with the
+        calibration's board corners and covered cells while it runs), or "crop": what the model
+        will see."""
+        import cv2
+
+        frame = getattr(self.r.vision, "frame", lambda: None)()
+        key = (view, id(frame), self.job.views if self.job is not None else -1)
+        cached = self._jpeg
+        if frame is not None and cached is not None and cached[0] == key:
+            return cached[1]  # two pictures on the page, one frame: encoded once
+        if frame is None:
+            why = getattr(self.r.vision, "live_error", None) or "no camera picture yet"
+            img = placeholder(why if hasattr(self.r.vision, "frame") else "simulator: no camera")
+        elif view == "crop":
+            img = self.r.crop_frame(frame)
+        else:
+            img = frame.copy()
+            if self.job is not None and self.job.running:
+                img = self.job.draw(img)
+        ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 75])
+        if not ok:
+            raise OSError("could not encode the live picture")
+        self._jpeg = (key, buf.tobytes())
+        return self._jpeg[1]
 
     def _coverage(self, w: int, h: int) -> Any:
         from sortering_pnp.camera import Coverage
@@ -228,7 +329,12 @@ class Photos:
             cov = round(float((g > 0).mean()), 3)
         lens = read_json(d / "lens.json") if (d / "lens.json").is_file() else None
         c = self.m.calibration
+        from .files import find
+
+        path, source = find(self.m, self._cam_key())
         return {
+            "job": self.job.state() if self.job is not None else None,
+            "calibrated": source if path is not None else None,
             "camera": self._cam_key(),
             "board": {**self.spec().to_dict(), "size_mm": list(self.spec().size_mm)},
             "measured_square_mm": c.measured_square_mm,

@@ -52,6 +52,13 @@ def run(args: argparse.Namespace) -> int:
     from picamera2 import Picamera2
 
     picam2 = Picamera2()
+    try:
+        return _lock(picam2, controls, args)
+    finally:
+        picam2.close()  # released: the program opens the camera again with the new settings
+
+
+def _lock(picam2, controls, args: argparse.Namespace) -> int:  # noqa: ANN001 - Picamera2 objects
     mode = max(picam2.sensor_modes, key=lambda m: m["size"][0] * m["size"][1])
     config = picam2.create_still_configuration(
         main={"size": FULL_RES, "format": "RGB888"},

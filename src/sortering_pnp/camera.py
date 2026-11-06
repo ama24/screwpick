@@ -17,6 +17,7 @@ import numpy as np
 log = logging.getLogger("sortering_pnp.camera")
 
 FULL_RES = (4608, 2592)
+LIVE_SIZE = (1280, 720)  # the live picture on the page (same view, scaled: 16:9 like FULL_RES)
 # tolerances when checking that the camera really runs with the locked settings
 TOLERANCE = {"ExposureTime": 0.01, "AnalogueGain": 0.02, "ColourGains": 0.01, "LensPosition": 0.02}
 
@@ -151,36 +152,57 @@ def _jsonable(v: Any) -> Any:
     return str(v)
 
 
+class CameraError(RuntimeError):
+    """The camera cannot be used as asked (shown on the page; never ends the program)."""
+
+
 class Camera:
-    def __init__(self, settings: dict) -> None:
+    """The Pi camera, kept open while the program runs. Locked (`settings` from camlock: the same
+    exposure, colours and focus for every photo) or, before the lock, with the camera's own
+    automatic settings (only for the live picture and the lock itself). Two streams: "main" at
+    full resolution for photos, "lores" (LIVE_SIZE) for the live picture on the page."""
+
+    def __init__(self, settings: dict | None = None) -> None:
         from picamera2 import Picamera2
 
-        self.settings = settings
+        self.settings = dict(settings or {})
+        self.locked = bool(self.settings)
         self.picam2 = Picamera2()
-        mode = settings.get("sensor_mode") or {}
-        cfg = self.picam2.create_still_configuration(
-            main={"size": tuple(settings.get("size", FULL_RES)), "format": "RGB888"},
-            raw={} if mode else None,
-            sensor={"output_size": tuple(mode["size"]), "bit_depth": mode["bit_depth"]}
-            if mode
-            else {},
-            buffer_count=2,
-        )
-        self.picam2.configure(cfg)
-        self.picam2.set_controls(controls_from_settings(settings))
-        self.picam2.start()
-        time.sleep(1.5)
-        self.verify()
+        try:
+            mode = self.settings.get("sensor_mode") or {}
+            cfg = self.picam2.create_still_configuration(
+                main={"size": tuple(self.settings.get("size", FULL_RES)), "format": "RGB888"},
+                lores={"size": LIVE_SIZE},
+                raw={} if mode else None,
+                sensor={"output_size": tuple(mode["size"]), "bit_depth": mode["bit_depth"]}
+                if mode
+                else {},
+                buffer_count=2,
+            )
+            self.picam2.configure(cfg)
+            if self.locked:
+                self.picam2.set_controls(controls_from_settings(self.settings))
+            else:
+                auto: dict[str, Any] = {"AeEnable": True, "AwbEnable": True}
+                if "AfMode" in self.picam2.camera_controls:
+                    auto["AfMode"] = 2  # controls.AfModeEnum.Continuous: sharp while unlocked
+                self.picam2.set_controls(auto)
+            self.picam2.start()
+            time.sleep(1.5)
+            if self.locked:
+                self.verify()
+        except Exception:
+            self.close()
+            raise
 
     def verify(self) -> None:
         md = dict(self.picam2.capture_metadata())
         md["size"] = list(self.settings.get("size", FULL_RES))
         problems = settings_mismatch(self.settings, md)
         if problems:
-            self.picam2.stop()
-            raise SystemExit(
-                "REFUSING TO CAPTURE: camera does not run with the locked settings:\n  "
-                + "\n  ".join(problems)
+            raise CameraError(
+                "the camera does not run with the locked settings (Calibrate the camera again): "
+                + "; ".join(problems)
             )
 
     def grab(self, dng_path: Path | None = None) -> tuple[np.ndarray, dict]:
@@ -194,8 +216,20 @@ class Camera:
             request.release()
         problems = settings_mismatch(self.settings, md)
         if problems:
-            raise SystemExit("settings drifted during capture: " + "; ".join(problems))
+            raise CameraError("settings drifted during capture: " + "; ".join(problems))
         return img, md
 
+    def preview(self) -> np.ndarray:
+        """One frame of the live picture (LIVE_SIZE, BGR)."""
+        import cv2
+
+        yuv = self.picam2.capture_array("lores")
+        w, h = LIVE_SIZE
+        return cv2.cvtColor(np.ascontiguousarray(yuv[: h * 3 // 2, :w]), cv2.COLOR_YUV2BGR_I420)
+
     def close(self) -> None:
-        self.picam2.stop()
+        """Stop and release the camera, so another Picamera2 (the lock) can open it."""
+        try:
+            self.picam2.stop()
+        finally:
+            self.picam2.close()

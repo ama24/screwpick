@@ -41,7 +41,7 @@ from .setup import Setup
 from .strategies import STRATEGIES, Plan, Planner
 from .todo import TodoList
 from .transform import BedCalibration, Transform2D
-from .trayview import WorkArea
+from .trayview import WorkArea, paint_outside, parse_colour
 from .trayview import rect as tray_rect
 from .vision import Shot, Vision
 
@@ -105,6 +105,7 @@ class Runner:
         self.swap_phase = ""  # "" sorting | parked (waiting for the second OK)
         self._no_swap_said = ""
         self.mask_checked = False  # the tray view was checked and saved (Calibrate tab)
+        self._crop: dict[str, Any] = {}  # Camera cropping being tried (margin, colour), not saved
         self._layout_cache: tuple[tuple[str, int, int], Layout] | None = None
         self.markers_seen: set[int] = set()  # every code the camera has read
         self._load_tool()
@@ -476,6 +477,76 @@ class Runner:
         self.mask_checked = True
         self.note(f"tray view saved: margin {float(margin_mm):g} mm")
         return {"margin_mm": float(margin_mm), "saved": True}
+
+    # ------------------------------------------------------------------ camera cropping
+    def crop_state(self) -> dict[str, Any]:
+        """Camera cropping (Calibrate tab): only for the model that finds the parts. It needs the
+        camera calibration, the camera-to-printer fit and the bins (where the tray is)."""
+        missing = []
+        if self._camera_calibrated() is None:
+            missing.append("the camera calibration (Calibrate tab)")
+        if self.calibration() is None and self.m.printer.driver != "sim":
+            missing.append("Camera to printer (Setup tab, step 6)")
+        if not self.setup.is_done("layout") and self.m.printer.driver != "sim":
+            missing.append("the bins found (Setup tab, step 7)")
+        c = self.m.camera
+        return {
+            "ready": not missing,
+            "missing": missing,
+            "margin_mm": float(self._crop.get("margin", c.mask_margin_mm)),
+            "colour": str(self._crop.get("colour", c.mask_colour)),
+            "saved_margin_mm": c.mask_margin_mm,
+            "saved_colour": c.mask_colour,
+            "changed": bool(self._crop),
+        }
+
+    def crop_preview(self, margin_mm: float, colour: str) -> dict[str, Any]:
+        """Try a margin and a colour on the live picture (not saved)."""
+        parse_colour(colour)  # auto or #RRGGBB, else ValueError
+        self._crop = {"margin": float(margin_mm), "colour": colour}
+        return self.crop_state()
+
+    def crop_save(self, margin_mm: float, colour: str) -> dict[str, Any]:
+        parse_colour(colour)
+        self.mask_save(margin_mm)
+        self.remember_machine({"mask_colour": colour})
+        self.m.camera.mask_colour = colour
+        self._crop = {}
+        return self.crop_state()
+
+    def crop_frame(self, frame: np.ndarray) -> np.ndarray:
+        """A live frame painted and cut as the model will see it: the tray's inside only (the
+        working area of the layout, through the camera-to-printer fit), with the margin and
+        colour being tried."""
+        from .photos import placeholder
+
+        st = self.crop_state()
+        cam = getattr(self.vision, "cam_full", None)
+        calib = getattr(self.vision, "calibration", None)
+        if not st["ready"] or cam is None:
+            return placeholder("Camera cropping needs: " + ", ".join(st["missing"] or ["a camera"]))
+        c = self.m.camera
+        old = (c.mask, c.mask_margin_mm)
+        c.mask, c.mask_margin_mm = True, st["margin_mm"]
+        try:
+            work = self._work_area(self.layout(), self.transform())
+        finally:
+            c.mask, c.mask_margin_mm = old
+        if work is None:
+            return placeholder("no working area: Setup tab, step 7 (Find the bins)")
+        s = frame.shape[1] / float(cam.image_size[0])
+
+        def px(poly: np.ndarray) -> np.ndarray:
+            return cam.project(np.c_[poly, np.zeros(len(poly))]) * s
+
+        img = paint_outside(
+            frame, px(work.outline), [px(h) for h in work.holes], parse_colour(st["colour"])
+        )
+        roi = (calib or {}).get("roi")
+        if roi:  # the model gets this part of the photo (its size unchanged)
+            x0, y0 = int(roi["x0"] * s), int(roi["y0"] * s)
+            img = img[y0 : y0 + int(roi["h"] * s), x0 : x0 + int(roi["w"] * s)]
+        return img
 
     # ------------------------------------------------------------------ on the machine
     def todo_state(self) -> dict[str, Any]:
@@ -1137,6 +1208,8 @@ class Runner:
             elif k == "mask_margin_mm":
                 self.m.camera.mask_margin_mm = float(v)
                 self.mask_checked = True
+            elif k == "mask_colour":  # Camera cropping, Calibrate tab
+                self.m.camera.mask_colour = str(v)
             elif k == "picker_mode":  # chosen in the Setup tab
                 self.m.picker.set_type(str(v))
             elif k == "rotate_offset_deg":

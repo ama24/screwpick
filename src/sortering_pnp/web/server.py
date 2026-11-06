@@ -17,7 +17,10 @@ POST /api/models/activate   {"role": stage1|stage2|classifier, "id": … or null
 POST /api/models/weights    {"id", "path"};  /rename {"id", "name"};  /delete {"id"}
 POST /api/models/test       {"id"}: run it on the last photo, nothing is switched
 POST /api/bins/emptied      {"marker": id or null}: a bin was emptied (null: all ready ones)
-GET  /api/calibration        camera calibration (Calibrate tab); board.pdf; POST settings|lock|view|lens|flat|reset
+GET  /api/calibration        camera calibration (Calibrate tab); board.pdf; POST settings|start|cancel
+                             (start: the whole calibration, calibjob.py); lock|view|lens|flat|reset
+GET  /api/camera/live.mjpg?view=live|crop  the live picture (crop: what the model sees); live.jpg
+GET  /api/crop; POST /api/crop/preview|save {"margin", "colour"}   Camera cropping
 GET  /api/photos             real-photo sessions; POST /api/photos/new|take; GET /api/photos/zip?name=
 GET  /api/todo               the Setup tab's "On the machine" list; POST /api/todo {"key", "done"}
 POST /api/mask/preview      {"margin"}: a photo painted as the model will see it; /api/mask/save {"margin"}
@@ -47,6 +50,7 @@ import shutil
 import socket
 import sys
 import threading
+import time
 import urllib.parse
 import uuid
 import zipfile
@@ -115,6 +119,28 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         with path.open("rb") as f:
             shutil.copyfileobj(f, self.wfile, 1 << 20)
+
+    def _mjpeg(self, frame: Any, fps: float = 6.0, max_s: float = 1800.0) -> None:
+        """A live picture: JPEG frames one after the other (multipart/x-mixed-replace, shown by
+        a plain <img>), until the page goes away."""
+        self.send_response(200)
+        self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.close_connection = True
+        end = time.monotonic() + max_s
+        while time.monotonic() < end:
+            try:
+                jpg = frame()
+                head = f"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: {len(jpg)}\r\n\r\n"
+                self.wfile.write(head.encode() + jpg + b"\r\n")
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                return  # the page closed it
+            except Exception:  # noqa: BLE001 - the headers are sent: stop the stream, log it
+                log.exception("live picture")
+                return
+            time.sleep(1.0 / fps)
 
     def _json(self, data: Any, code: int = 200, cookie: str | None = None) -> None:
         self._send(code, json.dumps(data).encode(), "application/json", cookie=cookie)
@@ -307,6 +333,23 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json(r.photos.flat_board())
         elif method == "POST" and path == "/api/calibration/reset":
             self._json(r.photos.reset())
+        elif method == "POST" and path == "/api/calibration/start":
+            self._json(r.photos.start_calibration())
+        elif method == "POST" and path == "/api/calibration/cancel":
+            self._json(r.photos.cancel_calibration())
+        elif method == "GET" and path == "/api/camera/live.mjpg":
+            view = q.get("view", "live")
+            self._mjpeg(lambda: r.photos.live_jpeg(view))
+        elif method == "GET" and path == "/api/camera/live.jpg":
+            self._send(200, r.photos.live_jpeg(q.get("view", "live")), "image/jpeg")
+        elif method == "GET" and path == "/api/crop":
+            self._json(r.crop_state())
+        elif method == "POST" and path == "/api/crop/preview":
+            b = self._body()
+            self._json(r.crop_preview(float(b.get("margin", 0.0)), str(b.get("colour", "auto"))))
+        elif method == "POST" and path == "/api/crop/save":
+            b = self._body()
+            self._json(r.crop_save(float(b.get("margin", 0.0)), str(b.get("colour", "auto"))))
         elif method == "GET" and path == "/api/photos":
             self._json({"sessions": r.photos.sessions()})
         elif method == "POST" and path == "/api/photos/new":

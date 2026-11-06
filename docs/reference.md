@@ -244,21 +244,32 @@ sortering-pnp. Models, including ones from anywhere else, go in the Models tab.
 
 ## Camera calibration (Calibrate tab)
 
-Everything on the Pi, from the page; the result lands in the Files tab by itself:
-1. **The board:** download the tray board (7 x 6 squares of 15 mm, 105 x 90 mm: it lies flat in a
-   3 x 3 tray, away from the corner post). Print at 100 %, glue it on stiff card, measure one
-   square with a caliper and enter it (and the board's thickness).
-2. **Lock the camera** with the tray empty and the lights as when sorting: exposure, colours and
-   focus are frozen for every photo after this (about a minute).
-3. **Lens:** hold the board under the camera in a different place and a little tilted each time,
-   until the whole picture is covered: 25 to 40 photos, then *Solve the lens*.
-4. **Position:** the board flat in the tray, on the TPU sheet. This also sets where the model's
-   view lies (220 x 220 mm around the board).
+Everything on the Pi, from the page, with the camera's **live picture** at the top of the tab
+(`/api/camera/live.mjpg`, a 1280 x 720 second stream of the camera; it runs only while the tab is
+open). The result lands in the Files tab by itself.
+
+Before: download the tray board (7 x 6 squares of 15 mm, 105 x 90 mm: it lies flat in a 3 x 3
+tray, away from the corner post), print it at 100 % and glue it on stiff card (a caliper
+measurement of one square and the board's thickness can be entered, but the printed size is
+used otherwise). Home the printer, empty the tray, light as when sorting. Then **Calibrate**, one
+button ([calibjob.py](../src/sortering_pnp/calibjob.py)), which says on the page what to do:
+1. **Park:** the bed goes to the photo position.
+2. **Lock** (about a minute): the camera measures the light and focus once and freezes exposure,
+   gain, white balance and lens position, so every later photo looks the same. Until then the
+   live picture runs on the camera's automatic settings.
+3. **Lens:** move the board slowly under the camera, over the whole picture, corners too, a
+   little tilted now and then. A full-resolution photo is taken by itself each time the board
+   holds still (4 live frames) somewhere new (another place, size or tilt); the covered cells
+   turn green on the live picture. At 20 photos and 70 % of the picture (or 40 photos) the lens
+   is solved; a poor fit (over 1.5 px) stops with a message.
+4. **Position:** lay the board flat in the tray and let go. When it lies still and flat (tilted
+   under 8°), one photo gives where the camera stands; this also sets where the model's view
+   lies (220 x 220 mm around the board).
 
 The plate's millimetres now start at the board, so the old **Camera to printer** fit is put aside
 and that Setup step asks to be redone.
 
-## Only the tray goes to the model
+## Only the tray goes to the model (Camera cropping)
 
 The camera sees the whole bed: the tray, the bins around it, their codes and the parts already
 sorted. The model was trained on a plain plate with parts, so before it looks, everything
@@ -271,10 +282,12 @@ the Device tab's camera shows what the model saw.
 The codes are always read from the photo itself, and the check after a bin change looks at it
 unpainted (it must see into the bins).
 
-**Check it once, in the Calibrate tab → What the model sees:** take a photo and look; the
-painted edge should sit at the foot of the tray's walls. The margin moves it: + keeps a strip
-of the wall's foot (parts lying right against the wall stay whole), − paints more of the
-floor's edge. Save keeps it (`camera.mask_margin_mm`).
+**Set it once, in the Calibrate tab → Camera cropping**, after the camera calibration, Camera
+to printer and Find the bins (it follows the tray of the layout): the live picture and, next to
+it, what the model gets, live. The painted edge should sit at the foot of the tray's walls. The
+edge buttons move it: + keeps a strip of the wall's foot (parts lying right against the wall
+stay whole), − paints more of the floor's edge. The colour is the tray floor's own (`auto`) or
+one picked. Save keeps both (`camera.mask_margin_mm`, `camera.mask_colour`).
 
 ## Wild bins
 

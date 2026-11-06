@@ -10,6 +10,8 @@ import logging
 import re
 import subprocess
 import tempfile
+import threading
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -165,8 +167,6 @@ class CameraVision:
     def __init__(self, m: Machine, out_dir: Path, store: ModelStore | None = None) -> None:
         import cv2  # noqa: F401 - fail early when OpenCV is missing
 
-        from sortering_pnp.io import read_json
-
         self.m = m
         self.out = out_dir
         self.out.mkdir(parents=True, exist_ok=True)
@@ -174,12 +174,15 @@ class CameraVision:
         self.analyzer: Analyzer | None = None
         self.model_error: str | None = None
         self.reload_setup()
-        cam_settings = m.path(m.camera.settings)
-        self.cam = None
-        if cam_settings:
-            from sortering_pnp.camera import Camera as RigCamera
-
-            self.cam = RigCamera(read_json(cam_settings))
+        # the Pi camera: opened when first needed and kept open (photos and the live picture)
+        self.cam: Any = None
+        self._cam_lock = threading.RLock()  # one user of the camera at a time
+        self._no_picamera = False  # Picamera2 missing: photos through rpicam-still, no live picture
+        self._latest: np.ndarray | None = None  # the newest live frame
+        self._latest_at = 0.0
+        self._wanted = 0.0  # when the live picture was last asked for
+        self._reader: threading.Thread | None = None
+        self.live_error: str | None = None
 
     def reload_setup(self, strict: bool = False) -> None:
         """Vision settings, camera calibration, parts table and class list (the active model's
@@ -279,13 +282,68 @@ class CameraVision:
 
         return load_scene(photo, self.calibration, self.nominal)
 
+    # ------------------------------------------------------------------ the camera
+    def _camera(self) -> Any:
+        """The open Pi camera (locked settings when there are some), or None without Picamera2."""
+        from sortering_pnp.io import read_json
+
+        if self.cam is None and not self._no_picamera:
+            try:
+                from sortering_pnp.camera import Camera as RigCamera
+            except ImportError:
+                self._no_picamera = True
+                return None
+            path = self.m.path(self.m.camera.settings)
+            settings = read_json(path) if path is not None and path.is_file() else None
+            try:
+                self.cam = RigCamera(settings)
+            except ImportError:
+                self._no_picamera = True
+                log.warning("no Picamera2: photos with rpicam-still, no live picture")
+        return self.cam
+
+    def frame(self) -> np.ndarray | None:
+        """The newest live frame (camera.LIVE_SIZE, BGR), or None (no camera / not yet). Starts
+        the reader, which stops by itself a few seconds after nobody asks any more."""
+        self._wanted = time.monotonic()
+        if self._reader is None or not self._reader.is_alive():
+            self._reader = threading.Thread(target=self._read_live, name="camera-live", daemon=True)
+            self._reader.start()
+            for _ in range(60):  # the first frame, up to 3 s (opening the camera)
+                if self._latest is not None and time.monotonic() - self._latest_at < 5:
+                    break
+                if self.live_error:
+                    break
+                time.sleep(0.05)
+        if self._latest is None or time.monotonic() - self._latest_at > 5:
+            return None
+        return self._latest
+
+    def _read_live(self) -> None:
+        while time.monotonic() - self._wanted < 5:
+            try:
+                with self._cam_lock:
+                    cam = self._camera()
+                    if cam is None:
+                        self.live_error = "no live picture: Picamera2 is not installed"
+                        return
+                    img = cam.preview()
+                self._latest, self._latest_at, self.live_error = img, time.monotonic(), None
+            except Exception as exc:  # noqa: BLE001 - shown on the page, tried again
+                self.live_error = f"camera: {exc}"
+                log.warning("live picture: %s", exc)
+                time.sleep(1.0)
+            time.sleep(0.05)
+
     def grab(self) -> tuple[np.ndarray, dict[str, Any]]:
         """One full-resolution frame (BGR) and its metadata, for calibration and real photos:
         lossless, with the locked settings when there are some."""
         import cv2
 
-        if self.cam is not None:
-            return self.cam.grab()
+        with self._cam_lock:
+            cam = self._camera()
+            if cam is not None:
+                return cam.grab()
         with tempfile.TemporaryDirectory() as tmp:
             p = Path(tmp) / "frame.png"
             cmd = ["rpicam-still", "-n", "-t", "500", "--width", "4608", "--height", "2592"]
@@ -304,21 +362,26 @@ class CameraVision:
         from sortering_pnp.camera import Camera as RigCamera
         from sortering_pnp.io import read_json
 
-        if self.cam is not None:  # one program at a time may hold the camera
-            self.cam.close()
-            self.cam = None
-        lock.run(
-            argparse.Namespace(out=str(out), settle=3.0, distance_mm=distance_mm, exposure_us=None)
-        )
-        settings = read_json(out)
-        self.cam = RigCamera(settings)
+        with self._cam_lock:  # the live picture waits meanwhile
+            if self.cam is not None:  # one Picamera2 at a time may hold the camera
+                self.cam.close()
+                self.cam = None
+            lock.run(
+                argparse.Namespace(
+                    out=str(out), settle=3.0, distance_mm=distance_mm, exposure_us=None
+                )
+            )
+            settings = read_json(out)
+            self.cam = RigCamera(settings)
         return settings
 
     def _snap(self, path: Path) -> None:
         import cv2
 
-        if self.cam is not None:
-            img, _ = self.cam.grab()
+        with self._cam_lock:
+            cam = self._camera()
+            img = cam.grab()[0] if cam is not None else None
+        if img is not None:
             if not cv2.imwrite(str(path), img, [cv2.IMWRITE_JPEG_QUALITY, 95]):
                 raise OSError(f"could not write {path}")
             return
@@ -412,8 +475,11 @@ class CameraVision:
         }
 
     def close(self) -> None:
-        if self.cam is not None:
-            self.cam.close()
+        self._wanted = 0.0  # the live reader stops
+        with self._cam_lock:
+            if self.cam is not None:
+                self.cam.close()
+                self.cam = None
 
 
 def find_model(models_dir: Path) -> Path | None:
