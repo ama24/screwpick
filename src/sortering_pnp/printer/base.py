@@ -39,4 +39,9 @@ class Printer(Protocol):
 
     def firmware_restart(self) -> None: ...
 
+    def host_mcu_ready(self, serial: str) -> bool | None:
+        """Does the Pi run as a Klipper board (the host MCU's `serial` exists)? None: cannot
+        tell from here (Moonraker on another computer)."""
+        ...
+
     def close(self) -> None: ...

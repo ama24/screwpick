@@ -1171,6 +1171,7 @@ class Runner:
                 "types": [pickers.as_dict(t) for t in pickers.PICKERS],
                 "offset_deg": self.m.picker.rotate_offset_deg,
                 "installed": self._picker_installed(),
+                "host_mcu": self.printer.host_mcu_ready(pickers.HOST_MCU_SERIAL),
                 "file": pickers.CONFIG_NAME,
             },
         }
@@ -1198,6 +1199,12 @@ class Runner:
         restart Klipper's firmware so it reads it."""
         self._idle()
         t = self.m.picker.kind
+        if self.printer.host_mcu_ready(pickers.HOST_MCU_SERIAL) is False:
+            # Klipper would not start: it would wait for a board that is not there
+            raise PrinterError(
+                f"the Pi does not run as a Klipper board yet (no {pickers.HOST_MCU_SERIAL}): "
+                "do 'The Pi as a Klipper board' first. Klipper was left as it is."
+            )
         with self._lock:
             self.printer.upload_config(pickers.CONFIG_NAME, pickers.klipper_config(t.key))
             self.printer.firmware_restart()
@@ -1205,6 +1212,19 @@ class Runner:
         self.setup.reset("picker")
         self._setup_picker.clear()
         self.say(f"{pickers.CONFIG_NAME} for the {t.title.lower()} installed; Klipper restarts")
+        return self.setup_state()
+
+    def setup_picker_uninstall(self) -> dict[str, Any]:
+        """Put the placeholder back (no picker, no Pi board) and restart Klipper: the way back
+        when Klipper does not start with the picker's file."""
+        self._idle()
+        with self._lock:
+            self.printer.upload_config(pickers.CONFIG_NAME, pickers.PLACEHOLDER)
+            self.printer.firmware_restart()
+        self.remember_machine({"picker_installed": None})
+        self.setup.reset("picker")
+        self._setup_picker.clear()
+        self.say(f"{pickers.CONFIG_NAME}: placeholder put back; Klipper restarts")
         return self.setup_state()
 
     def setup_picker_offset(self, deg: float) -> dict[str, Any]:

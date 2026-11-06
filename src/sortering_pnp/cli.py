@@ -1,13 +1,13 @@
 """sortering-pnp command line.
 
-sortering_pnp serve              web page + sorter + printer-menu buttons (the normal way to run it)
-sortering_pnp serve --sim        the same with a simulated printer, parts and camera (try it on a PC)
-sortering_pnp run --strategy sort [--steps N]   sort without the web page (logs to the terminal)
-sortering_pnp check              is everything there? (config, layout, calibration, printer)
-sortering_pnp user add NAME      page account (new user or new password); user remove / list
-sortering_pnp print bin|baseplate|labels|all    write printable files
-sortering_pnp print catalogue --out prints      every bin size as full build plates, baseplates, labels
-sortering_pnp print mounts --reach 135 --bar-height 364   screen holder + camera arm for the top bar
+sortering-pnp serve              web page + sorter + printer-menu buttons (the normal way to run it)
+sortering-pnp serve --sim        the same with a simulated printer, parts and camera (try it on a PC)
+sortering-pnp run --strategy sort [--steps N]   sort without the web page (logs to the terminal)
+sortering-pnp check              is everything there? (config, layout, calibration, printer)
+sortering-pnp user add NAME      page account (new user or new password); user remove / list
+sortering-pnp print bin|baseplate|labels|all    write printable files
+sortering-pnp print catalogue --out prints      every bin size as full build plates, baseplates, labels
+sortering-pnp print mounts --reach 135 --bar-height 364   screen holder + camera arm for the top bar
 """
 
 from __future__ import annotations
@@ -139,7 +139,7 @@ def cmd_user(args: argparse.Namespace) -> int:
             print(f"removed {args.name}")
         else:
             if not args.name:
-                raise AuthError("give a user name: sortering_pnp user add NAME")
+                raise AuthError("give a user name: sortering-pnp user add NAME")
             pw = getpass.getpass(f"password for {args.name}: ")
             if pw != getpass.getpass("again: "):
                 raise AuthError("the passwords differ")

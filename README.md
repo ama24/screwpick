@@ -141,13 +141,23 @@ See [prints/README.md](prints/README.md) for which files to print and how.
 
    In its menu choose **Install**, then **Klipper**, **Moonraker** and **Mainsail** one after
    the other (the defaults are fine). Then make Klipper drive your printer:
-   - **Firmware:** build and flash Klipper's firmware for the printer's board (KIAUH,
-     *Advanced*; the settings for your board are at the top of its example config in
-     `~/klipper/config/`).
-   - **printer.cfg:** copy that example config, e.g.
-     `cp ~/klipper/config/printer-creality-ender3-v2-2020.cfg ~/printer_data/config/printer.cfg`,
-     and set `[mcu] serial:` to what `ls /dev/serial/by-id/*` shows.
-   - **Check:** open `http://<your-pi>` (Mainsail), home and move the axes.
+   - **Firmware:** the settings for your board are at the top of its example config in
+     `~/klipper/config/` (`ls ~/klipper/config | grep -i ender3`). Choose them in
+     `cd ~/klipper && make clean && make menuconfig`, then `make`. A 32-bit board (e.g.
+     Creality 4.2.x) takes `out/klipper.bin` from an SD card. An older 8-bit board (e.g. the
+     Ender 3's 1.1.x, ATmega1284p, 16 MHz) is flashed over USB:
+     `sudo service klipper stop && make flash FLASH_DEVICE=$(ls /dev/serial/by-id/* | head -1) && sudo service klipper start`.
+   - **printer.cfg:** replace KIAUH's placeholder with that example, keeping its first line, e.g.
+     for an Ender 3 with the 1.1.x board:
+
+     ```bash
+     cd ~/printer_data/config && mv printer.cfg printer.cfg.kiauh
+     { echo "[include mainsail.cfg]"; cat ~/klipper/config/printer-creality-ender3-2018.cfg; } > printer.cfg
+     ```
+
+     Then set `[mcu] serial:` to what `ls /dev/serial/by-id/*` shows (Mainsail, *Machine* tab).
+   - **Check:** in Mainsail the printer is *Ready*; `STEPPER_BUZZ STEPPER=stepper_x` (and `_y`,
+     `_z`) moves each motor +1 mm first; `QUERY_ENDSTOPS` shows each switch; then home.
 
    More in [Klipper's installation guide](https://www.klipper3d.org/Installation.html).
 2. **Install sortering-pnp:**
@@ -263,8 +273,10 @@ Power comes straight from the printer's 24 V supply, as part of the conversion:
   switches them under its heater safety checks.
 
 Then press **Install in Klipper**: sortering-pnp writes `sortering_pnp_picker.cfg` for that type next
-to `printer.cfg` and restarts Klipper. Once, beforehand, the Pi has to be set up as a Klipper
-board; the page lists the commands (or use KIAUH). Mount the picker and press **The picker is on
+to `printer.cfg` and restarts Klipper. Once, beforehand, set the Pi up as a Klipper board with
+the commands the page shows: until `/tmp/klipper_host_mcu` exists the button waits, because
+Klipper would not start with the picker in it (*mcu 'host': Unable to connect*). **Take it out
+of Klipper** puts the empty placeholder back. Mount the picker and press **The picker is on
 the printer** (to print again: **The hotend is back on**). Finally test *Grab* and *Release*, and for
 tweezers *Turn to 0°* and *90°*: at 0° the jaws must close left–right; if they don't, set the
 offset.

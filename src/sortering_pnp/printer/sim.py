@@ -126,6 +126,7 @@ class SimPrinter:
         self.jaw_angle: float | None = None  # last tweezer rotation
         self.configs: dict[str, str] = {}  # files "uploaded" to Klipper's config folder
         self.tool = "picker"  # TOOL_PICKER / TOOL_HOTEND
+        self.host_mcu = True  # the Pi runs as a Klipper board
 
     def _tip(self) -> list[float]:
         return [p + o for p, o in zip(self.pos, self.m.tool.offset, strict=True)]
@@ -191,6 +192,9 @@ class SimPrinter:
 
     def firmware_restart(self) -> None:
         self.log.append("FIRMWARE_RESTART")
+
+    def host_mcu_ready(self, serial: str) -> bool | None:
+        return self.host_mcu
 
     def emergency_stop(self) -> None:
         self.log.append("EMERGENCY_STOP")
