@@ -163,3 +163,18 @@ def test_camera_arm_screws_go_in_from_the_front(reach):
 def test_camera_arm_screw_length_is_checked():
     with pytest.raises(ValueError, match="mm long"):
         build_camera_arm(CameraArm(screw_len=16.0))
+
+
+def test_camera_arm_is_straight_by_default():
+    """No post: nothing goes lower than the camera's bosses under the arm, so the camera is as
+    high as it can be and sees the most of the bed; one solid that prints flat."""
+    p = CameraArm()
+    v, _ = _to_mesh(_camera_arm_installed(p))
+    assert v[:, 2].min() == pytest.approx(-p.bar - p.boss_h, abs=0.01)
+    assert lens_position(p) == (0.0, -p.reach, -p.bar - p.boss_h)
+    low = v[v[:, 2] < v[:, 2].min() + 0.01]
+    assert low[:, 0].mean() == pytest.approx(0.0, abs=0.05)
+    m = trimesh.Trimesh(*build_camera_arm(p))
+    assert m.is_watertight and m.body_count == 1
+    assert m.bounds[1][2] == pytest.approx(p.bar + p.boss_h, abs=0.01)  # lies flat, low
+    assert b"straight" in dict(mount_files())["MOUNTS.txt"]
