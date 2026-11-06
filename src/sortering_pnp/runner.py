@@ -465,6 +465,27 @@ class Runner:
         self.note(f"camera calibration skipped: straight down, {h:g} mm above the tray floor")
         return self.photos.state()
 
+    def camera_flip(self, hflip: bool, vflip: bool) -> dict[str, Any]:
+        """The picture flipped by the camera (both: turned 180 degrees), for photos and the live
+        picture. What was fitted to the old picture no longer holds: Camera to printer (and a
+        camera calibration) must be done again."""
+        self._idle()
+        c = self.m.camera
+        if (c.hflip, c.vflip) == (bool(hflip), bool(vflip)):
+            return self.photos.state()
+        c.hflip, c.vflip = bool(hflip), bool(vflip)
+        self.remember_machine({"camera_hflip": c.hflip, "camera_vflip": c.vflip})
+        reopen = getattr(self.vision, "reopen_camera", None)
+        if reopen is not None:
+            reopen()
+        self.calib_clear()
+        self.setup.reset("camera")
+        self.last_shot = None
+        turn = {(True, True): "turned 180°", (True, False): "mirrored left-right"}
+        turn |= {(False, True): "mirrored top-bottom", (False, False): "as the camera gives it"}
+        self.note(f"camera picture {turn[(c.hflip, c.vflip)]}: do Camera to printer again")
+        return self.photos.state()
+
     def calibration_settings(
         self, measured_square_mm: float | None, board_thickness_mm: float
     ) -> dict[str, Any]:
@@ -1242,6 +1263,8 @@ class Runner:
                 self.mask_checked = True
             elif k == "mask_colour":  # Camera cropping, Calibrate tab
                 self.m.camera.mask_colour = str(v)
+            elif k in ("camera_hflip", "camera_vflip"):  # Calibrate tab: Turn 180 / Mirror
+                setattr(self.m.camera, k.removeprefix("camera_"), bool(v))
             elif k == "camera_height_mm":  # Calibrate tab, Skip for now
                 self.m.camera.height_mm = float(v)
             elif k == "picker_mode":  # chosen in the Setup tab

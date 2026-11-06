@@ -324,7 +324,9 @@ Changes are **queued**: they show dashed, a bar lists them, and **Apply** saves 
 
 In the **Calibrate** tab:
 
-1. **Camera:** the live picture from the camera, at the top.
+1. **Camera:** the live picture from the camera, at the top. Upside down or mirrored? **Turn 180°**
+   / **Mirror left-right** make the camera turn its own picture (photos too); then do Camera to
+   printer again.
 2. **Camera calibration** teaches the program how the camera sees. Download and print the small
    tray board, home the printer, empty the tray, then press **Calibrate**: one button. It parks
    the bed, locks the camera (measures the light and focus once and freezes them), then asks you
