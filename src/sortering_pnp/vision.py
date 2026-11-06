@@ -300,11 +300,24 @@ class CameraVision:
             path = self.m.path(self.m.camera.settings)
             settings = read_json(path) if path is not None and path.is_file() else None
             try:
-                self.cam = RigCamera(settings)
+                self.cam = RigCamera(settings, self.m.camera.hflip, self.m.camera.vflip)
             except ImportError:
                 self._no_picamera = True
                 log.warning("no Picamera2: photos with rpicam-still, no live picture")
         return self.cam
+
+    def _rpicam(self) -> list[str]:
+        from sortering_pnp.camera import rpicam_still
+
+        return rpicam_still(self.m.camera.hflip, self.m.camera.vflip)
+
+    def reopen_camera(self) -> None:
+        """Close the camera; it opens again with the current settings (e.g. a new flip)."""
+        with self._cam_lock:
+            if self.cam is not None:
+                self.cam.close()
+                self.cam = None
+            self._latest = None
 
     def frame(self) -> np.ndarray | None:
         """The newest live frame (camera.LIVE_SIZE, BGR), or None (no camera / not yet). Starts
@@ -350,7 +363,7 @@ class CameraVision:
                 return cam.grab()
         with tempfile.TemporaryDirectory() as tmp:
             p = Path(tmp) / "frame.png"
-            cmd = ["rpicam-still", "-n", "-t", "500", "--width", "4608", "--height", "2592"]
+            cmd = self._rpicam()
             subprocess.run([*cmd, "-e", "png", "-o", str(p)], check=True, capture_output=True)
             img = cv2.imread(str(p), cv2.IMREAD_COLOR)
         if img is None:
@@ -376,7 +389,7 @@ class CameraVision:
                 )
             )
             settings = read_json(out)
-            self.cam = RigCamera(settings)
+            self.cam = RigCamera(settings, self.m.camera.hflip, self.m.camera.vflip)
         return settings
 
     def _snap(self, path: Path) -> None:
@@ -389,7 +402,7 @@ class CameraVision:
             if not cv2.imwrite(str(path), img, [cv2.IMWRITE_JPEG_QUALITY, 95]):
                 raise OSError(f"could not write {path}")
             return
-        cmd = ["rpicam-still", "-n", "-t", "500", "--width", "4608", "--height", "2592"]
+        cmd = self._rpicam()
         subprocess.run([*cmd, "-q", "95", "-o", str(path)], check=True, capture_output=True)
 
     def capture(

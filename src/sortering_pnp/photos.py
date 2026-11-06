@@ -335,6 +335,7 @@ class Photos:
         return {
             "job": self.job.state() if self.job is not None else None,
             "calibrated": source if path is not None else None,
+            "flip": {"h": self.m.camera.hflip, "v": self.m.camera.vflip},
             # without a calibration: straight down over the picture's centre, this high
             "height_mm": getattr(self.r.vision, "nominal_height_mm", None),
             "height_set": self.m.camera.height_mm is not None,
