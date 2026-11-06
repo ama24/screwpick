@@ -31,8 +31,16 @@ def write_json(path: Path, data: Any) -> None:
     _atomic_write(Path(path), json.dumps(data, indent=2) + "\n")
 
 
+# libyaml's C parser when PyYAML has it (it does on the Pi and the PC): about ten times faster
+SafeLoader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+
+
+def load_yaml(text: str) -> Any:
+    return yaml.load(text, Loader=SafeLoader)  # noqa: S506 - a safe loader
+
+
 def read_yaml(path: Path) -> Any:
-    return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    return load_yaml(Path(path).read_text(encoding="utf-8"))
 
 
 def write_yaml(path: Path, data: Any, header: str = "") -> None:

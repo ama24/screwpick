@@ -8,6 +8,7 @@ part in the picker is always dropped first.
 
 from __future__ import annotations
 
+import copy
 import logging
 import math
 import threading
@@ -103,6 +104,7 @@ class Runner:
         self.swap_phase = ""  # "" sorting | parked (waiting for the second OK)
         self._no_swap_said = ""
         self.mask_checked = False  # the tray view was checked and saved (Calibrate tab)
+        self._layout_cache: tuple[tuple[str, int, int], Layout] | None = None
         self.markers_seen: set[int] = set()  # every code the camera has read
         self._load_tool()
         self._load_machine()
@@ -139,7 +141,19 @@ class Runner:
         return p
 
     def layout(self) -> Layout:
-        return Layout.load(self.layout_path)
+        """The layout file, parsed again only when it changed (the page asks for the state
+        every second; parsing it each time costs the Pi's CPU and slows every answer). A copy:
+        callers may change it."""
+        p = self.layout_path
+        try:
+            st = p.stat()
+            key = (str(p), st.st_mtime_ns, st.st_size)
+        except FileNotFoundError:
+            return Layout.load(p)
+        cached = self._layout_cache
+        if cached is None or cached[0] != key:
+            cached = self._layout_cache = (key, Layout.load(p))
+        return copy.deepcopy(cached[1])
 
     def calibration(self) -> BedCalibration | None:
         return BedCalibration.load(self.transform_path)

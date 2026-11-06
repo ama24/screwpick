@@ -24,7 +24,7 @@ from typing import Any
 
 import yaml
 
-from .io import read_json, write_json
+from .io import load_yaml, read_json, write_json
 
 
 @dataclass(frozen=True)
@@ -136,7 +136,7 @@ BY_KEY = {s.key: s for s in SLOTS}
 def parse(slot: Slot, data: bytes) -> Any:
     try:
         text = data.decode("utf-8-sig")
-        return json.loads(text) if slot.kind == "json" else yaml.safe_load(text)
+        return json.loads(text) if slot.kind == "json" else load_yaml(text)
     except (UnicodeDecodeError, ValueError, yaml.YAMLError) as exc:
         raise ValueError(f"{slot.filename}: cannot be read ({exc})") from exc
 
@@ -237,18 +237,29 @@ def find(m: Any, key: str) -> tuple[Path | None, str]:
     return None, "none"
 
 
+_SUMMARIES: dict[tuple[str, str, int, int], str] = {}  # (slot, path, mtime, size) -> summary
+
+
+def _summary(s: Slot, path: Path) -> str:
+    """The slot's one-line summary of a file, read again only when the file changed (the
+    page asks often; a big config.yaml takes a while to parse on a Pi)."""
+    try:
+        st = path.stat()
+        key = (s.key, str(path), st.st_mtime_ns, st.st_size)
+        if key not in _SUMMARIES:
+            _SUMMARIES[key] = s.check(parse(s, path.read_bytes()))
+        return _SUMMARIES[key]
+    except (OSError, ValueError) as exc:
+        return f"cannot be used: {exc}"
+
+
 def slots_state(m: Any) -> list[dict[str, Any]]:
     """Every slot for the Files tab: what it is, and which copy is in use."""
     store = store_of(m)
     out = []
     for s in SLOTS:
         path, source = find(m, s.key)
-        summary = ""
-        if path is not None:
-            try:
-                summary = s.check(parse(s, path.read_bytes()))
-            except (OSError, ValueError) as exc:
-                summary = f"cannot be used: {exc}"
+        summary = _summary(s, path) if path is not None else ""
         out.append(
             {
                 "key": s.key,

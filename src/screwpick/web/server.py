@@ -34,12 +34,16 @@ session cookie set by /api/login; other requests get 401.
 
 from __future__ import annotations
 
+import contextlib
+import errno
 import http.cookies
 import http.server
 import io
 import json
 import logging
 import shutil
+import socket
+import sys
 import threading
 import urllib.parse
 import uuid
@@ -488,15 +492,48 @@ def _sizes() -> list[dict[str, Any]]:
     return out
 
 
+class Server(http.server.ThreadingHTTPServer):
+    """One thread per request. The queue of connections waiting to be accepted is long: the
+    page asks for several things at once (and phones reconnect often); with Python's default of
+    5 the extra ones are refused and the browser retries after seconds."""
+
+    request_queue_size = 64
+    daemon_threads = True
+    # Windows' address reuse lets a second server share the port silently (it should move on
+    # to the next free port instead); elsewhere it only allows a quick restart
+    allow_reuse_address = sys.platform != "win32"
+
+
+class DualStackServer(Server):
+    """Listens on IPv6 and IPv4 at once. A browser that reaches the Pi by name (pi.local,
+    localhost) often tries IPv6 first; with an IPv4-only server every request then waits for
+    the fallback (about 2 s on Windows)."""
+
+    address_family = socket.AF_INET6
+
+    def server_bind(self) -> None:
+        with contextlib.suppress(AttributeError, OSError):
+            self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        super().server_bind()
+
+
 def make_server(
     runner: Runner, host: str = "", port: int = 8080, accounts: Accounts | None = None
 ) -> http.server.ThreadingHTTPServer:
-    """`accounts` None: no login at all (only for a network you fully trust)."""
+    """`accounts` None: no login at all (only for a network you fully trust). host "" listens
+    on every interface, IPv6 and IPv4 (IPv4 only where the Pi has no IPv6)."""
     handler = type("Handler", (_Handler,), {"runner": runner, "accounts": accounts, "user": None})
     last: OSError | None = None
     for p in range(port, port + 10):
+        if host in ("", "::") and socket.has_ipv6:
+            try:
+                return DualStackServer(("::", p), handler)
+            except OSError as exc:
+                last = exc
+                if exc.errno in (errno.EADDRINUSE, 10048):  # taken: the next port, not IPv4
+                    continue  # (Windows would let IPv4 alone share the port)
         try:
-            return http.server.ThreadingHTTPServer((host, p), handler)
+            return Server((host, p), handler)
         except OSError as exc:
             last = exc
     raise SystemExit(f"ports {port}-{port + 9} are all taken ({last})")
