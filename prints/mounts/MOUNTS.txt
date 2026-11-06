@@ -15,8 +15,10 @@ screen_holder.stl: an open frame for the Waveshare 7inch HDMI LCD (H) (case 191 
   foot, 180 mm apart. The screen leans back 20 degrees, so it faces you. Put it on one
   side of the bar; the camera is in the middle.
 
-camera_arm.stl: the plate goes on the bar's front face, at the bar's centre: 2 x M5 x 10 into
-  the front slot. The arm reaches 135 mm forward and the post goes 60 mm down: the
+camera_arm.stl: the plate goes on the bar's front face, at the bar's centre: 2 x M4 x
+  7 (heads up to 7 mm) from the front into T-nuts in the front slot,
+  40 mm apart; the holes are counterbored and open to the front for the screwdriver.
+  The arm reaches 135 mm forward and the post goes 60 mm down: the
   lens is then over the bed's centre with the bed all the way out (where a print ends, the
   photo position), 84 mm below the bar's top. The Camera Module 3 screws on with
   4 x M2 x 6 (they cut their own thread), lens down, the flat cable towards the post.

@@ -1,11 +1,12 @@
-"""Holders on the printer's top bar (Ender 3: a 2020 aluminium profile), fixed with M5 screws
-and T-nuts:
+"""Holders on the printer's top bar (Ender 3: a 2020 aluminium profile), fixed with screws
+and T-nuts (the screen holder M5, the camera arm M4 x 7):
 
 - screen holder: an open frame that holds the 7" display (Waveshare 7inch HDMI LCD (H): case
   191 x 115 mm, M2 holes 155 x 92 mm, measured on the screen) by its four holes, leaning back
   so it faces the user. The frame is sized to the holes, not to the case: the display overhangs it. The Raspberry Pi 4 is screwed to the display's back, off centre; it sits
   free inside the frame. A leg at each end stands on the bar (1 screw each in the top slot).
-- camera arm: a plate on the bar's front face (2 screws in the front slot, at the bar's centre),
+- camera arm: a plate on the bar's front face (2 x M4 x 7 from the front into T-nuts in the
+  front slot, at the bar's centre; counterbored, the gussets leave room for the screwdriver),
   an arm reaching forward over the bed and a post down to the Camera Module 3 (M2 holes 21 x
   12.5 mm, as on the Camera Module 2), lens straight down at the bed's centre when the bed is
   all the way out (where a print ends: the photo position).
@@ -195,10 +196,13 @@ class CameraArm:
     reach: float = 135.0  # bar front face -> lens, horizontally (measure with the bed out)
     drop: float = 60.0  # the camera plate this far below the bar's underside (lens ~300 mm up)
     bar: float = 20.0  # 2020 profile: front face height
-    plate_w: float = 50.0
+    plate_w: float = 60.0
     plate_t: float = 6.0
-    screw_dx: float = 30.0  # 2 x M5 in the front slot, at the bar's centre, this far apart
-    screw_d: float = 5.4
+    screw_dx: float = 40.0  # 2 screws in the front slot, at the bar's centre, this far apart
+    screw_d: float = 4.5  # M4 clearance
+    head_d: float = 7.6  # counterbore and screwdriver room: M4 head of 7 mm
+    screw_len: float = 7.0  # under the head
+    screw_beyond: float = 4.5  # past the plate's back: the slot's lip and the T-nut's thread
     arm_w: float = 16.0
     cam_w: float = 25.0  # Camera Module 3 board (same as Camera Module 2)
     cam_h: float = 23.86
@@ -217,11 +221,29 @@ def build_camera_arm(p: CameraArm | None = None) -> Mesh:
     return _to_bed(_camera_arm_installed(p or CameraArm()).rotate([180, 0, 0]))
 
 
+def screw_seat(p: CameraArm) -> float:
+    """Plate left under each screw head, so `screw_len` reaches `screw_beyond` past the back."""
+    seat = p.screw_len - p.screw_beyond
+    if not 1.5 <= seat <= p.plate_t:
+        raise ValueError(
+            f"a {p.screw_len:g} mm screw leaves {seat:g} mm under its head: use one "
+            f"{p.screw_beyond + 1.5:g} to {p.screw_beyond + p.plate_t:g} mm long"
+        )
+    return seat
+
+
 def _camera_arm_installed(p: CameraArm) -> Manifold:
     b = p.bar
-    mount = _box(-p.plate_w / 2, p.plate_w / 2, -p.plate_t, 0.0, -b, 0.0) - _union(
-        [_cyl_y(p.screw_d / 2, -p.plate_t - 1, 1, sx * p.screw_dx / 2, -b / 2) for sx in (-1, 1)]
-    )
+    seat = screw_seat(p)
+    screws = [sx * p.screw_dx / 2 for sx in (-1, 1)]
+    if min(screws[1] - p.head_d / 2 - p.arm_w / 2, p.plate_w / 2 - screws[1] - p.head_d / 2) < 2:
+        raise ValueError("the screws must lie between the arm and the plate's ends")
+    mount = _box(-p.plate_w / 2, p.plate_w / 2, -p.plate_t, 0.0, -b, 0.0)
+    # through holes, and in front of each a free channel (counterbore, head, screwdriver)
+    holes = [_cyl_y(p.screw_d / 2, -p.plate_t - 1, 1, x, -b / 2) for x in screws] + [
+        _cyl_y(p.head_d / 2, -p.reach - 60.0, -seat, x, -b / 2) for x in screws
+    ]
+    gusset_x = screws[1] - p.head_d / 2 - 1.0  # the gussets stop short of the screw heads
     edge_y = -p.reach + p.lens_from_cable_edge  # the board's cable edge (towards the bar)
     post_y0 = edge_y + p.cable_gap
     post_y1 = post_y0 + p.arm_w
@@ -230,7 +252,7 @@ def _camera_arm_installed(p: CameraArm) -> Manifold:
         Manifold.hull_points(
             np.array(
                 [(sx * p.arm_w / 2, -p.plate_t + 0.01, z) for z in (-b, 0.0)]
-                + [(sx * p.plate_w * 0.4, -p.plate_t + 0.01, z) for z in (-b, 0.0)]
+                + [(sx * gusset_x, -p.plate_t + 0.01, z) for z in (-b, 0.0)]
                 + [(sx * p.arm_w / 2, -p.plate_t - 22.0, z) for z in (-b, 0.0)]
             )
         )
@@ -262,7 +284,8 @@ def _camera_arm_installed(p: CameraArm) -> Manifold:
             x, y = sx * p.cam_hole_dx / 2, edge_y - row
             bosses.append(_cyl_z(p.boss_d / 2, z_cam - p.boss_h, z_cam + 0.01, x, y))
             pilots.append(_cyl_z(p.pilot_d / 2, z_cam - p.boss_h - 1, z_cam + 2.0, x, y))
-    return _union([mount, arm, *gussets, post, flare, cam_plate, *bosses]) - _union(pilots)
+    body = _union([mount, arm, *gussets, post, flare, cam_plate, *bosses])
+    return body - _union(pilots) - _union(holes)
 
 
 def lens_position(p: CameraArm | None = None) -> tuple[float, float, float]:
@@ -303,8 +326,10 @@ screen_holder.stl: an open frame for the Waveshare 7inch HDMI LCD (H) (case 191 
   foot, {dx:g} mm apart. The screen leans back {tilt:g} degrees, so it faces you. Put it on one
   side of the bar; the camera is in the middle.
 
-camera_arm.stl: the plate goes on the bar's front face, at the bar's centre: 2 x M5 x 10 into
-  the front slot. The arm reaches {reach:g} mm forward and the post goes {drop:g} mm down: the
+camera_arm.stl: the plate goes on the bar's front face, at the bar's centre: 2 x M{screw:g} x
+  {screw_len:g} (heads up to {head:g} mm) from the front into T-nuts in the front slot,
+  {screw_dx:g} mm apart; the holes are counterbored and open to the front for the screwdriver.
+  The arm reaches {reach:g} mm forward and the post goes {drop:g} mm down: the
   lens is then over the bed's centre with the bed all the way out (where a print ends, the
   photo position), {lens:g} mm below the bar's top. The Camera Module 3 screws on with
   4 x M2 x 6 (they cut their own thread), lens down, the flat cable towards the post.
@@ -339,6 +364,10 @@ def mount_files(
         reach=arm.reach,
         drop=arm.drop,
         lens=lens,
+        screw=round(arm.screw_d - 0.5),
+        screw_len=arm.screw_len,
+        head=round(arm.head_d - 0.6, 1),
+        screw_dx=arm.screw_dx,
     )
     return [
         (
