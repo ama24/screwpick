@@ -6,11 +6,11 @@ import json
 import threading
 import urllib.request
 
-from screwpick.cli import main
-from screwpick.layout import Layout
-from screwpick.printer.sim import SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner
-from screwpick.transform import BedCalibration, Transform2D
+from sortering_pnp.cli import main
+from sortering_pnp.layout import Layout
+from sortering_pnp.printer.sim import SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import BedCalibration, Transform2D
 
 
 def make(machine, layout: Layout, n: int = 10, seed: int = 3):
@@ -110,7 +110,7 @@ def test_calibration_scan_and_goto(machine, layout):
 
 
 def test_web_api(machine, layout):
-    from screwpick.web.server import make_server
+    from sortering_pnp.web.server import make_server
 
     runner, world = make(machine, layout)
     srv = make_server(runner, "127.0.0.1", 0)
@@ -130,7 +130,7 @@ def test_web_api(machine, layout):
 
     try:
         page, ctype = get("/")
-        assert b"screwpick" in page and ctype.startswith("text/html")
+        assert b"sortering_pnp" in page and ctype.startswith("text/html")
         state = json.loads(get("/api/state")[0])
         assert state["status"] == "idle" and "sort" in state["strategies"]
         lay = json.loads(get("/api/layout")[0])

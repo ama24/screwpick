@@ -5,14 +5,14 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from screwpick import pickers
-from screwpick.grip import Shape, axis_grip, head_grip
-from screwpick.io import read_json
-from screwpick.layout import Layout
-from screwpick.printer.sim import SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner
-from screwpick.transform import Transform2D
-from screwpick.vision import parts_from_result
+from sortering_pnp import pickers
+from sortering_pnp.grip import Shape, axis_grip, head_grip
+from sortering_pnp.io import read_json
+from sortering_pnp.layout import Layout
+from sortering_pnp.printer.sim import SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import Transform2D
+from sortering_pnp.vision import parts_from_result
 
 M4_SOCKET = Shape(d=4.0, head_r=3.5, head_k=4.0, socket=True)
 KP = {"head_top": (0.0, 0.0), "bearing": (4.0, 0.0), "tip": (29.0, 0.0)}  # DIN912 M4x25
@@ -75,11 +75,11 @@ def test_klipper_file(key):
     text = pickers.klipper_config(key)
     t = pickers.BY_KEY[key]
     assert "[mcu host]" in text and "serial: /tmp/klipper_host_mcu" in text
-    assert "[gcode_macro SCREWPICK_GRAB]" in text and "[gcode_macro SCREWPICK_RELEASE]" in text
+    assert "[gcode_macro SORTERING_GRAB]" in text and "[gcode_macro SORTERING_RELEASE]" in text
     assert pickers.ACTION_PIN in text  # GPIO12 does the grabbing
-    assert ("[gcode_macro SCREWPICK_ROTATE]" in text) == t.rotates
+    assert ("[gcode_macro SORTERING_ROTATE]" in text) == t.rotates
     assert (pickers.TURN_PIN in text) == t.rotates  # GPIO13 only turns
-    assert ("[output_pin screwpick_pump]" in text) == t.pump
+    assert ("[output_pin sortering_pnp_pump]" in text) == t.pump
     sections = [ln for ln in text.splitlines() if ln.startswith("[")]
     assert len(sections) == len(set(sections))  # Klipper refuses a section twice
 
@@ -96,7 +96,7 @@ def test_setup_choose_install_and_trim(machine):
     runner, printer = make(machine)
     st = runner.setup_picker_type("pneumatic_tweezers")
     assert st["picker"]["mode"] == "pneumatic_tweezers" and st["rotation"]
-    assert machine.picker.rotate == "SCREWPICK_ROTATE" and machine.picker.kind.aim == "centre"
+    assert machine.picker.rotate == "SORTERING_ROTATE" and machine.picker.kind.aim == "centre"
     st = runner.setup_picker_install()
     assert st["picker"]["installed"] == "pneumatic_tweezers"
     assert printer.configs[pickers.CONFIG_NAME] == pickers.klipper_config("pneumatic_tweezers")
@@ -114,15 +114,15 @@ def test_setup_choose_install_and_trim(machine):
     assert again.setup_state()["picker"]["offset_deg"] == 12.0
 
 
-def test_screwpick_cfg_includes_the_picker_file_and_leaves_its_macros_to_it():
+def test_sortering_pnp_cfg_includes_the_picker_file_and_leaves_its_macros_to_it():
     from pathlib import Path
 
     klipper = Path(__file__).resolve().parents[1] / "klipper"
-    main = (klipper / "screwpick.cfg").read_text(encoding="utf-8")
+    main = (klipper / "sortering_pnp.cfg").read_text(encoding="utf-8")
     assert f"[include {pickers.CONFIG_NAME}]" in main
     live = [ln for ln in main.splitlines() if ln.startswith("[")]
     assert (
-        "[gcode_macro SCREWPICK_GRAB]" not in live and "[gcode_macro SCREWPICK_ROTATE]" not in live
+        "[gcode_macro SORTERING_GRAB]" not in live and "[gcode_macro SORTERING_ROTATE]" not in live
     )
     placeholder = (klipper / pickers.CONFIG_NAME).read_text(encoding="utf-8")
     assert placeholder == pickers.PLACEHOLDER and "[mcu host]" not in placeholder

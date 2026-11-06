@@ -28,7 +28,7 @@ GET  /api/session           who is logged in; POST /api/login, /api/setup (first
 POST /api/logout;  GET /api/users, POST /api/users/add, /api/users/remove, /api/users/password
 GET  /api/setup; POST /api/setup/printer|home|goto|machine|picker|confirm|reset   the Setup tab
 POST /api/setup/picker/type {"type"}, /api/setup/picker/install, /api/setup/picker/offset {"deg"};
-GET  /api/setup/picker.cfg?type=…  the picker's Klipper file (screwpick_picker.cfg)
+GET  /api/setup/picker.cfg?type=…  the picker's Klipper file (sortering_pnp_picker.cfg)
 
 With accounts (the default), everything except the page itself and the session routes needs the
 session cookie set by /api/login; other requests get 401.
@@ -61,11 +61,11 @@ from ..printables import export
 from ..printer import PrinterError
 from ..runner import Runner
 
-log = logging.getLogger("screwpick.web")
+log = logging.getLogger("sortering_pnp.web")
 
 
 def _page() -> bytes:
-    return resources.files("screwpick.web").joinpath("index.html").read_bytes()
+    return resources.files("sortering_pnp.web").joinpath("index.html").read_bytes()
 
 
 PUBLIC = {
@@ -449,7 +449,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
                 for fname, fdata in mount_files(screen, arm):
                     z.writestr(fname, fdata)
-            name, data, ctype = "screwpick_mounts.zip", buf.getvalue(), "application/zip"
+            name, data, ctype = "sortering_pnp_mounts.zip", buf.getvalue(), "application/zip"
         elif what == "plate":
             size = binspec.size_named(q["size"])
             cols, rows = export.plate_grid(size)
@@ -464,7 +464,11 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             name, data = export.labels_file(lay, ids)
             ctype = "image/svg+xml"
         elif what == "all":
-            name, data, ctype = "screwpick_print.zip", export.everything_zip(lay), "application/zip"
+            name, data, ctype = (
+                "sortering_pnp_print.zip",
+                export.everything_zip(lay),
+                "application/zip",
+            )
         else:
             raise ValueError(f"nothing to print called {what!r}")
         self._send(200, data, ctype, name)

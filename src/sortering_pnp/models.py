@@ -1,8 +1,8 @@
 """The model store: models uploaded through the web page, kept side by side, one active per role.
 
-Upload a model-trainer package (zip of the package folder: best.pt, model_card.json, exports/…),
+Upload a training-synth package (zip of the package folder: best.pt, model_card.json, exports/…),
 a zipped NCNN export folder, or a single .onnx / .pt file. Each upload becomes a folder in the
-store with its own screwpick.json; older models stay until deleted, so going back is one click.
+store with its own sortering_pnp.json; older models stay until deleted, so going back is one click.
 
 Roles follow the model's YOLO task:
   stage1      segment (full: outlines and lengths), obb or detect (positions and classes only)
@@ -24,7 +24,7 @@ from typing import Any
 
 from .io import read_json, read_yaml, write_json
 
-log = logging.getLogger("screwpick.models")
+log = logging.getLogger("sortering_pnp.models")
 
 TASK_ROLE = {
     "segment": "stage1",
@@ -36,7 +36,7 @@ TASK_ROLE = {
 ROLES = ("stage1", "stage2", "classifier", "head")  # head: stage 1 for the head camera
 WEIGHT_SUFFIXES = (".pt", ".onnx")
 MAX_UNZIPPED = 4 * 1024**3
-META = "screwpick.json"
+META = "sortering_pnp.json"
 
 
 class ModelError(ValueError):
@@ -296,7 +296,7 @@ class ModelStore:
             m.problems.append("model_card.json and the weights list different classes")
         if m.role is None:
             m.problems.append(
-                f"task {m.task!r}: screwpick uses segment, detect, obb, pose or classify"
+                f"task {m.task!r}: sortering_pnp uses segment, detect, obb, pose or classify"
             )
         if m.task in ("detect", "obb"):
             m.warnings.append(
@@ -313,7 +313,7 @@ class ModelStore:
             m.warnings += warnings
         if not any(f["format"] == "ncnn" for f in formats):
             m.warnings.append(
-                "no NCNN export: slower on a Raspberry Pi (export NCNN in model-trainer)"
+                "no NCNN export: slower on a Raspberry Pi (export NCNN in training-synth)"
             )
         return m
 

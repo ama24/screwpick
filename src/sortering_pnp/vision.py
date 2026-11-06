@@ -25,7 +25,7 @@ from .models import ModelStore
 from .parts import Part
 from .trayview import WorkArea, paint_outside, parse_colour
 
-log = logging.getLogger("screwpick.vision")
+log = logging.getLogger("sortering_pnp.vision")
 
 
 @dataclass

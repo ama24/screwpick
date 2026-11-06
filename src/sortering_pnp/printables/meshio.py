@@ -15,7 +15,7 @@ import numpy as np
 Mesh = tuple[np.ndarray, np.ndarray]  # vertices (N, 3) float, triangles (M, 3) int
 
 
-def stl_bytes(mesh: Mesh, name: str = "screwpick") -> bytes:
+def stl_bytes(mesh: Mesh, name: str = "sortering_pnp") -> bytes:
     v, f = mesh
     tri = np.asarray(v, dtype=np.float32)[np.asarray(f)]
     n = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
@@ -55,7 +55,7 @@ def _mesh_xml(mesh: Mesh) -> str:
     return out.getvalue()
 
 
-def threemf_bytes(parts: Sequence[tuple[str, Mesh]], name: str = "screwpick") -> bytes:
+def threemf_bytes(parts: Sequence[tuple[str, Mesh]], name: str = "sortering_pnp") -> bytes:
     """One object made of several parts (e.g. "bin" and "marker"), so a slicer keeps them
     together and each part can get its own filament."""
     return threemf_plate_bytes([(name, parts, (0.0, 0.0))])

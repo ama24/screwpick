@@ -1,4 +1,4 @@
-"""What screwpick needs from a printer: run G-code, report its state, stop at once."""
+"""What sortering_pnp needs from a printer: run G-code, report its state, stop at once."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ class PrinterStatus:
     position: list[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])  # toolhead X Y Z
     hotend_c: float | None = None
     printing: bool = False
-    tool: str | None = None  # the _SCREWPICK_TOOL macro's `tool` variable, None = not found
+    tool: str | None = None  # the _SORTERING_TOOL macro's `tool` variable, None = not found
 
     @property
     def ready(self) -> bool:

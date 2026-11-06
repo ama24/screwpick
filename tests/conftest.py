@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from screwpick import config as config_mod
-from screwpick.config import Machine
-from screwpick.layout import Layout
+from sortering_pnp import config as config_mod
+from sortering_pnp.config import Machine
+from sortering_pnp.layout import Layout
 
 
 @pytest.fixture

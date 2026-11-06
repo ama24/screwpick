@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import time
 
-from screwpick.layout import Layout
-from screwpick.printer.sim import SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner
-from screwpick.transform import Transform2D
+from sortering_pnp.layout import Layout
+from sortering_pnp.printer.sim import SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import Transform2D
 
 
 def make(machine, n: int = 5):

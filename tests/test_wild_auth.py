@@ -10,14 +10,14 @@ import urllib.request
 import numpy as np
 import pytest
 
-from screwpick.auth import Accounts, AuthError
-from screwpick.layout import Bin, Layout
-from screwpick.parts import Part
-from screwpick.printer.sim import SimPrinter, SimVision, SimWorld
-from screwpick.rules import destination, wild_key
-from screwpick.runner import Runner
-from screwpick.strategies import Planner
-from screwpick.transform import Transform2D
+from sortering_pnp.auth import Accounts, AuthError
+from sortering_pnp.layout import Bin, Layout
+from sortering_pnp.parts import Part
+from sortering_pnp.printer.sim import SimPrinter, SimVision, SimWorld
+from sortering_pnp.rules import destination, wild_key
+from sortering_pnp.runner import Runner
+from sortering_pnp.strategies import Planner
+from sortering_pnp.transform import Transform2D
 
 
 def P(cls, length=None, has_length=None, unknown=False, xy=(110.0, 110.0)):  # noqa: N802
@@ -201,7 +201,7 @@ def test_accounts(tmp_path):
 
 
 def test_too_many_wrong_passwords(tmp_path, monkeypatch):
-    monkeypatch.setattr("screwpick.auth.time.sleep", lambda s: None)
+    monkeypatch.setattr("sortering_pnp.auth.time.sleep", lambda s: None)
     acc = Accounts(tmp_path / "users.json")
     acc.set_password("alex", "secret1")
     for _ in range(10):
@@ -213,9 +213,9 @@ def test_too_many_wrong_passwords(tmp_path, monkeypatch):
 
 
 def test_web_login_flow(machine, tmp_path, monkeypatch):
-    from screwpick.web.server import make_server
+    from sortering_pnp.web.server import make_server
 
-    monkeypatch.setattr("screwpick.auth.time.sleep", lambda s: None)
+    monkeypatch.setattr("sortering_pnp.auth.time.sleep", lambda s: None)
     runner, _ = make(machine, Layout.default(), n=1)
     acc = Accounts(tmp_path / "users.json")
     srv = make_server(runner, "127.0.0.1", 0, acc)

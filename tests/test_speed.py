@@ -12,12 +12,12 @@ import urllib.request
 
 import pytest
 
-from screwpick import files as files_mod
-from screwpick.layout import Bin, Layout
-from screwpick.printer.sim import SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner
-from screwpick.transform import Transform2D
-from screwpick.web.server import make_server
+from sortering_pnp import files as files_mod
+from sortering_pnp.layout import Bin, Layout
+from sortering_pnp.printer.sim import SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import Transform2D
+from sortering_pnp.web.server import make_server
 
 
 def _runner(machine) -> Runner:
@@ -95,7 +95,7 @@ def test_file_summaries_follow_the_file(tmp_path):
 def test_fast_yaml_reads_the_same(tmp_path, text):
     import yaml
 
-    from screwpick.io import read_yaml
+    from sortering_pnp.io import read_yaml
 
     p = tmp_path / "f.yaml"
     p.write_text(text, encoding="utf-8")

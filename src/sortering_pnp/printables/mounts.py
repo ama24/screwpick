@@ -286,7 +286,7 @@ def drop_for(
     return round(drop, 1)
 
 
-MOUNT_NOTES = """screwpick holders for the printer's top bar
+MOUNT_NOTES = """sortering-pnp holders for the printer's top bar
 ============================================
 
 Both fix to the top bar (Ender 3: a 2020 aluminium profile) with M5 screws and T-nuts (drop-in
@@ -310,7 +310,7 @@ camera_arm.stl: the plate goes on the bar's front face, at the bar's centre: 2 x
   4 x M2 x 6 (they cut their own thread), lens down, the flat cable towards the post.
 
 Your printer differs? Measure and make your own (web page: Print bins; or
-screwpick print mounts --help):
+sortering_pnp print mounts --help):
   reach:      with the bed all the way out, from the front face of the top bar straight
               forward to the centre of the plate (where the parts lie).
   bar height: from the underside of the top bar down to the plate. The camera is placed
@@ -341,7 +341,10 @@ def mount_files(
         lens=lens,
     )
     return [
-        ("screen_holder.stl", stl_bytes(build_screen_holder(screen), "screwpick screen holder")),
-        ("camera_arm.stl", stl_bytes(build_camera_arm(arm), "screwpick camera arm")),
+        (
+            "screen_holder.stl",
+            stl_bytes(build_screen_holder(screen), "sortering-pnp screen holder"),
+        ),
+        ("camera_arm.stl", stl_bytes(build_camera_arm(arm), "sortering-pnp camera arm")),
         ("MOUNTS.txt", notes.encode()),
     ]

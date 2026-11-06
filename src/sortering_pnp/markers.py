@@ -71,7 +71,7 @@ def labels_sheet_svg(markers: list[int], names: dict[int, str] | None = None) ->
         )
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297">'
-        '<text x="12" y="8" font-size="3.5" font-family="sans-serif">screwpick bin markers: print at '
+        '<text x="12" y="8" font-size="3.5" font-family="sans-serif">sortering_pnp bin markers: print at '
         "100 % (no scaling); each black cell must measure "
         f"{cell:g} mm</text>{''.join(parts)}</svg>"
     )

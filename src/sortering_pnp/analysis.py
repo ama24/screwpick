@@ -16,7 +16,7 @@ from typing import Any
 
 import numpy as np
 
-log = logging.getLogger("screwpick.analysis")
+log = logging.getLogger("sortering_pnp.analysis")
 
 STAGE1_TASKS = ("segment", "obb", "detect")
 

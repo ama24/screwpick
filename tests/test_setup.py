@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from screwpick.layout import Layout
-from screwpick.printer import PrinterError
-from screwpick.printer.sim import SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner
-from screwpick.transform import BedCalibration
+from sortering_pnp.layout import Layout
+from sortering_pnp.printer import PrinterError
+from sortering_pnp.printer.sim import SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import BedCalibration
 
 
 def make(machine, n: int = 3):
@@ -20,7 +20,7 @@ def make(machine, n: int = 3):
 
     def transform():
         cal = BedCalibration.load(transform_path)
-        from screwpick.transform import Transform2D
+        from sortering_pnp.transform import Transform2D
 
         return cal.transform if cal else Transform2D.identity()
 
@@ -117,7 +117,7 @@ def test_setup_web_api(machine):
     import threading
     import urllib.request
 
-    from screwpick.web.server import make_server
+    from sortering_pnp.web.server import make_server
 
     runner, _, _ = make(machine)
     srv = make_server(runner, "127.0.0.1", 0)

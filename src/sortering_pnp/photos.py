@@ -1,8 +1,8 @@
-"""Photos for the other projects, taken by screwpick: the only program that moves the printer.
+"""Photos for the other projects, taken by sortering_pnp: the only program that moves the printer.
 
-screwrig (supreme-screw-sortering) is used for the camera only (lock the settings, grab a frame,
+screwrig (screw-synth) is used for the camera only (lock the settings, grab a frame,
 save it with its metadata); the calibration maths and the session format are screwsynth's. The
-bed is parked by screwpick's own motion (photo position, soft limits, busy checks), so nothing
+bed is parked by sortering_pnp's own motion (photo position, soft limits, busy checks), so nothing
 else ever sends G-code.
 
 Camera calibration (Calibrate tab), in order:
@@ -80,7 +80,7 @@ class Photos:
 
     # ------------------------------------------------------------------ the camera and the bed
     def _park(self) -> None:
-        """The bed out at the photo position, through screwpick's motion (it must be homed)."""
+        """The bed out at the photo position, through sortering_pnp's motion (it must be homed)."""
         with self.r._lock:  # noqa: SLF001 - the runner's motion lock
             self.r.motion.preflight(home=False)
             self.r.motion.photo_position()
@@ -199,7 +199,7 @@ class Photos:
             "plate_homography": ext["plate_homography"],
             "date": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "board": {**self.spec().to_dict()},
-            "made_by": "screwpick Calibrate tab",
+            "made_by": "sortering-pnp Calibrate tab",
         }
         _ = cv2  # (OpenCV is needed by the solver; imported to fail early without it)
         self.r.add_file(self._cam_key(), json.dumps(calib, indent=2).encode(), "calibration.json")

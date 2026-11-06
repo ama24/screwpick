@@ -1,4 +1,4 @@
-screwpick printables
+sortering-pnp printables
 ====================
 
 Bins: two parts, "bin" and "marker" (the code on the shelf, or on the corner post).
@@ -9,7 +9,7 @@ Bins: two parts, "bin" and "marker" (the code on the shelf, or on the corner pos
 - STL files contain the bin with the marker merged in (one colour; glue a paper label from
   the labels sheet onto the shelf instead).
 
-The code number tells screwpick the bin's size, and where its code sits:
+The code number tells sortering_pnp the bin's size, and where its code sits:
   100-139: 1x1x3u          sorting: one part number on the printer bed
   140-159: 1x2x3u          sorting: long screws, threaded rod, brackets
   160-179: 1x1x6u          storage: small parts

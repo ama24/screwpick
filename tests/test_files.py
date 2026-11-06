@@ -6,11 +6,11 @@ import json
 
 import pytest
 
-from screwpick.files import SLOTS, FileStore, find, slots_state
-from screwpick.layout import Layout
-from screwpick.printer.sim import SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner
-from screwpick.transform import Transform2D
+from sortering_pnp.files import SLOTS, FileStore, find, slots_state
+from sortering_pnp.layout import Layout
+from sortering_pnp.printer.sim import SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import Transform2D
 
 ITEMS = {
     "format": "screwsynth-items",

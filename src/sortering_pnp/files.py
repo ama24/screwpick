@@ -1,6 +1,6 @@
 """Files from the other projects, dropped in the web page's Files tab and kept here.
 
-screwpick runs on its own: it does not reach into the other repositories' folders for its data.
+sortering_pnp runs on its own: it does not reach into the other repositories' folders for its data.
 Each file it can use has a slot: where to find it, what it is for, and what happens without it.
 The user fetches the file and drops it in; it is checked and kept in paths.files.
 

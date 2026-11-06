@@ -86,9 +86,9 @@ class Printer:
     max_hotend_c: float = 50.0  # refuse to run while the hotend is hotter than this
     auto_home: bool = True  # home (G28) when an axis is not homed
     # homing: Z is homed over the middle of the working area (flat plate, no bins) through
-    # this macro's variables z_home_x / z_home_y (klipper/screwpick.cfg); None = plain G28
-    home_macro: str | None = "_SCREWPICK_HOME"
-    tool_macro: str | None = "_SCREWPICK_TOOL"  # its variable `tool` must be "picker"; None = skip
+    # this macro's variables z_home_x / z_home_y (klipper/sortering_pnp.cfg); None = plain G28
+    home_macro: str | None = "_SORTERING_HOME"
+    tool_macro: str | None = "_SORTERING_TOOL"  # its variable `tool` must be "picker"; None = skip
     timeout_s: float = 120.0
     # mm/s^2 while sorting (gentler bed moves: loose parts stay where the photo saw them);
     # None = the printer's own setting
@@ -103,11 +103,11 @@ class Tool:
 @dataclass
 class Picker:
     mode: str = "suction"  # servo_tweezers | suction | magnet | pneumatic_tweezers (pickers.py)
-    grab: str = "SCREWPICK_GRAB"  # Klipper macros, see klipper/screwpick.cfg
-    release: str = "SCREWPICK_RELEASE"
-    rotate: str | None = None  # SCREWPICK_ROTATE ANGLE=<deg> when the gripper can turn
-    rotate_home: str | None = None  # SCREWPICK_ROT_HOME: finds 0 deg (jaws close along X)
-    rotate_zero: str | None = "SCREWPICK_ROT_ZERO"  # Setup tab: the jaws close along X now
+    grab: str = "SORTERING_GRAB"  # Klipper macros, see klipper/sortering_pnp.cfg
+    release: str = "SORTERING_RELEASE"
+    rotate: str | None = None  # SORTERING_ROTATE ANGLE=<deg> when the gripper can turn
+    rotate_home: str | None = None  # SORTERING_ROT_HOME: finds 0 deg (jaws close along X)
+    rotate_zero: str | None = "SORTERING_ROT_ZERO"  # Setup tab: the jaws close along X now
     rotate_offset_deg: float = 0.0  # fine trim of the jaw angle
     grip_from_head_mm: float = 1.5  # tweezers close at least this far below a screw head
     approach_mm: float = 8.0  # slow descent from this far above the part
@@ -123,11 +123,11 @@ class Picker:
         return picker_type(self.mode)
 
     def set_type(self, mode: str) -> None:
-        """Use this kind of picker (old names are mapped); tweezers turn with SCREWPICK_ROTATE."""
+        """Use this kind of picker (old names are mapped); tweezers turn with SORTERING_ROTATE."""
         t = picker_type(mode)
         self.mode = t.key
         if t.rotates and not self.rotate:
-            self.rotate = "SCREWPICK_ROTATE"
+            self.rotate = "SORTERING_ROTATE"
         elif not t.rotates:
             self.rotate = None
 

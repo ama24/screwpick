@@ -6,11 +6,11 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from screwpick import binspec
-from screwpick.layout import Bin, Layout
-from screwpick.printer.sim import SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner
-from screwpick.transform import Transform2D
+from sortering_pnp import binspec
+from sortering_pnp.layout import Bin, Layout
+from sortering_pnp.printer.sim import SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import Transform2D
 
 
 def test_corner_sizes_have_their_own_codes():
@@ -93,7 +93,7 @@ pytest.importorskip("manifold3d")
 
 
 def test_corner_bin_geometry_has_no_overhang():
-    from screwpick.printables.gridfinity import build_bin
+    from sortering_pnp.printables.gridfinity import build_bin
 
     body, ink = build_bin(90, 3, 3, 3)
     b, k = tm.Trimesh(*body), tm.Trimesh(*ink)

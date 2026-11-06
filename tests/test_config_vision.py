@@ -5,9 +5,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from screwpick import config as config_mod
-from screwpick.config import ConfigError
-from screwpick.vision import parts_from_result, top_height_mm
+from sortering_pnp import config as config_mod
+from sortering_pnp.config import ConfigError
+from sortering_pnp.vision import parts_from_result, top_height_mm
 
 REPO = Path(__file__).resolve().parents[1]
 

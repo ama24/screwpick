@@ -10,8 +10,8 @@ import pytest
 pytest.importorskip("manifold3d")
 trimesh = pytest.importorskip("trimesh")
 
-from screwpick.printables.gridfinity import _to_mesh  # noqa: E402
-from screwpick.printables.mounts import (  # noqa: E402
+from sortering_pnp.printables.gridfinity import _to_mesh  # noqa: E402
+from sortering_pnp.printables.mounts import (  # noqa: E402
     CameraArm,
     ScreenHolder,
     _camera_arm_installed,
@@ -62,7 +62,7 @@ def test_screen_holes_and_feet():
 def test_the_pi_behind_the_display_has_room(tilt):
     """The Pi is screwed to the display's back, off centre: nothing of the holder may be
     anywhere behind the display except the band along its edge."""
-    from screwpick.printables.mounts import screen_open_space
+    from sortering_pnp.printables.mounts import screen_open_space
 
     p = ScreenHolder(tilt_deg=tilt)
     clash = _screen_holder_installed(p) ^ screen_open_space(p)
@@ -73,8 +73,8 @@ def test_the_pi_behind_the_display_has_room(tilt):
 
 @pytest.mark.parametrize("tilt", [0.0, 20.0, 35.0])
 def test_the_display_overhangs_the_frame_without_touching_it(tilt):
-    from screwpick.printables.gridfinity import _box
-    from screwpick.printables.mounts import _to_installed
+    from sortering_pnp.printables.gridfinity import _box
+    from sortering_pnp.printables.mounts import _to_installed
 
     p = ScreenHolder(tilt_deg=tilt)
     display = _box(-p.screen_w / 2, p.screen_w / 2, 0.0, p.screen_h, 0.01, 12.0)

@@ -1,4 +1,4 @@
-# screwpick reference
+# sortering-pnp reference
 
 Everything in detail: every tab, every setting and why it works the way it does. Start with the
 [README](../README.md) for installing and using the machine; come here when you want to know more.
@@ -36,7 +36,7 @@ Settings are in [configs/machine.yaml](../configs/machine.yaml) (each has a comm
 | Part | Notes |
 |---|---|
 | Printer running **Klipper + Moonraker** on the Pi | the usual Klipper install (KIAUH, MainsailOS); OctoPrint can stay or go |
-| Pi Camera Module 3 over the bed | the same one, and the same calibration, as supreme-screw-sortering |
+| Pi Camera Module 3 over the bed | the same one, and the same calibration, as screw-synth |
 | A **picker** on the toolhead | servo tweezers, suction cup, magnet or pneumatic tweezers (see below), wired to the Pi; swappable with the hotend |
 | Gridfinity **baseplate** + **bins** | printed from the web page's *Print bins* tab |
 | A matte TPU plate in the working area | blue or green, as for the camera |
@@ -65,10 +65,10 @@ The old names still work: `vacuum` = `suction`; `gripper`, `tweezers` and `both`
   there, never the Pi's 5 V pin. Pumps: 24 V through a MOSFET module (logic level, e.g. AOD4184:
   the IRF520 module only half-opens at 3.3 V), with a flyback diode across the pump. All grounds
   joined.
-- **Klipper file:** *Install in Klipper* writes `screwpick_picker.cfg` (from
-  [pickers.py](../src/screwpick/pickers.py)) into Klipper's config folder through Moonraker and
-  restarts the firmware; `screwpick.cfg` includes it. Its macros: `SCREWPICK_GRAB`,
-  `SCREWPICK_RELEASE`, and for tweezers `SCREWPICK_ROTATE ANGLE=`. Servo angles for open/closed
+- **Klipper file:** *Install in Klipper* writes `sortering_pnp_picker.cfg` (from
+  [pickers.py](../src/sortering_pnp/pickers.py)) into Klipper's config folder through Moonraker and
+  restarts the firmware; `sortering_pnp.cfg` includes it. Its macros: `SORTERING_GRAB`,
+  `SORTERING_RELEASE`, and for tweezers `SORTERING_ROTATE ANGLE=`. Servo angles for open/closed
   and magnet on/off are variables at the top of each macro. Download the file instead to edit
   it first.
 - **Where it aims:** a cup or a magnet goes onto the middle of the screw's head (seen from above);
@@ -88,18 +88,18 @@ A Raspberry Pi **4 or 5** (4 GB or more) with 64-bit Raspberry Pi OS (Bookworm o
 Pi 3B has too little memory for Klipper, the camera and the model together.
 
 ```bash
-git clone https://github.com/ama24/screwpick.git ~/screwpick
-~/screwpick/install-pi.sh --service      # --service: start screwpick at every boot
-cp ~/screwpick/klipper/screwpick.cfg ~/printer_data/config/
-cp -n ~/screwpick/klipper/screwpick_picker.cfg ~/printer_data/config/   # placeholder, never overwritten
-echo "[include screwpick.cfg]" >> ~/printer_data/config/printer.cfg
+git clone https://github.com/ama24/sortering-pnp.git ~/sortering-pnp
+~/sortering-pnp/install-pi.sh --service      # --service: start sortering-pnp at every boot
+cp ~/sortering-pnp/klipper/sortering_pnp.cfg ~/printer_data/config/
+cp -n ~/sortering-pnp/klipper/sortering_pnp_picker.cfg ~/printer_data/config/   # placeholder, never overwritten
+echo "[include sortering_pnp.cfg]" >> ~/printer_data/config/printer.cfg
 ```
 
 **Everything is pinned**, so installing again in a year gives exactly the same programs:
 - [requirements-pi.lock.txt](../requirements-pi.lock.txt) lists every Python package with its
   exact version **and a checksum of the file**. It's installed with `--no-deps --require-hashes`,
   so pip installs nothing else and refuses a file that differs in any way.
-- supreme-screw-sortering, the model and camera code, is checked out at a fixed commit
+- screw-synth, the model and camera code, is checked out at a fixed commit
   (`SUPREME_COMMIT` in [install-pi.sh](../install-pi.sh)).
 - The script puts everything in the same Python environment as `screwrig` (`~/screwrig`),
   checks that OpenCV has ArUco and that PyTorch is the CPU build, and says what to do next.
@@ -111,23 +111,23 @@ Then restart Klipper (`FIRMWARE_RESTART`); the picker is chosen and installed la
 Setup tab. Check everything with:
 
 ```bash
-cd ~/screwpick && screwpick check
+cd ~/sortering-pnp && sortering-pnp check
 ```
 
-Start it with `screwpick serve`, and open `http://<pi>:8080` on the PC or phone. The first
+Start it with `sortering-pnp serve`, and open `http://<pi>:8080` on the PC or phone. The first
 visit asks you to create an account (see [Login](#login)).
 
-> **screwpick is the only program that moves the printer.** The camera calibration and the
-> real photos are taken from its web page (Calibrate and Photos tabs): screwpick parks the bed,
+> **sortering-pnp is the only program that moves the printer.** The camera calibration and the
+> real photos are taken from its web page (Calibrate and Photos tabs): sortering-pnp parks the bed,
 > screwrig only works the camera. (`screwrig` on its own also goes through Klipper, never the
-> printer's USB port, for use without screwpick.)
+> printer's USB port, for use without sortering-pnp.)
 
 ## The Setup tab, step by step
 
 On a real printer, **Sort**, **One pick** and **Automatic** are refused, also from the printer
 menu, until every step of the **Setup** tab is checked:
 
-1. **Printer:** Klipper answers, `screwpick.cfg` is included, the picker is mounted, the hotend is
+1. **Printer:** Klipper answers, `sortering_pnp.cfg` is included, the picker is mounted, the hotend is
    cold. Only questions, nothing moves.
 2. **Homing:** press *Home now* and watch. Z must come down over the middle of the plate, not
    over a bin. Then confirm.
@@ -161,7 +161,7 @@ The steps below are the same work in more detail.
 4. Mount the picker and run `TOOL_PICKER`. Set `tool.offset` in
    [configs/machine.yaml](../configs/machine.yaml) if the picker tip is not where the nozzle was.
 5. Set `printer.photo_position`: where the head waits during photos, out of the picture.
-6. **Camera calibration** (supreme-screw-sortering, tool 03): lay the ChArUco board **in the
+6. **Camera calibration** (screw-synth, tool 03): lay the ChArUco board **in the
    tray**, where the parts will lie. Its surface is the height everything is measured from.
    **Calibrate tab**: take a photo, then jog the tip onto the centre of 3 or more markers
    (spread over the bed), pressing **Tip is here** on each. Then **Fit**. Errors under 0.5 mm
@@ -180,7 +180,7 @@ zone, or click it to choose one. It takes:
 
 | File | What it is |
 |---|---|
-| **package zip** (recommended) | model-trainer's whole `package` folder zipped: `best.pt`, `model_card.json`, `exports/…` |
+| **package zip** (recommended) | training-synth's whole `package` folder zipped: `best.pt`, `model_card.json`, `exports/…` |
 | zipped NCNN folder | e.g. `best_ncnn_model.zip` (contains `model.ncnn.param`, `model.ncnn.bin`, `metadata.yaml`) |
 | `.onnx` or `.pt` | a single weights file |
 
@@ -213,7 +213,7 @@ If the card has a recommended confidence, it is used for stage 1 (`models.use_re
 
 ## Files tab: files from the other projects
 
-screwpick keeps its own copy of every file it uses from the other projects, so it runs on its
+sortering-pnp keeps its own copy of every file it uses from the other projects, so it runs on its
 own and never reads their folders. The **Files** tab has a card for each one, saying where to
 find it, what it is for and what is done without it, and which copy is in use. Fetch the file,
 drop it on its card: it is checked, kept on the Pi (`paths.files`) and used at once.
@@ -282,7 +282,7 @@ all wild bins:
 - **Claims are kept** across runs and restarts (`data/wild_bins.json`). Each bin shows on the
   Device tab what it collects.
 
-**Ready to take out.** After every photo screwpick checks each filled bin. When nothing left on
+**Ready to take out.** After every photo sortering-pnp checks each filled bin. When nothing left on
 the plate goes into that bin, the bin is marked:
 - in soft green with a check mark on the Device tab's bed;
 - in a notice at the top of every tab;
@@ -419,9 +419,9 @@ Normally a **servo on GPIO12/13 of the Pi** turns them (0–180° is enough: the
 symmetric). In the **Setup tab → Picker**: *Turn to 0°* (the jaws must close along the printer's
 X axis), *Turn to 90°*, and an **offset** in degrees if the servo's 0 isn't quite along X.
 
-`klipper/screwpick.cfg` also has two stepper-motor variants, instead of the servo:
+`klipper/sortering_pnp.cfg` also has two stepper-motor variants, instead of the servo:
 - **A, the extruder's motor driver** (the hotend still prints after a tool swap): the angle is
-  remembered; run `SCREWPICK_ROT_ZERO` in the console when the jaws close along X.
+  remembered; run `SORTERING_ROT_ZERO` in the console when the jaws close along X.
 - **B, a spare driver with a small 0° switch:** the axis finds 0° by itself before every sort.
 
 ## One cycle: pick, photo, drop
@@ -460,7 +460,7 @@ then runs by itself until you press Stop:
 4. **Stuck parts** (a clump that shaking can't spread) are left alone. It tries again as soon
    as they've been moved.
 
-Automatic mode **stays on after a restart** or power cut: when `screwpick serve` starts, it
+Automatic mode **stays on after a restart** or power cut: when `sortering-pnp serve` starts, it
 carries on. Stop (or STOP) switches it off. After `standby.max_errors` errors in a row (printer
 off, camera unplugged…) it switches itself off and says why on the page.
 
@@ -473,11 +473,11 @@ Two dangers when homing a sorter that a plain `G28` doesn't handle:
 - **The picker tip may reach lower than the nozzle did.** The Z switch triggers on the gantry
   height, so with a longer tool the tip touches the plate before the switch triggers.
 
-**What screwpick does** (`klipper/screwpick.cfg`, `[homing_override]`):
+**What sortering-pnp does** (`klipper/sortering_pnp.cfg`, `[homing_override]`):
 
 1. Lift Z by 30 mm first (more than the bins are tall).
 2. Home X, then Y.
-3. Move the tip over the **middle of the working area**: flat TPU, no bins. screwpick sets this
+3. Move the tip over the **middle of the working area**: flat TPU, no bins. sortering-pnp sets this
    spot from the layout before every homing.
 4. Home Z there, then lift again.
 
@@ -487,7 +487,7 @@ until the switch triggers with the picker tip **2–3 mm above the plate**. Then
 1. In `printer.cfg`, allow Z a little below 0: `[stepper_z] position_min: -5`.
 2. Home, then on the **Calibrate tab → Tip height**: jog the tip down over the plate in 0.1 mm
    steps until a sheet of paper just drags, and press **Tip touches the plate**. From then on,
-   every Z that screwpick uses counts from that point. Repeat this whenever the switch or the
+   every Z that sortering-pnp uses counts from that point. Repeat this whenever the switch or the
    picker is moved.
 
 The X and Y offset of the tip needs no measuring: the camera calibration already uses the tip
@@ -560,10 +560,10 @@ The Device tab's **Activity** panel is a console: one short line per thing the m
 
 ## Printer menu
 
-`screwpick.cfg` adds **Screw sorter** to the printer's display menu: *Sort*, *Clear plate*,
+`sortering_pnp.cfg` adds **Screw sorter** to the printer's display menu: *Sort*, *Clear plate*,
 *Pick kit*, *One pick*, *Change bin*, *Pause*, *Resume*, *Stop*, *Picker mounted*,
 *Hotend mounted*. You can also
-type the commands in any Klipper console: `SCREWPICK CMD=start STRATEGY=sort`.
+type the commands in any Klipper console: `SORTERING CMD=start STRATEGY=sort`.
 
 ## Login
 
@@ -577,8 +577,8 @@ The page needs a user name and password (`web.require_login`, on by default):
 - **Sessions** last `web.session_days` (30) per browser. **Log out** ends one, and changing a
   password ends all sessions of that user.
 - **Ten wrong passwords** from one address block it for 5 minutes.
-- **Locked out?** On the Pi: `screwpick user add NAME` sets a new password, and
-  `screwpick user list` / `remove` manage the accounts.
+- **Locked out?** On the Pi: `sortering-pnp user add NAME` sets a new password, and
+  `sortering-pnp user list` / `remove` manage the accounts.
 
 The page is plain HTTP, so it is meant for your home network. Logging in keeps others off the
 page; it is not protection against someone already listening on your WiFi. The printer-menu
@@ -586,8 +586,8 @@ buttons never need a login: they come from Klipper on the Pi itself.
 
 ## Frames, markers and safety
 
-- **Camera → plate mm:** supreme-screw-sortering's calibration and model. The model always runs
-  on the full calibrated image, at the scale it was trained on. screwpick then ignores
+- **Camera → plate mm:** screw-synth's calibration and model. The model always runs
+  on the full calibrated image, at the scale it was trained on. sortering-pnp then ignores
   everything outside the working area, including the parts already in bins.
 - **Plate mm → printer X/Y:** one 2D transform (rotation, scale, shift) fitted from the marker
   points you record in the Calibrate tab. The plate is fixed to the bed, so this works for
@@ -608,6 +608,6 @@ pytest
 ruff check . && ruff format --check .
 ```
 
-Code: [src/screwpick/](../src/screwpick/). `runner.py` is the loop, `strategies.py` and `rules.py`
+Code: [src/sortering_pnp/](../src/sortering_pnp/). `runner.py` is the loop, `strategies.py` and `rules.py`
 decide, `printer/` talks to Klipper (or the simulator), `vision.py` wraps the model, and
 `printables/` makes the bins.

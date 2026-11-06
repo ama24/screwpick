@@ -12,8 +12,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from screwpick import binspec
-from screwpick.layout import Bin, Layout
+from sortering_pnp import binspec
+from sortering_pnp.layout import Bin, Layout
 
 ROOT = Path(__file__).resolve().parents[1]
 NS = {"m": "http://schemas.microsoft.com/3dmanufacturing/core/2015/02"}
@@ -67,7 +67,7 @@ pytest.importorskip("manifold3d")
 
 @pytest.mark.parametrize(("name", "count"), [("1x1x3u", 16), ("1x2x3u", 8), ("2x2x6u", 4)])
 def test_plates_fill_an_ender_bed_without_touching(name, count):
-    from screwpick.printables.export import plate_file, plate_grid
+    from sortering_pnp.printables.export import plate_file, plate_grid
 
     size = binspec.size_named(name)
     cols, rows = plate_grid(size)
@@ -89,7 +89,7 @@ def test_plates_fill_an_ender_bed_without_touching(name, count):
 
 def test_slim_baseplate():
     trimesh = pytest.importorskip("trimesh")
-    from screwpick.printables.gridfinity import build_baseplate
+    from sortering_pnp.printables.gridfinity import build_baseplate
 
     for slim, h in ((True, 2.5), (False, 4.65)):
         v, f = build_baseplate(5, 5, (1, 1, 3, 3), lip_mm=8.0, slim=slim)
@@ -101,7 +101,7 @@ def test_slim_baseplate():
 
 
 def test_catalogue_matches_the_committed_prints(tmp_path):
-    from screwpick.printables.export import catalogue
+    from sortering_pnp.printables.export import catalogue
 
     files = catalogue(tmp_path, log=lambda s: None)
     made = sorted(p.relative_to(tmp_path).as_posix() for p in files)
@@ -110,7 +110,7 @@ def test_catalogue_matches_the_committed_prints(tmp_path):
         for p in (ROOT / "prints").rglob("*")
         if p.is_file() and p.name != "README.md"
     )
-    assert made == committed, "regenerate: screwpick print catalogue --out prints"
+    assert made == committed, "regenerate: sortering_pnp print catalogue --out prints"
     assert "160-179: 1x1x6u" in (tmp_path / "PRINTING.txt").read_text()
 
 
@@ -132,8 +132,8 @@ def test_pi_lock_pins_everything_with_hashes():
 @pytest.mark.parametrize("slim", [True, False])
 def test_bed_baseplates_cover_the_bed_and_print_in_pieces(key, slim):
     trimesh = pytest.importorskip("trimesh")
-    from screwpick.printables.beds import bed
-    from screwpick.printables.gridfinity import bed_grid_origin, build_bed_baseplate
+    from sortering_pnp.printables.beds import bed
+    from sortering_pnp.printables.gridfinity import bed_grid_origin, build_bed_baseplate
 
     b = bed(key)
     pieces = build_bed_baseplate(5, 5, b, slim=slim)
@@ -160,7 +160,7 @@ def test_bed_baseplates_cover_the_bed_and_print_in_pieces(key, slim):
 
 
 def test_bed_baseplate_zip():
-    from screwpick.printables.export import bed_baseplate_zip
+    from sortering_pnp.printables.export import bed_baseplate_zip
 
     with zipfile.ZipFile(BytesIO(bed_baseplate_zip("ender3", slim=True))) as z:
         names = z.namelist()

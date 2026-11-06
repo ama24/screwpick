@@ -9,10 +9,10 @@ import urllib.parse
 
 import pytest
 
-from screwpick.printer import Motion, PrinterError
-from screwpick.printer.base import PrinterStatus
-from screwpick.printer.moonraker import Moonraker, parse_remote_call
-from screwpick.printer.sim import SimPrinter, SimWorld
+from sortering_pnp.printer import Motion, PrinterError
+from sortering_pnp.printer.base import PrinterStatus
+from sortering_pnp.printer.moonraker import Moonraker, parse_remote_call
+from sortering_pnp.printer.sim import SimPrinter, SimWorld
 
 
 class FakePrinter:
@@ -54,7 +54,7 @@ def ready(**kw) -> PrinterStatus:
         ({"printing": True}, "printing"),
         ({"hotend_c": 180.0}, "hotend is 180"),
         ({"tool": "hotend"}, "TOOL_PICKER"),
-        ({"tool": None}, "include screwpick.cfg"),
+        ({"tool": None}, "include sortering_pnp.cfg"),
     ],
 )
 def test_preflight_refuses(machine, kw, text):
@@ -87,19 +87,19 @@ def test_moves_apply_tool_offset_and_limits(machine):
 
 
 def test_pick_and_drop_sequence(machine):
-    machine.picker.rotate = "SCREWPICK_ROTATE"
+    machine.picker.rotate = "SORTERING_ROTATE"
     machine.picker.mode = "gripper"
     fp = FakePrinter(ready(position=[0.0, 0.0, 50.0]))
     mo = Motion(fp, machine)
     mo.pick(100.0, 90.0, 3.0, angle_deg=200.0)
     text = "\n".join(fp.sent)
-    assert "SCREWPICK_ROTATE ANGLE=20.0" in text
-    assert "G1 Z11.000" in text and "G1 Z3.000 F300" in text and "SCREWPICK_GRAB" in text
+    assert "SORTERING_ROTATE ANGLE=20.0" in text
+    assert "G1 Z11.000" in text and "G1 Z3.000 F300" in text and "SORTERING_GRAB" in text
     assert fp.sent[-1].endswith("Z50.000 F1200")
     fp.sent.clear()
     mo.drop(20.0, 20.0, rim_z=21.0)
     text = "\n".join(fp.sent)
-    assert "G1 Z31.000" in text and "SCREWPICK_RELEASE" in text
+    assert "G1 Z31.000" in text and "SORTERING_RELEASE" in text
 
 
 def test_shake_returns_to_place(machine):
@@ -112,7 +112,7 @@ def test_shake_returns_to_place(machine):
 
 
 def test_sim_printer_picks_up_parts(machine):
-    from screwpick.layout import Layout
+    from sortering_pnp.layout import Layout
 
     world = SimWorld()
     lay = Layout.default()
@@ -120,9 +120,9 @@ def test_sim_printer_picks_up_parts(machine):
     sp = world.parts[0]
     pr = SimPrinter(machine, world)
     pr.gcode("G28")
-    pr.gcode(f"G1 X{sp.x} Y{sp.y} Z{lay.plate_thickness_mm + sp.top - 0.5}\nSCREWPICK_GRAB")
+    pr.gcode(f"G1 X{sp.x} Y{sp.y} Z{lay.plate_thickness_mm + sp.top - 0.5}\nSORTERING_GRAB")
     assert world.held is sp and not world.parts
-    pr.gcode("G1 X20 Y20 Z40\nSCREWPICK_RELEASE")
+    pr.gcode("G1 X20 Y20 Z40\nSORTERING_RELEASE")
     assert world.dropped == [(sp, (20.0, 20.0))]
     with pytest.raises(PrinterError):
         pr.gcode("M104 S200")
@@ -148,7 +148,7 @@ class _Moonraker(http.server.BaseHTTPRequestHandler):
             self._send({"result": {"state": "ready", "state_message": "Printer is ready"}})
         elif url.path == "/printer/objects/query":
             q = urllib.parse.parse_qs(url.query)
-            assert "gcode_macro _SCREWPICK_TOOL" in q
+            assert "gcode_macro _SORTERING_TOOL" in q
             self._send(
                 {
                     "result": {
@@ -156,7 +156,7 @@ class _Moonraker(http.server.BaseHTTPRequestHandler):
                             "toolhead": {"position": [1, 2, 3, 0], "homed_axes": "xyz"},
                             "extruder": {"temperature": 23.4},
                             "print_stats": {"state": "standby"},
-                            "gcode_macro _SCREWPICK_TOOL": {"tool": "picker"},
+                            "gcode_macro _SORTERING_TOOL": {"tool": "picker"},
                         }
                     }
                 }
@@ -194,7 +194,7 @@ def test_moonraker_client():
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
         mr = Moonraker(f"http://127.0.0.1:{srv.server_address[1]}", timeout_s=5)
-        st = mr.status("_SCREWPICK_TOOL")
+        st = mr.status("_SORTERING_TOOL")
         assert st.ready and st.homed == "xyz" and st.position == [1, 2, 3]
         assert st.hotend_c == 23.4 and st.tool == "picker" and not st.printing
         mr.gcode("G28")
@@ -202,8 +202,8 @@ def test_moonraker_client():
         with pytest.raises(PrinterError, match="Unknown command"):
             mr.gcode("BAD")
         cfg = "[mcu host]\nserial: /tmp/klipper_host_mcu\n"
-        mr.upload_config("screwpick_picker.cfg", cfg)
-        assert _Moonraker.files["screwpick_picker.cfg"] == ("config", cfg)
+        mr.upload_config("sortering_pnp_picker.cfg", cfg)
+        assert _Moonraker.files["sortering_pnp_picker.cfg"] == ("config", cfg)
         mr.firmware_restart()
         assert _Moonraker.scripts[-1] == "FIRMWARE_RESTART"
     finally:
@@ -214,12 +214,12 @@ def test_moonraker_client():
 
 def test_parse_remote_call():
     assert parse_remote_call(
-        {"method": "screwpick", "params": {"command": "start", "strategy": "sort"}}
+        {"method": "sortering_pnp", "params": {"command": "start", "strategy": "sort"}}
     ) == {
         "command": "start",
         "strategy": "sort",
     }
-    assert parse_remote_call({"method": "screwpick", "params": [{"CMD": "stop"}]}) == {
+    assert parse_remote_call({"method": "sortering_pnp", "params": [{"CMD": "stop"}]}) == {
         "cmd": "stop"
     }
     assert parse_remote_call({"method": "notify_status_update", "params": []}) is None

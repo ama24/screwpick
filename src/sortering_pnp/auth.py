@@ -21,7 +21,7 @@ from .io import read_json, write_json
 
 ITERATIONS = 200_000
 MIN_PASSWORD = 6
-COOKIE = "screwpick_session"
+COOKIE = "sortering_pnp_session"
 
 
 class AuthError(ValueError):
