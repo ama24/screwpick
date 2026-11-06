@@ -1,0 +1,69 @@
+<!doctype html>
+<!-- The "How it works" picture in the README (docs/images/how-it-works.png). Edit here, then render at 2x
+     (e.g. Edge or Chrome: --headless --force-device-scale-factor=2 --window-size=1440,542 --screenshot) and resize to 2000 px wide. -->
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f7f4;--ink:#1c2024;--mut:#5d6670;--line:#e1e4de;--acc:#0f766e;--acc-soft:#e6f2f0;--warm:#b45309;--warm-soft:#fdf3e7;--card:#fff}
+*{box-sizing:border-box}
+html,body{margin:0;background:transparent}
+body{font-family:Inter,system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+#c{position:relative;width:1438px;height:540px;margin:1px;background:var(--bg);border-radius:22px;border:1px solid var(--line);overflow:hidden}
+.lane{position:absolute;top:28px;height:322px;border-radius:18px;border:1px solid var(--line);background:#fbfbf9}
+.lane.pi{background:var(--acc-soft);border-color:#cfe5e1}
+.lab{position:absolute;top:14px;left:18px;font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.lane.pi .lab{color:var(--acc)}
+.lab small{font-weight:500;letter-spacing:0;text-transform:none;color:var(--mut);margin-left:6px;font-size:13px}
+.card{position:absolute;top:80px;height:252px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 20px;box-shadow:0 1px 2px rgba(20,30,30,.04),0 6px 18px rgba(20,30,30,.05)}
+.ic{width:46px;height:46px;border-radius:12px;background:var(--acc-soft);color:var(--acc);display:grid;place-items:center;margin-bottom:16px}
+.n{position:absolute;top:22px;right:20px;font-size:13px;font-weight:600;color:#9aa2a9}
+h3{margin:0 0 8px;font-size:19px;font-weight:650;letter-spacing:-.01em}
+p{margin:0;font-size:14.5px;line-height:1.5;color:#46505a}
+.chip{display:inline-block;margin-top:14px;padding:5px 10px;border-radius:8px;background:#f1f3ef;border:1px solid var(--line);font:500 13px/1.2 "JetBrains Mono",ui-monospace,Consolas,monospace;color:var(--ink)}
+.chip.go{background:var(--acc);border-color:var(--acc);color:#fff}
+.loop{position:absolute;left:50%;transform:translateX(-50%);top:366px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 16px;font-size:13.5px;color:var(--mut);white-space:nowrap}
+.loop b{color:var(--ink);font-weight:600}
+.you{position:absolute;left:28px;right:28px;bottom:26px;height:74px;border-radius:16px;background:var(--warm-soft);border:1px solid #f1d9b5;display:flex;align-items:center;gap:16px;padding:0 22px}
+.you .ic{margin:0;background:#fff;color:var(--warm);width:42px;height:42px}
+.you p{color:#5d4a2e;font-size:15px}.you b{color:var(--ink)}
+svg.arrows{position:absolute;inset:0;pointer-events:none}
+</style></head><body>
+<div id="c">
+ <div class="lane" style="left:28px;width:262px"><span class="lab">On the bed</span></div>
+ <div class="lane pi" style="left:318px;width:784px"><span class="lab">On the Raspberry Pi<small>screwpick</small></span></div>
+ <div class="lane" style="left:1130px;width:282px"><span class="lab">On the printer<small>Klipper</small></span></div>
+
+ <div class="card" style="left:44px;width:230px"><span class="n">1</span>
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
+  <h3>Tray and bins</h3><p>You throw the parts into the tray. Bins with a small code stand around it, anywhere, turned any way.</p></div>
+
+ <div class="card" style="left:336px;width:232px"><span class="n">2</span>
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div>
+  <h3>Photo</h3><p>The camera above the bed takes a picture. Only the inside of the tray goes to the model.</p></div>
+
+ <div class="card" style="left:594px;width:232px"><span class="n">3</span>
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M8 15l7-7M10 8h5v5"/></svg></div>
+  <h3>Recognise</h3><p>The model outlines every part, names it and measures its length.</p><span class="chip">DIN912_M4x16</span></div>
+
+ <div class="card" style="left:852px;width:232px"><span class="n">4</span>
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M8.5 6h2a3 3 0 0 1 3 3v0a3 3 0 0 0 3 3M8.5 18h2a3 3 0 0 0 3-3v0a3 3 0 0 1 3-3"/></svg></div>
+  <h3>Decide</h3><p>Starts with the most numerous kind and finds its bin, or claims a free one.</p><span class="chip go">→ bin E1</span></div>
+
+ <div class="card" style="left:1146px;width:250px"><span class="n">5</span>
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"/><path d="M8 8l4 4 4-4"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg></div>
+  <h3>Pick and drop</h3><p>Moonraker passes on the moves. The picker takes the part at the right angle and drops it into its bin.</p></div>
+
+ <svg class="arrows" viewBox="0 0 1440 540">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0f766e"/></marker>
+   <marker id="g" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8a9198"/></marker></defs>
+  <g stroke="#0f766e" stroke-width="2.2" fill="none" marker-end="url(#a)">
+   <path d="M276 206H332"/><path d="M570 206H590"/><path d="M828 206H848"/><path d="M1086 206H1142"/>
+  </g>
+  <path d="M1271 334V383H460V338" stroke="#8a9198" stroke-width="2" stroke-dasharray="5 5" fill="none" marker-end="url(#g)"/>
+ </svg>
+ <div class="loop"><b>Again</b>, until the tray is empty · the next photo is taken while a part is carried</div>
+
+ <div class="you"><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>
+  <p><b>You</b> throw parts in, watch on the web page or the printer's display, and swap a bin when it asks (<b>Change bin</b>).</p></div>
+</div>
+</body></html>
