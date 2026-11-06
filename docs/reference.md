@@ -248,6 +248,14 @@ Everything on the Pi, from the page, with the camera's **live picture** at the t
 (`/api/camera/live.mjpg`, a 1280 x 720 second stream of the camera; it runs only while the tab is
 open). The result lands in the Files tab by itself.
 
+**Skip for now** (same card): enter the lens' height above the tray floor
+(`camera.height_mm`, kept in `paths.machine`, over vision.yaml's `nominal_camera.height_mm`).
+Without a calibration the camera is taken as an ideal Camera Module 3 looking straight down at
+the picture's centre from that height, and the model gets the 220 x 220 mm around the centre.
+Camera to printer (Setup tab) absorbs where the camera really stands; what is left is the lens'
+distortion and any tilt, so positions and lengths are less exact towards the picture's edge.
+A calibration made later replaces it at once.
+
 Before: download the tray board (7 x 6 squares of 15 mm, 105 x 90 mm: it lies flat in a 3 x 3
 tray, away from the corner post), print it at 100 % and glue it on stiff card (a caliper
 measurement of one square and the board's thickness can be entered, but the printed size is

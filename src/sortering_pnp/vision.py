@@ -205,6 +205,10 @@ class CameraVision:
             log.warning("no camera calibration (Files tab): using the nominal camera")
         else:
             log.info("camera calibration: %s (%s)", calib_path, source)
+        if m.camera.height_mm:  # set in the Calibrate tab (Skip for now): over vision.yaml's
+            nc = {**(cfg.get("nominal_camera") or {}), "height_mm": float(m.camera.height_mm)}
+            cfg = {**cfg, "nominal_camera": nc}
+        self.nominal_height_mm = float((cfg.get("nominal_camera") or {}).get("height_mm", 300.0))
         self.nominal = nominal_from_config(cfg)
         self.cam_full = (
             Camera.from_calibration(self.calibration) if self.calibration else self.nominal

@@ -28,6 +28,7 @@ camera:
   mask: true                   # only the tray's inside goes to the model (the rest painted over)
   mask_colour: auto            # auto: the tray floor's colour | #RRGGBB, e.g. #FFFFFF
   mask_margin_mm: 0            # + keeps the wall's foot, - paints more of the floor's edge (Calibrate tab)
+  height_mm: null              # lens above the tray floor without a camera calibration (null: vision.yaml's)
   head:                        # only for source: head
     fov_mm: [80, 60]           # what one photo covers at the photo height, X x Y
     offset: [0, 0]             # image centre minus the tip, X Y (roughly: the photos overlap)

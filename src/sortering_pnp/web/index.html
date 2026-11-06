@@ -300,6 +300,9 @@ button.p{font-weight:600}button.big{padding:11px 18px}
   </ol>
   <div class="row"><button id="calgo" class="b p" onclick="calStart()">Calibrate</button><span id="calmsg2" class="note"></span></div>
   <div id="calrun" class="calrun" hidden><b id="calphase"></b><p id="caltext" style="margin:4px 0 8px"></p><div id="calbars"></div></div>
+  <div class="calrun" id="calskip"><b>Skip for now</b>
+   <p class="note" style="margin:4px 0 8px">Without a calibration the camera is taken as looking straight down at the middle of the picture, from this height, with a perfect lens; the model uses the 220 × 220 mm in the middle of the picture. Good enough to try things: positions come from Camera to printer anyway (Setup tab, step 6). Lengths and positions near the picture's edge are less exact; calibrate later for that.</p>
+   <div class="row"><label>lens above the tray floor<input id="calh" type="number" step="1" style="width:84px">mm</label><button class="b s" onclick="calHeight()">Use this height</button><span id="calhmsg" class="note"></span></div></div>
   <details style="margin-top:10px"><summary class="note">What Calibrate does, step by step</summary><ol class="note" style="margin:6px 0 0">
    <li><b>Parks the bed</b> at the photo position, so the camera looks into the tray.</li>
    <li><b>Locks the camera</b> (about a minute): it measures the light and the focus once and freezes them (exposure, gain, white balance, lens position). Every photo after that looks the same, which the lens maths and the model both need. That is why the tray must be empty and the light as when sorting.</li>
@@ -732,7 +735,8 @@ async function loadCal(){try{renderCal(await api("api/calibration"));}catch(e){f
 function renderCal(c){CAL=c;const b=c.board,j=c.job;
  $("calboard").textContent=`${b.squares_x}×${b.squares_y} squares, ${b.size_mm[0].toFixed(0)} × ${b.size_mm[1].toFixed(0)} mm`;
  if(c.measured_square_mm&&!$("calsq").value)$("calsq").value=c.measured_square_mm;$("calth").value=c.board_thickness_mm;
- $("calnow").innerHTML=c.calibrated?`<span class="ok">✓ calibrated (${esc(c.calibrated)})</span>`:'<span class="bad">not calibrated yet</span>';
+ $("calnow").innerHTML=c.calibrated?`<span class="ok">✓ calibrated (${esc(c.calibrated)})</span>`:c.height_set?`<span class="ok">skipped for now: straight down, ${c.height_mm} mm above the tray floor</span>`:'<span class="bad">not calibrated yet</span> (or skip it for now, below)';
+ if(c.height_mm&&document.activeElement!==$("calh"))$("calh").value=c.height_mm;$("calskip").hidden=!!c.calibrated;
  const running=!!(j&&j.running);$("calgo").textContent=running?"Stop":c.calibrated?"Calibrate again":"Calibrate";$("calgo").className=running?"b":"b p";
  $("calrun").hidden=!j;if(!j)return;
  const names={starting:"Starting",lock:"1 · Locking the camera",lens:"2 · Lens photos",solve:"2 · Solving the lens",flat:"3 · The board flat in the tray",position:"3 · Measuring the position",done:"Done",error:"Stopped: a problem",cancelled:"Stopped"};
@@ -740,6 +744,7 @@ function renderCal(c){CAL=c;const b=c.board,j=c.job;
  $("calbars").innerHTML=["lens","solve","flat","position","done"].includes(j.phase)?`<div class="bar"><span style="width:${Math.min(100,100*j.views/j.min_views)}%"></span></div><span class="note">${j.views} of at least ${j.min_views} photos</span> <div class="bar"><span style="width:${Math.min(100,100*j.coverage/j.want_coverage)}%"></span></div><span class="note">${Math.round(j.coverage*100)} % of the picture covered (${Math.round(j.want_coverage*100)} % needed)</span>`:"";}
 async function calStart(){const j=CAL&&CAL.job;try{if(j&&j.running){renderCal(await api("api/calibration/cancel",{}));return;}flash("calmsg2","parking the bed…");renderCal(await api("api/calibration/start",{}));flash("calmsg2","");}catch(e){flash("calmsg2",e.message,1);}}
 async function calSettings(){try{renderCal(await api("api/calibration/settings",{square_mm:+$("calsq").value||null,thickness_mm:+$("calth").value||0}));flash("calmsg2","saved");}catch(e){flash("calmsg2",e.message,1);}}
+async function calHeight(){try{renderCal(await api("api/calibration/height",{height_mm:+$("calh").value}));flash("calhmsg","saved: used from now on");}catch(e){flash("calhmsg",e.message,1);}}
 async function calPark(){flash("parkmsg","moving…");try{await api("api/setup/goto",{target:"photo"});flash("parkmsg","");}catch(e){flash("parkmsg",e.message,1);}}
 async function loadCrop(){try{renderCrop(await api("api/crop"));}catch(e){flash("cropmsg",e.message,1);}}
 function renderCrop(c){CROP=c;$("cropwait").hidden=c.ready;$("cropwait").textContent=c.ready?"":"Needs first: "+c.missing.join(", ")+".";

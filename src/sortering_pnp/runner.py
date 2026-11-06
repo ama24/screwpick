@@ -443,6 +443,22 @@ class Runner:
         kept = read_json(p) if p.is_file() else {}
         write_json(p, {**kept, **values})
 
+    def camera_height(self, height_mm: float) -> dict[str, Any]:
+        """Skip the camera calibration for now (Calibrate tab): the camera is taken as straight
+        down over the picture's centre, this high above the tray floor. A calibration made
+        later replaces it."""
+        self._idle()
+        h = float(height_mm)
+        if not 100.0 <= h <= 1000.0:
+            raise ValueError("the camera's height: lens to the tray floor, 100 to 1000 mm")
+        self.m.camera.height_mm = h
+        self.remember_machine({"camera_height_mm": h})
+        reload = getattr(self.vision, "reload_setup", None)
+        if reload is not None:
+            reload()
+        self.note(f"camera calibration skipped: straight down, {h:g} mm above the tray floor")
+        return self.photos.state()
+
     def calibration_settings(
         self, measured_square_mm: float | None, board_thickness_mm: float
     ) -> dict[str, Any]:
@@ -481,10 +497,9 @@ class Runner:
     # ------------------------------------------------------------------ camera cropping
     def crop_state(self) -> dict[str, Any]:
         """Camera cropping (Calibrate tab): only for the model that finds the parts. It needs the
-        camera calibration, the camera-to-printer fit and the bins (where the tray is)."""
+        camera-to-printer fit and the bins (where the tray is); the camera calibration, or the
+        straight-down camera at its height until then."""
         missing = []
-        if self._camera_calibrated() is None:
-            missing.append("the camera calibration (Calibrate tab)")
         if self.calibration() is None and self.m.printer.driver != "sim":
             missing.append("Camera to printer (Setup tab, step 6)")
         if not self.setup.is_done("layout") and self.m.printer.driver != "sim":
@@ -1210,6 +1225,8 @@ class Runner:
                 self.mask_checked = True
             elif k == "mask_colour":  # Camera cropping, Calibrate tab
                 self.m.camera.mask_colour = str(v)
+            elif k == "camera_height_mm":  # Calibrate tab, Skip for now
+                self.m.camera.height_mm = float(v)
             elif k == "picker_mode":  # chosen in the Setup tab
                 self.m.picker.set_type(str(v))
             elif k == "rotate_offset_deg":

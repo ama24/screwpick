@@ -331,6 +331,9 @@ In the **Calibrate** tab:
    to move the board slowly under the camera. Each time it holds still somewhere new, a photo is
    taken by itself, and the covered part of the live picture turns green. Then it asks you to
    lay the board flat in the tray, measures where the camera stands, and saves the result.
+   **Skip for now:** enter the lens' height above the tray floor instead. The camera is then
+   taken as looking straight down at the picture's centre; fine for trying things, less exact
+   near the picture's edge. Calibrate later.
 3. **Camera cropping:** the live picture next to what the model gets. Only the tray's inside goes
    to the model (YOLO); the rest is painted over with one colour (the tray floor's own, or one you
    pick). The bins and codes are always read from the whole photo. Set it once Camera to printer
