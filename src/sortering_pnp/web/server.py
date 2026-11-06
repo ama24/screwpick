@@ -141,7 +141,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return True
         if acc is None:
             return False
-        if path in ("/api/login", "/api/setup"):
+        if method == "POST" and path in ("/api/login", "/api/setup"):  # GET /api/setup: the steps
             b = self._body()
             name, password = str(b.get("user", "")), str(b.get("password", ""))
             if path == "/api/setup":
