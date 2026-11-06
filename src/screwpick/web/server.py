@@ -35,6 +35,7 @@ session cookie set by /api/login; other requests get 401.
 from __future__ import annotations
 
 import contextlib
+import errno
 import http.cookies
 import http.server
 import io
@@ -529,8 +530,10 @@ def make_server(
         if host in ("", "::") and socket.has_ipv6:
             try:
                 return DualStackServer(("::", p), handler)
-            except OSError as exc:  # no IPv6 here, or the port is taken: try IPv4 alone
+            except OSError as exc:
                 last = exc
+                if exc.errno in (errno.EADDRINUSE, 10048):  # taken: the next port, not IPv4
+                    continue  # (Windows would let IPv4 alone share the port)
         try:
             return Server((host, p), handler)
         except OSError as exc:
