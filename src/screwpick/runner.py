@@ -840,7 +840,7 @@ class Runner:
 
     def tip_touches_plate(self) -> dict[str, Any]:
         """The tip was jogged down until it just touches the TPU plate: from now on that is the
-        plate's height, whatever Z the homing gives (see "Homing" in the README)."""
+        plate's height, whatever Z the homing gives (see "Homing" in docs/reference.md)."""
         self._idle()
         layout = self.layout()
         with self._lock:

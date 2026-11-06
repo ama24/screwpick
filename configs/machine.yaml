@@ -24,7 +24,7 @@ paths:
 
 camera:
   settings: null               # screwrig lock settings json (locked focus/exposure); null: rpicam-still
-  source: overview             # overview: fixed above the bed | head: on the tool head (see README)
+  source: overview             # overview: fixed above the bed | head: on the tool head (docs/reference.md)
   mask: true                   # only the tray's inside goes to the model (the rest painted over)
   mask_colour: auto            # auto: the tray floor's colour | #RRGGBB, e.g. #FFFFFF
   mask_margin_mm: 0            # + keeps the wall's foot, - paints more of the floor's edge (Calibrate tab)
@@ -89,7 +89,7 @@ run:
     distance_mm: 4
     feed: 9000
     max_in_a_row: 3
-  fill:                        # how full the bins are (an estimate, see README)
+  fill:                        # how full the bins are (an estimate, docs/reference.md)
     shape: 0.5                 # a part's volume = outline area x height x this
     packing: 0.3               # loose parts fill this share of a bin's room
     full_at: 0.9               # a bin this full asks to be emptied
