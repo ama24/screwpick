@@ -123,16 +123,13 @@ class SimPrinter:
         self.relative = False
         self.log: list[str] = []
         self.rng = random.Random(1)
-        self.jaw_angle: float | None = None  # last tweezer rotation
-        self.configs: dict[str, str] = {}  # files "uploaded" to Klipper's config folder
+        self.jaw_angle: float | None = None  # last tweezer rotation (SimPins)
         self.tool = "picker"  # TOOL_PICKER / TOOL_HOTEND
-        self.host_mcu = True  # the Pi runs as a Klipper board
 
     def _tip(self) -> list[float]:
         return [p + o for p, o in zip(self.pos, self.m.tool.offset, strict=True)]
 
     def gcode(self, script: str) -> None:
-        pk = self.m.picker
         shaking = 0
         for raw in script.splitlines():
             line = raw.split(";")[0].strip()
@@ -154,24 +151,19 @@ class SimPrinter:
                     self.pos[i] = self.pos[i] + float(val) if self.relative else float(val)
                 if self.relative:
                     shaking += 1
-            elif word == pk.grab.upper():
-                self.world.grab(self._tip())
-            elif word == pk.release.upper():
-                self.world.release(self._tip())
             elif word == self.m.printer.tool_picker.upper():
                 self.tool = "picker"
             elif word == self.m.printer.tool_hotend.upper():
                 self.tool = "hotend"
             elif word in ("M84", "M18"):
                 self.homed = ""  # motors off: the axes are no longer homed
+            elif self.m.picker.rotate_macro and word == self.m.picker.rotate_macro.upper():
+                m = re.search(r"ANGLE=(-?\d+(?:\.\d+)?)", line.upper())  # tweezers on a stepper
+                self.jaw_angle = float(m.group(1)) if m else self.jaw_angle
             elif word in ("M400", "G4", "M117", "SET_GCODE_VARIABLE") or (
-                (pk.rotate and word == pk.rotate.upper())
-                or (pk.rotate_home and word == pk.rotate_home.upper())
-                or (pk.rotate_zero and word == pk.rotate_zero.upper())
+                self.m.picker.rotate_home and word == self.m.picker.rotate_home.upper()
             ):
-                if pk.rotate and word == pk.rotate.upper():
-                    m = re.search(r"ANGLE=(-?\d+(?:\.\d+)?)", line.upper())
-                    self.jaw_angle = float(m.group(1)) if m else self.jaw_angle
+                pass
             else:
                 raise PrinterError(f"simulated printer: unknown command {line!r}")
         if shaking >= 2:
@@ -186,21 +178,45 @@ class SimPrinter:
             tool=self.tool if tool_macro else None,
         )
 
-    def upload_config(self, name: str, text: str) -> None:
-        self.configs[name] = text
-        self.log.append(f"; uploaded {name}")
-
-    def firmware_restart(self) -> None:
-        self.log.append("FIRMWARE_RESTART")
-
-    def host_mcu_ready(self, serial: str) -> bool | None:
-        return self.host_mcu
-
     def emergency_stop(self) -> None:
         self.log.append("EMERGENCY_STOP")
 
     def close(self) -> None:
         pass
+
+
+class SimPins:
+    """The picker's pins in the simulator: the simulated parts are held and let go at the tip.
+    Each action is written to the printer's log ("; pins grab") so tests can follow the order."""
+
+    def __init__(self, printer: SimPrinter) -> None:
+        self.printer = printer
+        self.ok, self.why = True, "simulated pins"
+        self.pump_on = False
+
+    def grab(self) -> None:
+        self.printer.log.append("; pins grab")
+        self.pump_on = self.printer.m.picker.kind.pump
+        self.printer.world.grab(self.printer._tip())
+
+    def release(self) -> None:
+        self.printer.log.append("; pins release")
+        self.pump_on = False
+        self.printer.world.release(self.printer._tip())
+
+    def turn(self, angle_deg: float) -> None:
+        self.printer.log.append(f"; pins turn {angle_deg:.1f}")
+        self.printer.jaw_angle = round(angle_deg % 180.0, 1)
+
+    def off(self) -> None:
+        self.printer.log.append("; pins off")
+        self.pump_on = False
+
+    def status(self) -> tuple[bool, str]:
+        return self.ok, self.why
+
+    def close(self) -> None:
+        self.off()
 
 
 def _rect(cx: float, cy: float, length: float, width: float, angle_deg: float) -> np.ndarray:

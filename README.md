@@ -37,9 +37,11 @@ project works without the others.
   measuring code now live here; the trained model, with its class list and parts table, comes as
   one package you upload in the Models tab. The sibling projects are now called screw-synth and
   training-synth.
+- **The picker needs no Klipper set-up:** sortering-pnp switches the Raspberry Pi's pins itself,
+  so there is no second Klipper board, no `make menuconfig` and nothing to install for it.
 - **Four pickers to choose from** in the Setup tab: servo tweezers, suction cup, magnet,
-  pneumatic tweezers. Each with its wiring to the Raspberry Pi drawn on the page, and installed
-  in Klipper with one button. [The picker](#the-picker).
+  pneumatic tweezers. Each with its wiring to the Raspberry Pi drawn on the page.
+  [The picker](#the-picker).
 - **New look:** the sections are in a sidebar on the left, grouped by what you do, with the
   machine's state and the STOP button always at its bottom. Every page has a title, and a full
   bin or unfinished setup shows as an orange banner at the top of Device.
@@ -175,13 +177,12 @@ See [prints/README.md](prints/README.md) for which files to print and how.
 
    ```bash
    cp ~/sortering-pnp/klipper/sortering_pnp.cfg ~/printer_data/config/
-   cp -n ~/sortering-pnp/klipper/sortering_pnp_picker.cfg ~/printer_data/config/
    echo "[include sortering_pnp.cfg]" >> ~/printer_data/config/printer.cfg
    ```
 
-   The second file is a placeholder for your picker; `-n` keeps one you've already installed.
-   You don't edit anything by hand: in the Setup tab you choose the picker and press **Install in
-   Klipper** (see [Picker](#the-picker) below).
+   Run the `echo` line only once. Then **FIRMWARE_RESTART** in Mainsail. That is all Klipper
+   needs: the picker isn't in Klipper at all, sortering-pnp switches the Pi's pins itself (see
+   [The picker](#the-picker) below).
 4. **Open the page:** `http://<your-pi>:8080` on your phone or PC. The first visit asks you to
    create an account.
 
@@ -253,8 +254,8 @@ The cup and the magnet are put on the screw's **head**. Both tweezers close at t
 gravity**, on the shank, turned across the part.
 
 Every signal comes from the **Raspberry Pi**, never from the printer's board, so the wiring is
-the same on any printer: Klipper uses the Pi's pins as a second board. The page draws the wiring
-for the type you chose:
+the same on any printer. sortering-pnp runs on that Pi and switches the pins itself: nothing to
+set up in Klipper. The page draws the wiring for the type you chose:
 
 | Pi pin | Does |
 |---|---|
@@ -272,14 +273,12 @@ Power comes straight from the printer's 24 V supply, as part of the conversion:
 - **Not the heater outputs:** don't take power from the bed or hotend heater outputs. Klipper
   switches them under its heater safety checks.
 
-Then press **Install in Klipper**: sortering-pnp writes `sortering_pnp_picker.cfg` for that type next
-to `printer.cfg` and restarts Klipper. Once, beforehand, set the Pi up as a Klipper board with
-the commands the page shows: until `/tmp/klipper_host_mcu` exists the button waits, because
-Klipper would not start with the picker in it (*mcu 'host': Unable to connect*). **Take it out
-of Klipper** puts the empty placeholder back. Mount the picker and press **The picker is on
-the printer** (to print again: **The hotend is back on**). Finally test *Grab* and *Release*, and for
+The page says whether the pins are ready. A pump is a plain on/off pin and needs nothing more.
+Servos use the Pi's hardware PWM, which `install-pi.sh` turns on (one line in `config.txt`;
+reboot once after the first install). Mount the picker and press **The picker is on the
+printer** (to print again: **The hotend is back on**). Finally test *Grab* and *Release*, and for
 tweezers *Turn to 0°* and *90°*: at 0° the jaws must close left–right; if they don't, set the
-offset.
+offset. Servo angles and pins can be changed in `configs/machine.yaml` (`picker:`).
 
 ### 2. Bins on the bed
 

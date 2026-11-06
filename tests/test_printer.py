@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import email.parser
-import email.policy
 import http.server
 import json
 import threading
@@ -12,7 +10,7 @@ import pytest
 from sortering_pnp.printer import Motion, PrinterError
 from sortering_pnp.printer.base import PrinterStatus
 from sortering_pnp.printer.moonraker import Moonraker, parse_remote_call
-from sortering_pnp.printer.sim import SimPrinter, SimWorld
+from sortering_pnp.printer.sim import SimPins, SimPrinter, SimWorld
 
 
 class FakePrinter:
@@ -86,20 +84,55 @@ def test_moves_apply_tool_offset_and_limits(machine):
         mo.move(z=0.5)  # toolhead Z -0.5
 
 
+class RecordingPins:
+    """The picker's pins, writing what they do into the printer's list (to check the order)."""
+
+    def __init__(self, sent: list[str]) -> None:
+        self.sent = sent
+
+    def grab(self) -> None:
+        self.sent.append("PINS grab")
+
+    def release(self) -> None:
+        self.sent.append("PINS release")
+
+    def turn(self, angle_deg: float) -> None:
+        self.sent.append(f"PINS turn {angle_deg:.1f}")
+
+    def off(self) -> None:
+        self.sent.append("PINS off")
+
+    def status(self):
+        return True, "recording"
+
+    def close(self) -> None:
+        pass
+
+
 def test_pick_and_drop_sequence(machine):
-    machine.picker.rotate = "SORTERING_ROTATE"
-    machine.picker.mode = "gripper"
+    machine.picker.mode = "gripper"  # the old name of the servo tweezers: they turn
     fp = FakePrinter(ready(position=[0.0, 0.0, 50.0]))
-    mo = Motion(fp, machine)
+    mo = Motion(fp, machine, pins=RecordingPins(fp.sent))
     mo.pick(100.0, 90.0, 3.0, angle_deg=200.0)
     text = "\n".join(fp.sent)
-    assert "SORTERING_ROTATE ANGLE=20.0" in text
-    assert "G1 Z11.000" in text and "G1 Z3.000 F300" in text and "SORTERING_GRAB" in text
+    assert "PINS turn 20.0" in text
+    assert "G1 Z11.000" in text and "G1 Z3.000 F300" in text
+    # the pins are not in Klipper's queue: every move has finished (M400) before the grab
+    grab = fp.sent.index("PINS grab")
+    assert fp.sent[grab - 1] == "M400" and "G1 Z3.000 F300" in fp.sent[grab - 2]
     assert fp.sent[-1].endswith("Z50.000 F1200")
     fp.sent.clear()
     mo.drop(20.0, 20.0, rim_z=21.0)
-    text = "\n".join(fp.sent)
-    assert "G1 Z31.000" in text and "SORTERING_RELEASE" in text
+    assert fp.sent.index("PINS release") == fp.sent.index("M400") + 1
+    assert "G1 Z31.000" in "\n".join(fp.sent)
+
+
+def test_tweezers_on_a_stepper_turn_through_klipper(machine):
+    machine.picker.mode = "servo_tweezers"
+    machine.picker.rotate_macro = "SORTERING_ROTATE"
+    fp = FakePrinter(ready(position=[0.0, 0.0, 50.0]))
+    Motion(fp, machine, pins=RecordingPins(fp.sent)).pick(100.0, 90.0, 3.0, angle_deg=200.0)
+    assert "SORTERING_ROTATE ANGLE=20.0" in fp.sent and not any("PINS turn" in s for s in fp.sent)
 
 
 def test_shake_returns_to_place(machine):
@@ -119,10 +152,13 @@ def test_sim_printer_picks_up_parts(machine):
     world.populate(lay, n=1)
     sp = world.parts[0]
     pr = SimPrinter(machine, world)
+    pins = SimPins(pr)
     pr.gcode("G28")
-    pr.gcode(f"G1 X{sp.x} Y{sp.y} Z{lay.plate_thickness_mm + sp.top - 0.5}\nSORTERING_GRAB")
+    pr.gcode(f"G1 X{sp.x} Y{sp.y} Z{lay.plate_thickness_mm + sp.top - 0.5}")
+    pins.grab()
     assert world.held is sp and not world.parts
-    pr.gcode("G1 X20 Y20 Z40\nSORTERING_RELEASE")
+    pr.gcode("G1 X20 Y20 Z40")
+    pins.release()
     assert world.dropped == [(sp, (20.0, 20.0))]
     with pytest.raises(PrinterError):
         pr.gcode("M104 S200")
@@ -130,7 +166,6 @@ def test_sim_printer_picks_up_parts(machine):
 
 class _Moonraker(http.server.BaseHTTPRequestHandler):
     scripts: list[str] = []
-    files: dict[str, tuple[str, str]] = {}  # name -> (root, text)
 
     def log_message(self, *a):
         pass
@@ -165,21 +200,6 @@ class _Moonraker(http.server.BaseHTTPRequestHandler):
     def do_POST(self):  # noqa: N802
         n = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(n)
-        if self.path == "/server/files/upload":  # multipart, as Moonraker reads it
-            head = b"Content-Type: " + self.headers["Content-Type"].encode() + b"\r\n\r\n"
-            msg = email.parser.BytesParser(policy=email.policy.HTTP).parsebytes(head + raw)
-            fields = {
-                part.get_param("name", header="content-disposition"): part
-                for part in msg.iter_parts()
-            }
-            f = fields["file"]
-            self.files[f.get_filename()] = (fields["root"].get_content().strip(), f.get_content())
-            self._send({"result": {"item": {"path": f.get_filename()}}})
-            return
-        if self.path == "/printer/firmware_restart":
-            self.scripts.append("FIRMWARE_RESTART")
-            self._send({"result": "ok"})
-            return
         body = json.loads(raw or b"{}")
         if self.path == "/printer/gcode/script":
             if body["script"] == "BAD":
@@ -201,11 +221,6 @@ def test_moonraker_client():
         assert _Moonraker.scripts == ["G28"]
         with pytest.raises(PrinterError, match="Unknown command"):
             mr.gcode("BAD")
-        cfg = "[mcu host]\nserial: /tmp/klipper_host_mcu\n"
-        mr.upload_config("sortering_pnp_picker.cfg", cfg)
-        assert _Moonraker.files["sortering_pnp_picker.cfg"] == ("config", cfg)
-        mr.firmware_restart()
-        assert _Moonraker.scripts[-1] == "FIRMWARE_RESTART"
     finally:
         srv.shutdown()
     with pytest.raises(PrinterError, match="cannot reach"):

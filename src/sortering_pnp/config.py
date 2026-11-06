@@ -108,12 +108,16 @@ class Tool:
 @dataclass
 class Picker:
     mode: str = "suction"  # servo_tweezers | suction | magnet | pneumatic_tweezers (pickers.py)
-    grab: str = "SORTERING_GRAB"  # Klipper macros, see klipper/sortering_pnp.cfg
-    release: str = "SORTERING_RELEASE"
-    rotate: str | None = None  # SORTERING_ROTATE ANGLE=<deg> when the gripper can turn
-    rotate_home: str | None = None  # SORTERING_ROT_HOME: finds 0 deg (jaws close along X)
-    rotate_zero: str | None = "SORTERING_ROT_ZERO"  # Setup tab: the jaws close along X now
+    # the Pi's pins, switched by sortering-pnp itself (pins.py), BCM numbers
+    action_pin: int = 12  # header pin 32: the pump's MOSFET module, or the jaw / magnet servo
+    turn_pin: int = 13  # header pin 33: the tweezers' turning servo
+    pwm_chip: int | None = None  # /sys/class/pwm/pwmchipN for the servos; None = the first one
+    grab_angle: float | None = None  # servo angle that holds; None = the type's (pickers.py)
+    release_angle: float | None = None  # servo angle that lets go; None = the type's
     rotate_offset_deg: float = 0.0  # fine trim of the jaw angle
+    # tweezers on a stepper instead of the turning servo: Klipper macros (klipper/sortering_pnp.cfg)
+    rotate_macro: str | None = None  # e.g. SORTERING_ROTATE (ANGLE=<deg>); None = servo on turn_pin
+    rotate_home: str | None = None  # with rotate_macro: finds 0 deg before every sort
     grip_from_head_mm: float = 1.5  # tweezers close at least this far below a screw head
     approach_mm: float = 8.0  # slow descent from this far above the part
     depth_mm: float = 0.5  # go this far below the top of the part (spring-loaded cup)
@@ -128,13 +132,8 @@ class Picker:
         return picker_type(self.mode)
 
     def set_type(self, mode: str) -> None:
-        """Use this kind of picker (old names are mapped); tweezers turn with SORTERING_ROTATE."""
-        t = picker_type(mode)
-        self.mode = t.key
-        if t.rotates and not self.rotate:
-            self.rotate = "SORTERING_ROTATE"
-        elif not t.rotates:
-            self.rotate = None
+        """Use this kind of picker (old names are mapped)."""
+        self.mode = picker_type(mode).key
 
 
 @dataclass

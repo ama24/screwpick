@@ -211,9 +211,13 @@ def cmd_check(args: argparse.Namespace) -> int:
     if cal is not None and cal.residuals_mm:
         worst = max(cal.residuals_mm)
         line(worst < 1.0, f"calibration error up to {worst:.2f} mm")
+    printer = make_printer(m)
+    motion = Motion(printer, m)
+    pins_ok, pins_why = motion.pins.status()
+    line(pins_ok, f"picker ({m.picker.kind.title.lower()}): {pins_why}")
+    motion.pins.close()
     try:
-        printer = make_printer(m)
-        st = Motion(printer, m).p.status(m.printer.tool_macro)
+        st = motion.p.status(m.printer.tool_macro)
         line(st.ready, f"printer: Klipper {st.state} {st.message}".rstrip())
         if st.ready:
             line(st.tool == "picker" or not m.printer.tool_macro, f"active tool: {st.tool}")

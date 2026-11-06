@@ -56,21 +56,25 @@ second micro-controller (its Linux "host" MCU):
 
 The old names still work: `vacuum` = `suction`; `gripper`, `tweezers` and `both` = `servo_tweezers`.
 
-- **Pins:** GPIO12 and GPIO13 are the Pi's two hardware PWM channels (`host:pwmchip0/pwm0` and
-  `pwm1` in Klipper), enabled with `dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4` in
-  `/boot/firmware/config.txt`. GND is pin 34.
+- **Pins:** sortering-pnp switches them itself ([pins.py](../src/sortering_pnp/pins.py)); the
+  picker is not in Klipper. GPIO12 (`picker.action_pin`) is a plain on/off output for a pump
+  (gpiozero, part of Raspberry Pi OS) or a servo; GPIO13 (`picker.turn_pin`) the turning servo.
+  Servos use the Pi's two hardware PWM channels (`/sys/class/pwm`), enabled by
+  `dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4` in `/boot/firmware/config.txt`, which
+  `install-pi.sh` adds (reboot once). GND is pin 34.
+- **Order and safety:** before grabbing or letting go, sortering-pnp waits until Klipper has
+  finished every move (`M400`). The pump goes off on Stop, on an error, on the emergency stop
+  and when the program ends; a MOSFET module's pull-down keeps it off while nothing drives the
+  pin.
 - **Signals:** always from the Pi, never from the printer's board (the same wiring on any printer).
 - **Power:** straight from the printer's 24 V supply, never from the heater outputs (Klipper
   switches those under heater safety). Servos: a 24 V pair to the tip and a 5 V buck converter
   there, never the Pi's 5 V pin. Pumps: 24 V through a MOSFET module (logic level, e.g. AOD4184:
   the IRF520 module only half-opens at 3.3 V), with a flyback diode across the pump. All grounds
   joined.
-- **Klipper file:** *Install in Klipper* writes `sortering_pnp_picker.cfg` (from
-  [pickers.py](../src/sortering_pnp/pickers.py)) into Klipper's config folder through Moonraker and
-  restarts the firmware; `sortering_pnp.cfg` includes it. Its macros: `SORTERING_GRAB`,
-  `SORTERING_RELEASE`, and for tweezers `SORTERING_ROTATE ANGLE=`. Servo angles for open/closed
-  and magnet on/off are variables at the top of each macro. Download the file instead to edit
-  it first.
+- **Servo angles:** each type has its own (jaws closed 20° / open 90°, magnet on 160° / off 20°,
+  in [pickers.py](../src/sortering_pnp/pickers.py)); `picker.grab_angle` and
+  `picker.release_angle` in `configs/machine.yaml` override them.
 - **Where it aims:** a cup or a magnet goes onto the middle of the screw's head (seen from above);
   tweezers close on the shank at the centre of gravity. Headless parts are taken in the middle,
   nuts and washers at the centre of their outline.
@@ -92,8 +96,7 @@ Pi 3B has too little memory for Klipper, the camera and the model together.
 git clone https://github.com/ama24/sortering-pnp.git ~/sortering-pnp
 ~/sortering-pnp/install-pi.sh --service      # --service: start sortering-pnp at every boot
 cp ~/sortering-pnp/klipper/sortering_pnp.cfg ~/printer_data/config/
-cp -n ~/sortering-pnp/klipper/sortering_pnp_picker.cfg ~/printer_data/config/   # placeholder, never overwritten
-echo "[include sortering_pnp.cfg]" >> ~/printer_data/config/printer.cfg
+echo "[include sortering_pnp.cfg]" >> ~/printer_data/config/printer.cfg   # once
 ```
 
 **Everything is pinned**, so installing again in a year gives exactly the same programs:
@@ -128,13 +131,10 @@ menu, until every step of the **Setup** tab is checked:
 
 1. **Printer:** Klipper answers, `sortering_pnp.cfg` is included, the hotend is cold, nothing is
    printing. Only questions, nothing moves.
-2. **Picker:** choose the type (the page draws its wiring to the Pi), *Install in Klipper* (it
-   restarts Klipper, so it comes before homing), *The picker is on the printer* (`TOOL_PICKER`:
-   nothing moves without it), then *Grab* and *Release* without moving; tweezers also *Turn to
-   0°* / *90°* and the offset. Then confirm. Choosing another type or installing again un-checks
-   the step. *Install* waits until the Pi runs as a Klipper board (`/tmp/klipper_host_mcu`, the
-   commands are on the page): with the picker's file and no such board Klipper does not start.
-   *Take it out of Klipper* puts the empty placeholder back.
+2. **Picker:** choose the type (the page draws its wiring to the Pi and says whether its pins
+   are ready), *The picker is on the printer* (`TOOL_PICKER`: nothing moves without it), then
+   *Grab* and *Release* without moving; tweezers also *Turn to 0°* / *90°* and the offset. Then
+   confirm. Choosing another type un-checks the step.
 3. **Homing:** press *Home now* and watch. Z must come down over the middle of the plate, not
    over a bin. Then confirm.
 4. **Machine:** limits, travel height and photo position, editable on the page. *Show me*
@@ -424,7 +424,9 @@ Normally a **servo on GPIO12/13 of the Pi** turns them (0–180° is enough: the
 symmetric). In the **Setup tab → Picker**: *Turn to 0°* (the jaws must close along the printer's
 X axis), *Turn to 90°*, and an **offset** in degrees if the servo's 0 isn't quite along X.
 
-`klipper/sortering_pnp.cfg` also has two stepper-motor variants, instead of the servo:
+`klipper/sortering_pnp.cfg` also has two stepper-motor variants, instead of the servo; they turn
+through Klipper, so set `picker.rotate_macro: SORTERING_ROTATE` (and for B
+`picker.rotate_home: SORTERING_ROT_HOME`) in `configs/machine.yaml`:
 - **A, the extruder's motor driver** (the hotend still prints after a tool swap): the angle is
   remembered; run `SORTERING_ROT_ZERO` in the console when the jaws close along X.
 - **B, a spare driver with a small 0° switch:** the axis finds 0° by itself before every sort.

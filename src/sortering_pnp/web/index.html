@@ -669,7 +669,6 @@ function pickerPins(t){const r=[[WC.sig,"32 · GPIO12",t.pump?"SIG of the MOSFET
  return `<table class="pins">${r.map(([c,p,w])=>`<tr><td style="white-space:nowrap"><i style="background:${c}"></i><b>${p}</b></td><td>${w}</td></tr>`).join("")}</table>`;}
 function pickerBody(st,redo){const PK=SU.picker||{types:[]},t=PK.types.find(x=>x.key===PK.mode)||PK.types[0];if(!t)return "";
  const opts=`<div class="pkgrid">${PK.types.map((x,i)=>`<button class="pkopt ${x.key===t.key?"on":""}" onclick="setupCall('api/setup/picker/type',{type:'${x.key}'})"><span class="pkn">${i+1}</span><b>${esc(x.title)}</b><span class="note">${esc(x.summary)}</span><span class="pktags"><span class="tag a">aims at the ${x.aim==="head"?"head":"centre of gravity"}</span>${x.rotates?'<span class="tag">turns 0–180°</span>':""}${x.pump?'<span class="tag">pump + MOSFET</span>':""}</span></button>`).join("")}</div>`;
- const inst=PK.installed===t.key;
  const notes=["Every signal comes from the Pi, never from the printer's board: the same wiring on any printer.",
   "Power straight from the printer's 24 V supply, not from the bed or hotend heater outputs (Klipper switches those off for safety).",
   t.servos?"Servo cable: brown = GND, red = 5 V, orange = signal.":"",t.servos?"Run a 24 V pair to the tip and put the 5 V buck converter there, next to the servos. Never the Pi's 5 V pin: a stalling servo resets the Pi.":"",
@@ -680,21 +679,8 @@ function pickerBody(st,redo){const PK=SU.picker||{types:[]},t=PK.types.find(x=>x
   <h4>Pins on the Raspberry Pi</h4>${pickerPins(t)}
   <h4>You need</h4><ul>${t.parts.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>
   <div><h4>Good to know</h4><ul class="note" style="padding-left:16px">${notes.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>
-  <div><h4>Klipper</h4><p class="note" style="margin:0 0 6px">The Pi's pins work as a second Klipper board. Set that up <b>once, before Install</b>, on the Pi over SSH; without it Klipper does not start with the picker installed.</p>
-  <pre>1. Hardware PWM on GPIO12 and GPIO13, then reboot:
-   echo "dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4" | sudo tee -a /boot/firmware/config.txt
-   sudo reboot
-2. The Pi as a Klipper board:
-   cd ~/klipper &amp;&amp; make clean &amp;&amp; make menuconfig
-     (Micro-controller Architecture: Linux process; then Q, Y)
-   make &amp;&amp; sudo make flash
-   sudo cp ./scripts/klipper-mcu.service /etc/systemd/system/
-   sudo systemctl enable --now klipper-mcu.service
-3. Check: ls /tmp/klipper_host_mcu   (must find it)</pre>
-  <p class="note" style="margin:6px 0">make menuconfig replaces the settings of the printer board's firmware: choose them again before you next flash the printer's board.</p>
-  ${PK.host_mcu===true?'<p class="ok" style="margin:0 0 6px">✓ the Pi runs as a Klipper board</p>':PK.host_mcu===false?'<p class="bad" style="margin:0 0 6px">✗ the Pi does not run as a Klipper board yet (no /tmp/klipper_host_mcu): do the steps above; Install waits for it</p>':""}
-  <div class="row"><button class="b ${inst?"":"p"} s" ${PK.host_mcu===false?"disabled":""} onclick="setupCall('api/setup/picker/install',{},'writing ${esc(PK.file)} and restarting Klipper…')">${inst?"Install again":"Install in Klipper"}</button> <a class="b s" href="api/setup/picker.cfg?type=${t.key}">Download ${esc(PK.file)}</a>${PK.installed?` <button class="b s" onclick="setupCall('api/setup/picker/uninstall',{},'putting the placeholder back and restarting Klipper…')">Take it out of Klipper</button>`:""}</div>
-  <p class="note" style="margin:6px 0 0">${inst?`<span class="ok">✓ installed for the ${esc(t.title.toLowerCase())}</span>`:`Writes ${esc(PK.file)} next to printer.cfg and restarts Klipper.`}${PK.installed?" If Klipper does not start with it, <b>Take it out of Klipper</b> puts the placeholder back.":""}</p>
+  <div><h4>The Pi drives it</h4><p class="note" style="margin:0 0 6px">sortering-pnp switches GPIO${PK.action_pin}${t.rotates?` and GPIO${PK.turn_pin}`:""} itself: nothing to set up in Klipper.${t.servos?" Servos use the Pi's hardware PWM: install-pi.sh turns it on (reboot once).":""}</p>
+  ${PK.pins?(PK.pins.ok?`<p class="ok" style="margin:0">✓ ${esc(PK.pins.message)}</p>`:`<p class="bad" style="margin:0">✗ ${esc(PK.pins.message)}</p>`):""}
  </div></div></div>
  <h4 style="margin:14px 0 6px;font-size:13px">On the printer</h4><p class="note" style="margin:0 0 8px">Take the hotend off, mount the picker, then press the button: Klipper remembers it and switches the heaters off. Nothing moves until the picker is on. To print again, put the hotend back and press <b>The hotend is back on</b>.</p><div class="row"><button class="b ${SU.tool==="picker"?"":"p"} s" onclick="setupCall('api/setup/tool',{tool:'picker'})">The picker is on the printer</button> <button class="b s" onclick="setupCall('api/setup/tool',{tool:'hotend'})">The hotend is back on</button> <span class="note">${SU.tool==="picker"?'<span class="ok">✓ picker on the printer</span>':SU.tool?`Klipper has the <b>${esc(SU.tool)}</b> on`:""}</span></div>
  <h4 style="margin:14px 0 6px;font-size:13px">Test it</h4><p class="note" style="margin:0 0 8px">Grab and Release run where the tool is now; nothing moves. Hold a screw ${t.holds==="jaws"?"between the jaws":t.holds==="cup"?"against the cup":"against the rod's tip"}.</p><button class="b s" onclick="setupCall('api/setup/picker',{action:'grab'})">Grab</button> <button class="b s" onclick="setupCall('api/setup/picker',{action:'release'})">Release</button>`+

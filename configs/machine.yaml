@@ -57,12 +57,14 @@ tool:
 
 picker:
   mode: suction                # servo_tweezers | suction | magnet | pneumatic_tweezers (Setup tab: Picker)
-  grab: SORTERING_GRAB         # macros in klipper/sortering_pnp.cfg
-  release: SORTERING_RELEASE
-  rotate: null                 # set by the type: SORTERING_ROTATE for tweezers, null for cup and magnet
-  rotate_home: null            # SORTERING_ROT_HOME: a 0-degree switch, found before every sort
-  rotate_zero: SORTERING_ROT_ZERO  # Setup tab "Set zero": the jaws close along printer X now
+  action_pin: 12               # GPIO (header pin 32): pump's MOSFET module, or jaw/magnet servo (sortering-pnp switches it, not Klipper)
+  turn_pin: 13                 # GPIO (header pin 33): the tweezers' turning servo
+  pwm_chip: null               # /sys/class/pwm/pwmchipN for the servos (null: the first one)
+  grab_angle: null             # servo angle that holds (null: the type's, e.g. jaws 20, magnet 160)
+  release_angle: null          # servo angle that lets go (null: the type's, e.g. jaws 90, magnet 20)
   rotate_offset_deg: 0         # fine trim of the jaw angle
+  rotate_macro: null           # tweezers on a stepper: SORTERING_ROTATE (klipper/sortering_pnp.cfg); null = the servo on turn_pin
+  rotate_home: null            # with rotate_macro: SORTERING_ROT_HOME finds 0 degrees before every sort
   grip_from_head_mm: 1.5       # tweezers close at least this far below a screw head
   approach_mm: 8               # slow descent over the last mm
   depth_mm: 0.5                # vacuum: press this far below the part's top (spring-loaded cup)
