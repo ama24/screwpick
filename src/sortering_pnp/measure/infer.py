@@ -311,7 +311,7 @@ class Pipeline:
         classes_yaml: str | Path | None = None,
         nominal: Camera | None = None,
     ) -> None:
-        from ultralytics import YOLO
+        from sortering_pnp.yolo import YOLO
 
         from .modelcard import check_classes
 

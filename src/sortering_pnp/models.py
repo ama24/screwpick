@@ -357,7 +357,7 @@ def inspect_with_ultralytics(weights: Path) -> tuple[str, list[str], int | None]
     """Open the weights with Ultralytics to read task, classes and image size (slow; only used
     when there is no model card or NCNN metadata). Only upload models you trust: .pt files are
     Python pickles."""
-    from ultralytics import YOLO
+    from .yolo import YOLO
 
     y = YOLO(str(weights))
     args = getattr(getattr(y, "model", None), "args", {}) or {}
