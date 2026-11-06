@@ -152,6 +152,13 @@ def _jsonable(v: Any) -> Any:
     return str(v)
 
 
+def rpicam_still(hflip: bool = False, vflip: bool = False) -> list[str]:
+    """The rpicam-still command for one full-resolution photo (without Picamera2)."""
+    cmd = ["rpicam-still", "-n", "-t", "500", "--width", str(FULL_RES[0])]
+    cmd += ["--height", str(FULL_RES[1])]
+    return cmd + (["--hflip"] if hflip else []) + (["--vflip"] if vflip else [])
+
+
 class CameraError(RuntimeError):
     """The camera cannot be used as asked (shown on the page; never ends the program)."""
 
@@ -162,10 +169,17 @@ class Camera:
     automatic settings (only for the live picture and the lock itself). Two streams: "main" at
     full resolution for photos, "lores" (LIVE_SIZE) for the live picture on the page."""
 
-    def __init__(self, settings: dict | None = None) -> None:
+    def __init__(
+        self, settings: dict | None = None, hflip: bool = False, vflip: bool = False
+    ) -> None:
         from picamera2 import Picamera2
 
         self.settings = dict(settings or {})
+        extra: dict[str, Any] = {}
+        if hflip or vflip:  # done by the camera: every stream comes out turned
+            from libcamera import Transform
+
+            extra["transform"] = Transform(hflip=int(hflip), vflip=int(vflip))
         self.locked = bool(self.settings)
         self.picam2 = Picamera2()
         try:
@@ -178,6 +192,7 @@ class Camera:
                 if mode
                 else {},
                 buffer_count=2,
+                **extra,
             )
             self.picam2.configure(cfg)
             if self.locked:
