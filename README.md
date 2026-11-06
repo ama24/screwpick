@@ -65,19 +65,7 @@ screwpick's web page. screwpick never reaches into the other projects' folders.
 
 ## How it works, in one minute
 
-```
-   you throw parts                  the Pi decides                   the printer moves
-  ┌───────────────┐   photo    ┌──────────────────────┐  G-code  ┌───────────────────┐
-  │  tray on the  │ ─────────► │  screwpick           │ ───────► │  Klipper          │
-  │  printer bed, │            │  · model: what is    │ (through │  picks one part,  │
-  │  bins around  │ ◄───────── │    each part, how    │ Moonraker│  drops it in its  │
-  │  it           │   next     │    long              │  )       │  bin              │
-  └───────────────┘   photo    │  · which bin, which  │          └───────────────────┘
-                               │    part first        │
-                               └──────────────────────┘
-                                          ▲
-                          you: web page or printer display
-```
+![How screwpick works: tray and bins, photo, recognise, decide, pick and drop, again](docs/images/how-it-works.png)
 
 1. **The bed.** A grid of [Gridfinity](https://gridfinity.xyz/) bins sits on the bed. One big bin,
    the **tray**, is where you throw the parts; the small bins around it receive the sorted parts.
