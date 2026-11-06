@@ -24,6 +24,9 @@ TURN_PIN = "host:pwmchip0/pwm1"  # GPIO13, header pin 33
 CONFIG_NAME = (
     "sortering_pnp_picker.cfg"  # in Klipper's config folder, included by sortering_pnp.cfg
 )
+# klipper-mcu.service makes this while the Pi runs as a Klipper board; without it Klipper
+# cannot start with a picker file installed ("mcu 'host': Unable to connect")
+HOST_MCU_SERIAL = "/tmp/klipper_host_mcu"
 
 
 @dataclass(frozen=True)
@@ -132,18 +135,21 @@ def as_dict(p: PickerType) -> dict:
     return {**asdict(p), "parts": list(p.parts)}
 
 
-_HOST_MCU = """\
+_HOST_MCU = f"""\
 # The Raspberry Pi as a second Klipper micro-controller, set up ONCE (or with KIAUH):
 #   1. In /boot/firmware/config.txt add the line (hardware PWM on GPIO12 and GPIO13), reboot:
 #        dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4
-#   2. cd ~/klipper && make menuconfig   (Micro-controller Architecture: Linux process)
+#   2. cd ~/klipper && make clean && make menuconfig   (Architecture: Linux process)
 #      make && sudo make flash
 #      sudo cp ./scripts/klipper-mcu.service /etc/systemd/system/
 #      sudo systemctl enable --now klipper-mcu.service
+#   3. ls {HOST_MCU_SERIAL} must find it; only then install this file.
+# Without it Klipper does not start ("mcu 'host': Unable to connect"): put the placeholder back
+# (Setup tab, Picker: Take it out of Klipper) and FIRMWARE_RESTART.
 # If printer.cfg already has a Linux-process MCU (e.g. [mcu rpi] for an accelerometer), delete
 # the two lines below and write its name instead of "host:" in the pins.
 [mcu host]
-serial: /tmp/klipper_host_mcu
+serial: {HOST_MCU_SERIAL}
 """
 
 _SERVO = """\

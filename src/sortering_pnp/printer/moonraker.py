@@ -15,6 +15,7 @@ import urllib.parse
 import urllib.request
 import uuid
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from .base import PrinterError, PrinterStatus
@@ -116,7 +117,19 @@ class Moonraker:
             raise PrinterError(f"cannot reach Moonraker at {self.url}: {exc}") from exc
 
     def firmware_restart(self) -> None:
-        self._request("POST", "/printer/firmware_restart")
+        try:
+            self._request("POST", "/printer/firmware_restart")
+        except PrinterError as exc:
+            # Klipper busy connecting to a board that is not there does not answer: restart
+            # its service instead (what Mainsail's "Restart Klipper" does)
+            log.warning("firmware restart refused (%s): restarting the klipper service", exc)
+            self._request("POST", "/machine/services/restart?service=klipper")
+
+    def host_mcu_ready(self, serial: str) -> bool | None:
+        host = urllib.parse.urlparse(self.url).hostname or ""
+        if host not in ("localhost", "127.0.0.1", "::1"):
+            return None  # Klipper runs on another computer: its /tmp is not ours
+        return Path(serial).exists()
 
     def close(self) -> None:
         pass

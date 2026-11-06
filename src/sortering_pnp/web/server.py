@@ -27,7 +27,7 @@ POST /api/bins/full         {"marker": id}: this bin is full (learns the packing
 GET  /api/session           who is logged in; POST /api/login, /api/setup (first account),
 POST /api/logout;  GET /api/users, POST /api/users/add, /api/users/remove, /api/users/password
 GET  /api/setup; POST /api/setup/printer|home|goto|machine|picker|confirm|reset   the Setup tab
-POST /api/setup/picker/type {"type"}, /api/setup/picker/install, /api/setup/picker/offset {"deg"};
+POST /api/setup/picker/type {"type"}, /api/setup/picker/install|uninstall, /api/setup/picker/offset {"deg"};
 POST /api/setup/tool {"tool": "picker"|"hotend"}  which tool is on the printer (TOOL_PICKER/_HOTEND)
 GET  /api/setup/picker.cfg?type=…  the picker's Klipper file (sortering_pnp_picker.cfg)
 
@@ -232,6 +232,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json(r.setup_picker_type(str(self._body()["type"])))
         elif method == "POST" and path == "/api/setup/picker/install":
             self._json(r.setup_picker_install())
+        elif method == "POST" and path == "/api/setup/picker/uninstall":
+            self._json(r.setup_picker_uninstall())
         elif method == "POST" and path == "/api/setup/tool":
             self._json(r.setup_tool(str(self._body()["tool"])))
         elif method == "POST" and path == "/api/setup/picker/offset":

@@ -132,7 +132,9 @@ menu, until every step of the **Setup** tab is checked:
    restarts Klipper, so it comes before homing), *The picker is on the printer* (`TOOL_PICKER`:
    nothing moves without it), then *Grab* and *Release* without moving; tweezers also *Turn to
    0°* / *90°* and the offset. Then confirm. Choosing another type or installing again un-checks
-   the step.
+   the step. *Install* waits until the Pi runs as a Klipper board (`/tmp/klipper_host_mcu`, the
+   commands are on the page): with the picker's file and no such board Klipper does not start.
+   *Take it out of Klipper* puts the empty placeholder back.
 3. **Homing:** press *Home now* and watch. Z must come down over the middle of the plate, not
    over a bin. Then confirm.
 4. **Machine:** limits, travel height and photo position, editable on the page. *Show me*
@@ -162,7 +164,7 @@ The steps below are the same work in more detail.
 4. Mount the picker and press *The picker is on the printer* (Setup tab). Set `tool.offset` in
    [configs/machine.yaml](../configs/machine.yaml) if the picker tip is not where the nozzle was.
 5. Set `printer.photo_position`: where the head waits during photos, out of the picture.
-6. **Camera calibration** (screw-synth, tool 03): lay the ChArUco board **in the
+6. **Camera calibration** (Calibrate tab, *Camera calibration*): lay the ChArUco board **in the
    tray**, where the parts will lie. Its surface is the height everything is measured from.
    **Calibrate tab**: take a photo, then jog the tip onto the centre of 3 or more markers
    (spread over the bed), pressing **Tip is here** on each. Then **Fit**. Errors under 0.5 mm

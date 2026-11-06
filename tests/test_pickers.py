@@ -114,6 +114,45 @@ def test_setup_choose_install_and_trim(machine):
     assert again.setup_state()["picker"]["offset_deg"] == 12.0
 
 
+def test_install_waits_for_the_pi_as_a_klipper_board_and_can_be_taken_out(machine):
+    from sortering_pnp.printer import PrinterError
+
+    runner, printer = make(machine)
+    printer.host_mcu = False  # klipper-mcu.service not set up: Klipper would not start
+    assert runner.setup_state()["picker"]["host_mcu"] is False
+    with pytest.raises(PrinterError, match="Klipper board"):
+        runner.setup_picker_install()
+    assert pickers.CONFIG_NAME not in printer.configs and "FIRMWARE_RESTART" not in printer.log
+    printer.host_mcu = True
+    assert runner.setup_picker_install()["picker"]["installed"]
+    st = runner.setup_picker_uninstall()  # the way back: no picker, no Pi board
+    assert printer.configs[pickers.CONFIG_NAME] == pickers.PLACEHOLDER
+    assert st["picker"]["installed"] is None and printer.log.count("FIRMWARE_RESTART") == 2
+
+
+def test_moonraker_checks_the_pi_board_only_on_this_pi(tmp_path, monkeypatch):
+    from sortering_pnp.printer.moonraker import Moonraker
+
+    serial = tmp_path / "klipper_host_mcu"
+    assert Moonraker("http://localhost:7125").host_mcu_ready(str(serial)) is False
+    serial.write_text("")
+    assert Moonraker("http://127.0.0.1:7125").host_mcu_ready(str(serial)) is True
+    assert Moonraker("http://192.168.1.50:7125").host_mcu_ready(str(serial)) is None
+
+    calls = []
+
+    def fake(self, method, path, body=None):
+        calls.append(path)
+        if path == "/printer/firmware_restart":
+            from sortering_pnp.printer import PrinterError
+
+            raise PrinterError("Klipper: klippy not connected")
+
+    monkeypatch.setattr(Moonraker, "_request", fake)
+    Moonraker("http://localhost:7125").firmware_restart()  # stuck Klipper: restart the service
+    assert calls == ["/printer/firmware_restart", "/machine/services/restart?service=klipper"]
+
+
 def test_sortering_pnp_cfg_includes_the_picker_file_and_leaves_its_macros_to_it():
     from pathlib import Path
 
