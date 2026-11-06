@@ -4,17 +4,14 @@
 #   git clone https://github.com/ama24/sortering-pnp.git ~/sortering-pnp
 #   ~/sortering-pnp/install-pi.sh            # add --service to start sortering-pnp at every boot
 #
-# Everything is pinned, so running this again later installs exactly the same:
-# - the Python packages: requirements-pi.lock.txt (exact versions + file hashes, nothing else);
-# - screw-synth (model and camera code): the commit below.
-# To upgrade on purpose: python scripts/lock_pi.py, change SUPREME_COMMIT, test, commit.
+# sortering-pnp needs nothing else from GitHub: the trained model is uploaded in the web page
+# (Models tab). The Python packages are pinned (requirements-pi.lock.txt: exact versions + file
+# hashes), so running this again later installs exactly the same.
+# To upgrade on purpose: python scripts/lock_pi.py, test on the Pi, commit.
 set -euo pipefail
 
-SUPREME_REPO=https://github.com/ama24/screw-synth.git
-SUPREME_COMMIT=3038baf427bffc0cfd58c08f5dbb4332caea7349
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SUPREME="${SUPREME_DIR:-$HOME/screw-synth}"
-VENV="${VENV:-$HOME/screwrig}"   # the same environment screwrig uses
+VENV="${VENV:-$HERE/.venv}"
 SERVICE=0
 [ "${1:-}" = "--service" ] && SERVICE=1
 
@@ -41,30 +38,17 @@ say "system packages (camera, git)"
 sudo apt-get update
 sudo apt-get install -y python3-venv python3-picamera2 rpicam-apps git libgl1
 
-# ---------------------------------------------------------------- screw-synth
-say "screw-synth at $SUPREME_COMMIT"
-if [ ! -d "$SUPREME/.git" ]; then
-  git clone "$SUPREME_REPO" "$SUPREME"
-fi
-git -C "$SUPREME" fetch --quiet origin
-if [ -n "$(git -C "$SUPREME" status --porcelain --untracked-files=no)" ]; then
-  echo "Warning: $SUPREME has local changes: left as it is (not switched to the pinned commit)."
-else
-  git -C "$SUPREME" -c advice.detachedHead=false checkout --quiet "$SUPREME_COMMIT"
-fi
-
 # ---------------------------------------------------------------- Python packages
 say "Python environment $VENV"
 [ -d "$VENV" ] || python3 -m venv --system-site-packages "$VENV"   # sees Picamera2 from apt
 "$VENV/bin/pip" install --no-deps --require-hashes -r "$HERE/requirements-pi.lock.txt"
-"$VENV/bin/pip" install --no-deps --no-build-isolation \
-  -e "$SUPREME" -e "$SUPREME/rig" -e "$HERE"
+"$VENV/bin/pip" install --no-deps --no-build-isolation -e "$HERE"
 
 say "checking the installation"
 "$VENV/bin/python" - <<'EOF'
 import importlib
 for mod in ("cv2", "torch", "ultralytics", "ncnn", "manifold3d", "websocket",
-            "screwsynth", "screwrig", "sortering_pnp"):
+            "sortering_pnp"):
     importlib.import_module(mod)
 import cv2, torch
 assert hasattr(cv2, "aruco"), "OpenCV without ArUco: opencv-python overwrote the contrib build"

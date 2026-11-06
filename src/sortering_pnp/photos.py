@@ -1,8 +1,8 @@
 """Photos for the other projects, taken by sortering_pnp: the only program that moves the printer.
 
-screwrig (screw-synth) is used for the camera only (lock the settings, grab a frame,
-save it with its metadata); the calibration maths and the session format are screwsynth's. The
-bed is parked by sortering_pnp's own motion (photo position, soft limits, busy checks), so nothing
+The camera (camera.py, camlock.py) locks the settings, grabs a frame and saves it with its
+metadata; the calibration maths are in calib/, the session format in session.py (screw-synth
+reads both). The bed is parked by sortering_pnp's own motion (photo position, soft limits, busy checks), so nothing
 else ever sends G-code.
 
 Camera calibration (Calibrate tab), in order:
@@ -14,7 +14,7 @@ Camera calibration (Calibrate tab), in order:
      board, so the camera-to-printer step must be redone afterwards.
 The result is a calibration.json in the Files tab, used at once.
 
-Real photos (Photos tab): sessions in screwsynth's format (data/real/<session>/ with session.json,
+Real photos (Photos tab): sessions in the format screw-synth reads (data/real/<session>/ with session.json,
 inventory.csv, images/img_NNNN.png + sidecar), downloaded as a zip for labelling on the PC.
 """
 
@@ -72,7 +72,7 @@ class Photos:
         return self.root / self._cam_key()
 
     def spec(self) -> Any:
-        from screwsynth.calibration.board import BoardSpec
+        from sortering_pnp.calib.board import BoardSpec
 
         b = self.m.calibration.board
         spec = BoardSpec(b.squares_x, b.squares_y, b.square_mm, b.marker_mm, b.dictionary)
@@ -94,13 +94,13 @@ class Photos:
 
     @staticmethod
     def _save(out: Path, name: str, img: np.ndarray, md: dict, extra: dict) -> Path:
-        from screwrig.camera import save_capture
+        from sortering_pnp.camera import save_capture
 
         return save_capture(out, name, img, md, extra)
 
     # ------------------------------------------------------------------ calibration
     def board_pdf(self) -> bytes:
-        from screwsynth.calibration.board import write_board_pdf
+        from sortering_pnp.calib.board import write_board_pdf
 
         with tempfile.TemporaryDirectory() as tmp:
             p = Path(tmp) / "board.pdf"
@@ -108,7 +108,7 @@ class Photos:
             return p.read_bytes()
 
     def lock_camera(self) -> dict[str, Any]:
-        """Freeze exposure, gain, white balance and focus (screwrig's lock), kept with the
+        """Freeze exposure, gain, white balance and focus (camlock.py), kept with the
         machine values; every photo after this uses them."""
         lock = getattr(self.r.vision, "lock_camera", None)
         if lock is None:
@@ -128,7 +128,7 @@ class Photos:
 
     def take_view(self) -> dict[str, Any]:
         """One lens photo: the board held somewhere in the frame, tilted a little."""
-        from screwsynth.calibration.board import detect
+        from sortering_pnp.calib.board import detect
 
         d = self._dir() / "lens"
         if not list(d.glob("view_*.png")):
@@ -145,7 +145,7 @@ class Photos:
         return {**self.state(), "last": {"view": i, "corners": n}}
 
     def _coverage(self, w: int, h: int) -> Any:
-        from screwrig.camera import Coverage
+        from sortering_pnp.camera import Coverage
 
         cov = Coverage((w, h))
         p = self._dir() / "lens" / "coverage.json"
@@ -154,7 +154,7 @@ class Photos:
         return cov
 
     def solve_lens(self) -> dict[str, Any]:
-        from screwsynth.calibration import intrinsics
+        from sortering_pnp.calib import intrinsics
 
         files = sorted(str(f) for f in (self._dir() / "lens").glob("view_*.png"))
         if len(files) < 4:
@@ -172,8 +172,9 @@ class Photos:
         """The board flat in the tray: where the camera stands over the plate. Saves the
         calibration to the Files tab and asks for the camera-to-printer step again."""
         import cv2
-        from screwsynth.calibration import extrinsic
-        from screwsynth.calibration.geometry import Camera
+
+        from sortering_pnp.calib import extrinsic
+        from sortering_pnp.calib.geometry import Camera
 
         lens_p = self._dir() / "lens.json"
         if not lens_p.is_file():
@@ -267,7 +268,7 @@ class Photos:
         return out
 
     def new_session(self, name: str, operator: str = "", notes: str = "") -> dict[str, Any]:
-        from screwsynth.realdata.session import new_session
+        from sortering_pnp.session import new_session
 
         from .files import find
 

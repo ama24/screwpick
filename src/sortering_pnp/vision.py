@@ -1,4 +1,4 @@
-"""Photo -> parts and bin markers, with the screwsynth model and the camera calibration.
+"""Photo -> parts and bin markers, with the models and the camera calibration.
 
 The model runs on the calibrated region of interest exactly as it was trained (same scale), and
 the sorter then keeps only the parts inside the working area: parts inside bins are ignored.
@@ -10,7 +10,7 @@ import logging
 import re
 import subprocess
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
@@ -99,7 +99,7 @@ def parts_from_result(
     shape: Callable[[str], Shape | None] | None = None,
     aim: str = "centre",
 ) -> list[Part]:
-    """screwsynth-infer output -> Parts (outline in plate mm at the part's mid height), with
+    """Inference output (measure/infer.py) -> Parts (outline in plate mm at the part's mid height), with
     grip point, centre of mass and long axis (grip.py). `aim`: "centre" (tweezers: the centre
     of gravity, on the shank) or "head" (suction cup, magnet: the screw's head)."""
     out = []
@@ -143,34 +143,29 @@ def parts_from_result(
     return out
 
 
-def shapes_from_catalogue(cfg: Any, geometry: Any) -> dict[str, Shape]:
-    """Per class: thread size, head radius and head height, for the centre of mass."""
-    from screwsynth.catalogue.schema import LENGTH_KINDS, catalogue_from_config
-
+def shapes_from_parts(parts: Mapping[str, Any]) -> dict[str, Shape]:
+    """Per class (parts.json): thread size, head radius and head height, for the centre of
+    mass."""
     out: dict[str, Shape] = {}
-    for p in catalogue_from_config(cfg).enabled_parts:
-        if p.kind not in LENGTH_KINDS or p.class_name in out:
-            continue
-        g = geometry.classes.get(p.class_name)
-        dims = p.dims
-        d = float(dims.get("d", g.d if g else 4.0))
-        headless = p.kind == "standoff" or p.shape in ("set_screw", "threaded_rod")
-        out[p.class_name] = Shape(
-            d=d,
-            head_r=0.0 if headless else float(g.head_radius if g else dims.get("dk", d) / 2),
-            head_k=0.0 if headless else float(dims.get("k", 0.0)),
-            socket=p.shape in ("socket_cap", "button", "countersunk"),
+    for name, c in parts.get("classes", {}).items():
+        headless = bool(c.get("headless"))
+        out[name] = Shape(
+            d=float(c["d"]),
+            head_r=0.0 if headless else float(c["head_radius"]),
+            head_k=0.0 if headless else float(c.get("head_height", 0.0)),
+            socket=bool(c.get("socket")),
         )
     return out
 
 
 class CameraVision:
-    """The real thing: Pi camera + the active models from the model store + screwsynth's
-    calibration and length measurement. Models can be swapped while idle (use_models)."""
+    """The real thing: Pi camera + the active models from the model store + the camera
+    calibration and length measurement. Models can be swapped while idle (reload_setup)."""
 
     def __init__(self, m: Machine, out_dir: Path, store: ModelStore | None = None) -> None:
         import cv2  # noqa: F401 - fail early when OpenCV is missing
-        from screwsynth.common.io import read_json
+
+        from sortering_pnp.io import read_json
 
         self.m = m
         self.out = out_dir
@@ -182,23 +177,24 @@ class CameraVision:
         cam_settings = m.path(m.camera.settings)
         self.cam = None
         if cam_settings:
-            from screwrig.camera import Camera as RigCamera
+            from sortering_pnp.camera import Camera as RigCamera
 
             self.cam = RigCamera(read_json(cam_settings))
 
-    def reload_setup(self) -> None:
-        """Settings, camera calibration and class list (the Files tab's copies first, see
-        files.py), then the models again with them."""
-        from screwsynth.calibration.geometry import Camera, nominal_from_config
-        from screwsynth.common.config import load_config
-        from screwsynth.common.io import read_json
-        from screwsynth.measure.geometry import Geometry
-        from screwsynth.measure.infer import Settings
+    def reload_setup(self, strict: bool = False) -> None:
+        """Vision settings, camera calibration, parts table and class list (the active model's
+        and the Files tab's copies first, see files.py), then the models again with them.
+        strict: a model that cannot be loaded raises (else it is logged and shown)."""
+        from sortering_pnp.calib.geometry import Camera, nominal_from_config
+        from sortering_pnp.io import read_json, read_yaml
+        from sortering_pnp.measure.geometry import Geometry
+        from sortering_pnp.measure.infer import Settings
 
         from .files import find
 
         m = self.m
-        cfg = load_config(find(m, "settings")[0])
+        vision_path, _ = find(m, "vision")
+        cfg = (read_yaml(vision_path) or {}) if vision_path is not None else {}
         key = "head_calibration" if m.camera.source == "head" else "calibration"
         calib_path, source = find(m, key)
         self.calibration = read_json(calib_path) if calib_path is not None else None
@@ -210,20 +206,25 @@ class CameraVision:
         self.cam_full = (
             Camera.from_calibration(self.calibration) if self.calibration else self.nominal
         )
-        self.geometry = Geometry.from_config(cfg)
-        self.settings = Settings.from_config(cfg.to_dict())
+        self.settings = Settings.from_config(cfg)
+        parts_path, source = find(m, "parts")
+        parts = read_json(parts_path) if parts_path is not None else None
+        try:
+            self.geometry = Geometry.from_parts(parts)
+            log.info("parts table: %s (%s)", parts_path, source)
+        except ValueError as exc:
+            log.warning("no parts table, lengths are not measured: %s", exc)
+            self.geometry, parts = Geometry({}), {}
         self.classes_yaml = find(m, "classes")[0]
         self._head_r = {name: g.head_radius for name, g in self.geometry.classes.items()}
-        try:
-            self._shapes = shapes_from_catalogue(cfg, self.geometry)
-        except Exception as exc:  # noqa: BLE001 - grip falls back to the outline
-            log.warning("no head sizes for the centre of mass: %s", exc)
-            self._shapes = {}
+        self._shapes = shapes_from_parts(parts)
         try:
             self.use_models(active_choice(m, self.store))
         except (FileNotFoundError, ValueError) as exc:
             self.model_error = str(exc)
             log.error("no usable model: %s", exc)
+            if strict:
+                raise
 
     def load(self, choice: ModelChoice) -> Analyzer:
         return Analyzer(
@@ -273,7 +274,7 @@ class CameraVision:
         return dataclasses.replace(scene, image=img, gray=None)
 
     def _scene(self, photo: Path) -> Any:
-        from screwsynth.measure.infer import load_scene
+        from sortering_pnp.measure.infer import load_scene
 
         return load_scene(photo, self.calibration, self.nominal)
 
@@ -294,13 +295,13 @@ class CameraVision:
         return img, {}
 
     def lock_camera(self, out: Path, distance_mm: float) -> dict[str, Any]:
-        """screwrig's lock (exposure, gain, white balance, focus sweep) written to `out`; the
+        """The camera lock (camlock.py: exposure, gain, white balance, focus sweep) written to `out`; the
         camera is then reopened with exactly those settings."""
         import argparse
 
-        from screwrig import lock
-        from screwrig.camera import Camera as RigCamera
-        from screwsynth.common.io import read_json
+        from sortering_pnp import camlock as lock
+        from sortering_pnp.camera import Camera as RigCamera
+        from sortering_pnp.io import read_json
 
         if self.cam is not None:  # one program at a time may hold the camera
             self.cam.close()
@@ -347,7 +348,8 @@ class CameraVision:
         """`work`: the tray's inside (plate frame): the rest is painted over for the model
         (trayview.py); None: the whole photo (e.g. to look into the bins)."""
         import cv2
-        from screwsynth.measure.infer import draw
+
+        from sortering_pnp.measure.infer import draw
 
         assert self.analyzer is not None
         scene = self._scene(photo)
@@ -377,7 +379,8 @@ class CameraVision:
     def test_models(self, choice: ModelChoice, photo: Path, out_name: str) -> dict[str, Any]:
         """Run other models on an existing photo, without switching to them."""
         import cv2
-        from screwsynth.measure.infer import draw
+
+        from sortering_pnp.measure.infer import draw
 
         an = self.load(choice)
         scene = self._scene(photo)
@@ -397,7 +400,7 @@ class CameraVision:
 
 
 def find_model(models_dir: Path) -> Path | None:
-    """The newest model in a models/ folder: an NCNN folder, .onnx or .pt (as screwrig detect)."""
+    """The newest model in a models/ folder: an NCNN folder, .onnx or .pt."""
     if not models_dir.is_dir():
         return None
     found = [p for p in models_dir.rglob("*_ncnn_model") if p.is_dir()]
@@ -407,7 +410,7 @@ def find_model(models_dir: Path) -> Path | None:
 
 def active_choice(m: Machine, store: ModelStore | None) -> ModelChoice:
     """The models to use: the active ones in the store; without one, paths.model in machine.yaml
-    or the newest model in screwsynth's models/ folder."""
+    (a model file, or a folder: its newest model)."""
     s1 = store.active_model("stage1") if store else None
     if m.camera.source == "head" and store is not None:  # its own model, trained at its scale
         head = store.active_model("head")
@@ -423,10 +426,8 @@ def active_choice(m: Machine, store: ModelStore | None) -> ModelChoice:
         )
     else:
         path = m.path(m.paths.model)
-        if path is None:
-            from screwsynth.common.paths import resolve
-
-            path = find_model(resolve("models"))
+        if path is not None and path.is_dir() and not path.name.endswith("_ncnn_model"):
+            path = find_model(path)
         if path is None:
             raise FileNotFoundError("no model: upload one in the Models tab")
         choice = ModelChoice(path, label=path.name)

@@ -1,0 +1,23 @@
+# How sortering-pnp turns a photo into parts. Replace it in the Files tab (Vision settings).
+# Lengths in mm.
+
+# The camera until the Calibrate tab has made calibration.json (Pi Camera Module 3, standard lens).
+nominal_camera:
+  focal_length_mm: 4.74
+  pixel_size_um: 1.4
+  resolution: [4608, 2592]
+  height_mm: 300             # lens to the top of the tray floor
+
+# The models and the length measurement.
+measure:
+  stage1_imgsz: 1024         # stage-1 image size; the model card's value wins
+  conf: 0.25                 # stage-1 detection confidence; the model card's recommendation wins
+  iou: 0.6
+  max_det: 300
+  crop_size_px: 384          # stage-2 crops: must match what the keypoint model was trained on
+  crop_mode: scaled
+  crop_margin: 1.2
+  pose_conf: 0.5             # keypoint confidence needed to trust the keypoint model
+  measurable_tilt_deg: 15    # parts tilted more than this are not measured
+  border_px: 3               # outlines this close to the photo's edge are cut: not measured
+  method: auto               # auto (keypoints when confident, else edges) | keypoints | classical

@@ -282,7 +282,7 @@ button.p{font-weight:600}button.big{padding:11px 18px}
 <section id="calib">
  <div class="phead"><div class="pt"><h1>Calibrate</h1><p>The camera, the camera to the printer, and the picker tip</p></div></div>
  <div class="card"><h2>Camera calibration</h2>
-  <p class="note" style="margin:0 0 12px">Tells the program how the camera sees: the lens, and where it stands over the tray. sortering-pnp parks the bed itself; only the camera is screwrig's. Do it once, and again whenever the camera or the tray moved. The result lands in the Files tab by itself.</p>
+  <p class="note" style="margin:0 0 12px">Tells the program how the camera sees: the lens, and where it stands over the tray. sortering-pnp parks the bed and works the camera itself. Do it once, and again whenever the camera or the tray moved. The result lands in the Files tab by itself.</p>
   <ol class="calsteps">
    <li><b>The board</b>: <button class="b s" onclick="location.href='api/calibration/board.pdf'">Download the tray board (PDF)</button> <span class="note" id="calboard"></span><br>
     <span class="note">Print at 100 % (no scaling), glue it flat on stiff card, measure one square with a caliper.</span>
@@ -369,7 +369,7 @@ button.p{font-weight:600}button.big{padding:11px 18px}
 <section id="photos">
  <div class="phead"><div class="pt"><h1>Real photos</h1><p>Photo sessions for checking the model on the PC</p></div></div>
  <div class="card"><h2>New session</h2>
-  <p class="note">Photos of real parts on the tray, for checking the model on the PC (screw-sorting project, real data). Make a session, write down on the PC what lies in the tray (inventory.csv), then take a photo after each change: the bed is parked first, the camera uses the locked settings. Download the session and put it in the screw-sorting project's data/real/.</p>
+  <p class="note">Photos of real parts on the tray, for checking the model on the PC (screw-synth, real data). Make a session, write down on the PC what lies in the tray (inventory.csv), then take a photo after each change: the bed is parked first, the camera uses the locked settings. Download the session and put it in the screw-sorting project's data/real/.</p>
   <div class="row"><label>session<input id="sname" placeholder="e.g. s01_m3_m4"></label><label>by<input id="sop" style="width:110px"></label><label style="flex:1">notes<input id="snotes" style="flex:1"></label><button class="b s" onclick="newSession()">New session</button></div>
   <span id="smsg" class="note"></span></div>
  <div class="card"><table id="slist"></table></div>
@@ -756,7 +756,7 @@ async function tipTouch(){try{const j=await api("api/calib/tip",{});flash("tipms
 async function getTip(){try{const j=await api("api/tip");$("tip").textContent=j.tip.join(", ");}catch(e){flash("calmsg",e.message,1);}}
 
 // ---------------------------------------------------------------- files
-const SRC={dropped:"dropped here",["machine.yaml"]:"from machine.yaml",["screw-sorting"]:"from the screw-sorting code",none:"not there"};
+const SRC={model:"from the active model",dropped:"dropped here",["machine.yaml"]:"from machine.yaml",["sortering-pnp"]:"built in",none:"not there"};
 async function loadFiles(){try{renderFiles((await api("api/files")).slots);}catch(e){flash("fmsg",e.message,1);}}
 function renderFiles(slots){
  $("flist").innerHTML=slots.map(f=>`<div class="frow">

@@ -340,14 +340,14 @@ class ModelStore:
 
 
 def make_store(m: Any) -> ModelStore | None:
-    """The store of a Machine config (paths.models), checking classes against screwsynth's
-    classes.yaml when screwsynth is installed."""
+    """The store of a Machine config (paths.models), checking each model's classes against the
+    catalogue's classes.yaml (the Files tab's, else the one that comes with sortering-pnp)."""
     root = m.path(m.paths.models)
     if root is None:
         return None
     from .files import find
 
-    classes_yaml, _ = find(m, "classes")  # the Files tab's copy first
+    classes_yaml, _ = find(m, "classes", model=False)  # not the model's own list
     if classes_yaml is None:
         log.info("no class list (Files tab): uploaded models are not checked")
     return ModelStore(root, classes_yaml, tuple(m.models.prefer))

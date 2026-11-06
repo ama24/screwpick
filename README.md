@@ -22,15 +22,21 @@ It is one of three projects that work together:
 
 | Project | Runs on | Does |
 |---|---|---|
-| [screw-synth](https://github.com/ama24/screw-synth) | your PC | makes the training pictures and measures the parts' lengths |
+| [screw-synth](https://github.com/ama24/screw-synth) | your PC | makes the training pictures, and the parts table that goes with them |
 | [training-synth](https://github.com/ama24/training-synth) | your PC (GPU) | trains the model that recognises the parts |
 | **sortering-pnp** (this one) | the Raspberry Pi | runs the machine: camera, decisions, printer, bins, web page |
 
-They only exchange files (a trained model, a calibration, a parts table), which you drop into
-sortering-pnp's web page. sortering-pnp never reaches into the other projects' folders.
+The Raspberry Pi needs **only this one**. The projects only exchange files: the trained model
+(from training-synth, for example as a download from its releases page) goes into sortering-pnp's
+web page, and the camera calibration and real photos made here go back to screw-synth. Each
+project works without the others.
 
 ### What's new
 
+- **The Pi needs only sortering-pnp** (renamed from screwpick). The camera, calibration and
+  measuring code now live here; the trained model, with its class list and parts table, comes as
+  one package you upload in the Models tab. The sibling projects are now called screw-synth and
+  training-synth.
 - **Four pickers to choose from** in the Setup tab: servo tweezers, suction cup, magnet,
   pneumatic tweezers. Each with its wiring to the Raspberry Pi drawn on the page, and installed
   in Klipper with one button. [The picker](#the-picker).
@@ -148,8 +154,9 @@ rules, press **Sort once** and watch them get sorted.
    ~/sortering-pnp/install-pi.sh --service
    ```
 
-   The script installs everything in one go, with **exact, checked versions** of every package and
-   of the screw-sorting code, so an install today and one next year give the same program.
+   The script installs everything in one go, with **exact, checked versions** of every package,
+   so an install today and one next year give the same program. Nothing else is downloaded: the
+   camera, calibration and measuring code are part of sortering-pnp.
    `--service` starts sortering-pnp at every boot.
 3. **Tell Klipper about the sorter:**
 
@@ -305,8 +312,9 @@ In the **Calibrate** tab:
 
 ### 4. The model and the files
 
-Upload the trained model in the **Models** tab (drag the file onto the page; old models are kept,
-so you can switch back). The **Files** tab takes the other files sortering-pnp can use. Each card says
+Download a trained model package (a `.zip` from training-synth, for example from its releases
+page) and upload it in the **Models** tab (drag the file onto the page; old models are kept, so you
+can switch back). The package also brings the class list and the parts table it was trained with. The **Files** tab takes the other files sortering-pnp can use. Each card says
 where to find the file, what it's for and what happens without it:
 
 ![The Files tab](docs/images/files.png)
@@ -397,7 +405,7 @@ always comes down over the tray, never over a bin. And no other program sends mo
 To see how well the model does on real parts, the **Real photos** tab takes sessions of real photos:
 make a session, write down on the PC what lies in the tray, then take a photo after each change.
 The bed is parked first, and the camera uses its locked settings. **Download** the session and put
-it in the screw-sorting project's `data/real/` on your PC.
+it in screw-synth's `data/real/` on your PC.
 
 ---
 

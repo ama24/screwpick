@@ -2,11 +2,11 @@
 # Lengths in mm, speeds in mm/min. Relative paths are relative to this file's folder.
 
 paths:
-  screwsynth_config: null      # screwsynth's configs/config.yaml (null: the screwsynth checkout's own)
-  calibration: null            # camera calibration.json (null: screwsynth's data/calibration/calibration.json)
+  vision: null                 # vision.yaml: nominal camera, measurement (null: Files tab, else the built-in one)
+  calibration: null            # camera calibration.json (null: the Files tab's, made in the Calibrate tab)
   head_calibration: null       # the same for the head camera
   models: ../models            # models uploaded in the web page (Models tab), one folder each
-  model: null                  # used only while no model is active: NCNN folder / .onnx / .pt (null: newest in screwsynth's models/)
+  model: null                  # used only while no model is active: NCNN folder / .onnx / .pt (null: upload one in the Models tab)
   stage2: null                 # keypoint model; null: classical length measurement
   layout: ../data/layout.yaml  # bins and working area (edit in the web page)
   transform: ../data/bed_transform.json   # camera -> printer calibration (Calibrate tab)
@@ -23,7 +23,7 @@ paths:
   sessions: ../data/real       # real-photo sessions (Photos tab)
 
 camera:
-  settings: null               # screwrig lock settings json (locked focus/exposure); null: rpicam-still
+  settings: null               # locked camera settings json (locked focus/exposure); null: rpicam-still
   source: overview             # overview: fixed above the bed | head: on the tool head (docs/reference.md)
   mask: true                   # only the tray's inside goes to the model (the rest painted over)
   mask_colour: auto            # auto: the tray floor's colour | #RRGGBB, e.g. #FFFFFF

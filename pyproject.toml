@@ -50,4 +50,4 @@ ignore = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["sortering_pnp"]
-known-third-party = ["screwsynth", "screwrig"]
+
