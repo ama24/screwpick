@@ -74,6 +74,7 @@ class Runner:
         self.m = m
         self.printer = printer
         self.motion = Motion(printer, m)
+        self.pins = self.motion.pins  # the picker, switched by sortering-pnp itself (pins.py)
         self.vision = vision
         self.store = store
         self.state = State(strategy=m.run.strategy)
@@ -338,6 +339,7 @@ class Runner:
             self._stop.set()
             self._pause.clear()
             self._save_mode(False)
+            self.pins.off()
             try:
                 self.printer.emergency_stop()
             finally:
@@ -588,6 +590,7 @@ class Runner:
             if outcome != "done":
                 self._set(status="idle", message="stopped" if self._stop.is_set() else "finished")
         except Exception as exc:  # noqa: BLE001 - shown on the web page, the loop must not die silently
+            self.pins.off()
             log.exception("sorting stopped")
             self.note(f"error: {exc}")
             self._set(status="error", message=str(exc))
@@ -607,8 +610,12 @@ class Runner:
             self.motion.preflight()
             if self.m.printer.accel:
                 self.printer.gcode(f"SET_VELOCITY_LIMIT ACCEL={self.m.printer.accel:.0f}")
-            if self.m.picker.rotate_home:  # the tweezers' 0 deg (lost when the motors were off)
-                self.printer.gcode(self.m.picker.rotate_home)
+            pk = self.m.picker
+            if pk.kind.rotates and pk.rotate_macro and pk.rotate_home:  # a stepper finds its 0
+                self.printer.gcode(pk.rotate_home)
+        ok, why = self.pins.status()
+        if not ok:
+            raise PrinterError(f"the picker's pins: {why}")
         first: Shot | None = None
         run = self.m.run
         if run.scan_bins_on_start or run.only_seen_bins:
@@ -888,6 +895,7 @@ class Runner:
         self._stop.set()
         self._pause.clear()
         self.wait(30)
+        self.pins.close()
 
     def _load_tool(self) -> None:
         p = self.m.path(self.m.paths.tool)
@@ -968,7 +976,7 @@ class Runner:
         jaws = jaw_angle(p.bed_angle, pk.rotate_offset_deg)
         name = p.cls + (f"x{p.length_mm:g}" if p.length_mm is not None else "")
         self.note(f"pick {name} at ({x:.1f}, {y:.1f}) -> bin {b.marker} ({plan.reason})")
-        turn = f", jaws {jaws:.0f}°" if pk.rotate and pk.kind.rotates else ""
+        turn = f", jaws {jaws:.0f}°" if pk.kind.rotates else ""
         self.phase(f"picking {name} at X{x:.0f} Y{y:.0f}{turn}, for bin {layout.bin_name(b)}")
         self.motion.message(f"pick {name}")
         self.motion.pick(x, y, z, jaws)
@@ -1165,24 +1173,20 @@ class Runner:
             "homed_now": self._setup_homed,
             "picker_tried": sorted(self._setup_picker),
             "tool": self._tool,  # the mounted tool, as Klipper last said (None: not asked yet)
-            "rotation": bool(self.m.picker.rotate),
+            "rotation": self.m.picker.kind.rotates,
             "picker": {
                 "mode": self.m.picker.kind.key,
                 "types": [pickers.as_dict(t) for t in pickers.PICKERS],
                 "offset_deg": self.m.picker.rotate_offset_deg,
-                "installed": self._picker_installed(),
-                "host_mcu": self.printer.host_mcu_ready(pickers.HOST_MCU_SERIAL),
-                "file": pickers.CONFIG_NAME,
+                "action_pin": self.m.picker.action_pin,
+                "turn_pin": self.m.picker.turn_pin,
+                "pins": dict(zip(("ok", "message"), self.pins.status(), strict=True)),
             },
         }
 
-    def _picker_installed(self) -> str | None:
-        p = self.m.path(self.m.paths.machine)
-        return (read_json(p) or {}).get("picker_installed") if p and p.is_file() else None
-
     def setup_picker_type(self, mode: str) -> dict[str, Any]:
         """The kind of picker (Setup tab): how it takes a part, where it aims, whether it turns.
-        Un-checks the Picker step: install its Klipper file and test it again."""
+        Un-checks the Picker step: test it again. The pins follow the type by themselves."""
         self._idle()
         t = pickers.picker_type(mode)
         self.m.picker.set_type(t.key)
@@ -1192,39 +1196,6 @@ class Runner:
         self.note(
             f"picker: {t.title} (aims at the {'head' if t.aim == 'head' else 'centre of gravity'})"
         )
-        return self.setup_state()
-
-    def setup_picker_install(self) -> dict[str, Any]:
-        """Write sortering_pnp_picker.cfg for the chosen picker into Klipper's config folder and
-        restart Klipper's firmware so it reads it."""
-        self._idle()
-        t = self.m.picker.kind
-        if self.printer.host_mcu_ready(pickers.HOST_MCU_SERIAL) is False:
-            # Klipper would not start: it would wait for a board that is not there
-            raise PrinterError(
-                f"the Pi does not run as a Klipper board yet (no {pickers.HOST_MCU_SERIAL}): "
-                "do 'The Pi as a Klipper board' first. Klipper was left as it is."
-            )
-        with self._lock:
-            self.printer.upload_config(pickers.CONFIG_NAME, pickers.klipper_config(t.key))
-            self.printer.firmware_restart()
-        self.remember_machine({"picker_installed": t.key})
-        self.setup.reset("picker")
-        self._setup_picker.clear()
-        self.say(f"{pickers.CONFIG_NAME} for the {t.title.lower()} installed; Klipper restarts")
-        return self.setup_state()
-
-    def setup_picker_uninstall(self) -> dict[str, Any]:
-        """Put the placeholder back (no picker, no Pi board) and restart Klipper: the way back
-        when Klipper does not start with the picker's file."""
-        self._idle()
-        with self._lock:
-            self.printer.upload_config(pickers.CONFIG_NAME, pickers.PLACEHOLDER)
-            self.printer.firmware_restart()
-        self.remember_machine({"picker_installed": None})
-        self.setup.reset("picker")
-        self._setup_picker.clear()
-        self.say(f"{pickers.CONFIG_NAME}: placeholder put back; Klipper restarts")
         return self.setup_state()
 
     def setup_picker_offset(self, deg: float) -> dict[str, Any]:
@@ -1291,6 +1262,8 @@ class Runner:
         if macro is None:
             raise ValueError("tool must be picker or hotend")
         with self._lock:
+            if tool == "hotend":
+                self.pins.off()
             self.printer.gcode(macro)
             now = self._ask_tool()
         if pc.tool_macro and now != tool:
@@ -1342,36 +1315,29 @@ class Runner:
             return [round(v, 2) for v in self.motion.current_tip()]
 
     def setup_picker(self, action: str) -> dict[str, Any]:
-        """Run the grab or release macro where the tool is: nothing moves."""
+        """Grab or release where the tool is (the Pi's pins): nothing moves."""
         self._idle()
-        pk = self.m.picker
-        macro = {"grab": pk.grab, "release": pk.release}.get(action)
-        if macro is None:
+        do = {"grab": self.pins.grab, "release": self.pins.release}.get(action)
+        if do is None:
             raise ValueError("action must be grab or release")
         with self._lock:
-            self.printer.gcode(macro)
+            do()
         self._setup_picker.add(action)
+        self.say(f"picker: {action}")
         return self.setup_state()
 
-    def setup_rotate(self, angle: float | None = None, zero: bool = False) -> dict[str, Any]:
-        """Tweezers: turn to `angle` (the jaws then close along it), or call the present
-        position 0 degrees (the jaws close along printer X). Nothing else moves."""
+    def setup_rotate(self, angle: float | None = None) -> dict[str, Any]:
+        """Tweezers: turn to `angle` (the jaws then close along it; the offset is added).
+        Nothing else moves."""
         self._idle()
         pk = self.m.picker
-        if not pk.rotate:
-            raise PrinterError("no rotation axis configured (picker.rotate)")
+        if not pk.kind.rotates:
+            raise PrinterError(f"the {pk.kind.title.lower()} does not turn")
+        a = float(angle or 0) % 180
         with self._lock:
-            if zero:
-                macro = pk.rotate_home or pk.rotate_zero
-                if not macro:
-                    raise PrinterError("no zero macro configured (picker.rotate_zero)")
-                self.printer.gcode(macro)
-                self.say("tweezers: this is 0°")
-            else:
-                a = float(angle or 0) % 180
-                self.printer.gcode(f"{pk.rotate} ANGLE={(a + pk.rotate_offset_deg) % 180:.1f}")
-                self.say(f"tweezers turned to {a:.0f}°")
-        self._setup_picker.add("zero" if zero else "rotate")
+            self.motion.turn(a + pk.rotate_offset_deg)
+        self.say(f"tweezers turned to {a:.0f}°")
+        self._setup_picker.add("rotate")
         return self.setup_state()
 
     def setup_confirm(self, key: str) -> dict[str, Any]:
@@ -1383,7 +1349,7 @@ class Runner:
             raise PrinterError("check the printer first")
         if key == "picker" and not {"grab", "release"} <= self._setup_picker:
             raise PrinterError("try Grab and Release first")
-        if key == "picker" and self.m.picker.rotate and "rotate" not in self._setup_picker:
+        if key == "picker" and self.m.picker.kind.rotates and "rotate" not in self._setup_picker:
             raise PrinterError("turn the tweezers to 0° and 90° first")
         if key == "picker" and self.m.printer.tool_macro:
             with self._lock:

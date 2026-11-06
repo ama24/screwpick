@@ -9,6 +9,8 @@ from sortering_pnp import pickers
 from sortering_pnp.grip import Shape, axis_grip, head_grip
 from sortering_pnp.io import read_json
 from sortering_pnp.layout import Layout
+from sortering_pnp.pins import PiPins
+from sortering_pnp.printer import PrinterError
 from sortering_pnp.printer.sim import SimPrinter, SimVision, SimWorld
 from sortering_pnp.runner import Runner
 from sortering_pnp.transform import Transform2D
@@ -70,20 +72,6 @@ def test_parts_from_result_aims_by_picker():
     assert parts("centre").grip_plate[0] > 5.5
 
 
-@pytest.mark.parametrize("key", [p.key for p in pickers.PICKERS])
-def test_klipper_file(key):
-    text = pickers.klipper_config(key)
-    t = pickers.BY_KEY[key]
-    assert "[mcu host]" in text and "serial: /tmp/klipper_host_mcu" in text
-    assert "[gcode_macro SORTERING_GRAB]" in text and "[gcode_macro SORTERING_RELEASE]" in text
-    assert pickers.ACTION_PIN in text  # GPIO12 does the grabbing
-    assert ("[gcode_macro SORTERING_ROTATE]" in text) == t.rotates
-    assert (pickers.TURN_PIN in text) == t.rotates  # GPIO13 only turns
-    assert ("[output_pin sortering_pnp_pump]" in text) == t.pump
-    sections = [ln for ln in text.splitlines() if ln.startswith("[")]
-    assert len(sections) == len(set(sections))  # Klipper refuses a section twice
-
-
 def make(machine):
     lay = Layout.default()
     lay.save(machine.path(machine.paths.layout))
@@ -92,21 +80,19 @@ def make(machine):
     return Runner(machine, printer, SimVision(world, lambda: lay, Transform2D.identity)), printer
 
 
-def test_setup_choose_install_and_trim(machine):
+def test_setup_choose_and_trim(machine):
     runner, printer = make(machine)
     st = runner.setup_picker_type("pneumatic_tweezers")
     assert st["picker"]["mode"] == "pneumatic_tweezers" and st["rotation"]
-    assert machine.picker.rotate == "SORTERING_ROTATE" and machine.picker.kind.aim == "centre"
-    st = runner.setup_picker_install()
-    assert st["picker"]["installed"] == "pneumatic_tweezers"
-    assert printer.configs[pickers.CONFIG_NAME] == pickers.klipper_config("pneumatic_tweezers")
-    assert "FIRMWARE_RESTART" in printer.log
+    assert machine.picker.kind.aim == "centre"
+    assert st["picker"]["pins"] == {"ok": True, "message": "simulated pins"}
     runner.setup_picker_offset(12)
     runner.setup_rotate(90)
     assert printer.jaw_angle == pytest.approx(102.0)  # the trim is added
     st = runner.setup_picker_type("magnet")
-    assert not st["rotation"] and machine.picker.rotate is None
-    assert st["picker"]["installed"] == "pneumatic_tweezers"  # the magnet's file is not in yet
+    assert not st["rotation"]
+    with pytest.raises(PrinterError, match="does not turn"):
+        runner.setup_rotate(0)
     saved = read_json(machine.path(machine.paths.machine))
     assert saved["picker_mode"] == "magnet" and saved["rotate_offset_deg"] == 12.0
     again, _ = make(machine)  # a restart keeps the choice
@@ -114,54 +100,105 @@ def test_setup_choose_install_and_trim(machine):
     assert again.setup_state()["picker"]["offset_deg"] == 12.0
 
 
-def test_install_waits_for_the_pi_as_a_klipper_board_and_can_be_taken_out(machine):
-    from sortering_pnp.printer import PrinterError
+class FakeOutput:
+    """gpiozero's DigitalOutputDevice, as far as PiPins uses it."""
 
-    runner, printer = make(machine)
-    printer.host_mcu = False  # klipper-mcu.service not set up: Klipper would not start
-    assert runner.setup_state()["picker"]["host_mcu"] is False
-    with pytest.raises(PrinterError, match="Klipper board"):
-        runner.setup_picker_install()
-    assert pickers.CONFIG_NAME not in printer.configs and "FIRMWARE_RESTART" not in printer.log
-    printer.host_mcu = True
-    assert runner.setup_picker_install()["picker"]["installed"]
-    st = runner.setup_picker_uninstall()  # the way back: no picker, no Pi board
-    assert printer.configs[pickers.CONFIG_NAME] == pickers.PLACEHOLDER
-    assert st["picker"]["installed"] is None and printer.log.count("FIRMWARE_RESTART") == 2
+    def __init__(self, pin):
+        self.pin, self.value, self.closed = pin, 0, False
 
+    def on(self):
+        self.value = 1
 
-def test_moonraker_checks_the_pi_board_only_on_this_pi(tmp_path, monkeypatch):
-    from sortering_pnp.printer.moonraker import Moonraker
+    def off(self):
+        self.value = 0
 
-    serial = tmp_path / "klipper_host_mcu"
-    assert Moonraker("http://localhost:7125").host_mcu_ready(str(serial)) is False
-    serial.write_text("")
-    assert Moonraker("http://127.0.0.1:7125").host_mcu_ready(str(serial)) is True
-    assert Moonraker("http://192.168.1.50:7125").host_mcu_ready(str(serial)) is None
-
-    calls = []
-
-    def fake(self, method, path, body=None):
-        calls.append(path)
-        if path == "/printer/firmware_restart":
-            from sortering_pnp.printer import PrinterError
-
-            raise PrinterError("Klipper: klippy not connected")
-
-    monkeypatch.setattr(Moonraker, "_request", fake)
-    Moonraker("http://localhost:7125").firmware_restart()  # stuck Klipper: restart the service
-    assert calls == ["/printer/firmware_restart", "/machine/services/restart?service=klipper"]
+    def close(self):
+        self.closed = True
 
 
-def test_sortering_pnp_cfg_includes_the_picker_file_and_leaves_its_macros_to_it():
+def fake_pwm(tmp_path):
+    """/sys/class/pwm with one chip of two channels, already exported."""
+    chip = tmp_path / "pwm" / "pwmchip0"
+    for ch in ("pwm0", "pwm1"):
+        (chip / ch).mkdir(parents=True)
+        for f in ("period", "duty_cycle", "enable"):
+            (chip / ch / f).write_text("0")
+    (chip / "export").write_text("")
+    return tmp_path / "pwm", chip
+
+
+def test_pi_pins_switch_the_pump_on_and_off(machine, tmp_path):
+    outs = []
+
+    def output(pin):
+        outs.append(FakeOutput(pin))
+        return outs[-1]
+
+    machine.picker.set_type("suction")
+    waits = []
+    pins = PiPins(machine, pwm_root=tmp_path / "none", output=output, sleep=waits.append)
+    assert pins.status() == (True, "ready: GPIO12 (pump)")  # a pump needs no PWM
+    pins.grab()
+    assert outs[0].pin == 12 and outs[0].value == 1
+    assert waits == [pytest.approx(0.4 + machine.picker.dwell_s)]  # the type's wait + dwell
+    pins.release()
+    assert outs[0].value == 0
+    pins.grab()
+    pins.off()  # stop, error, the program ends: the pump goes off
+    assert outs[0].value == 0
+    pins.close()
+    assert outs[0].closed
+
+
+def test_pi_pins_drive_servos_with_hardware_pwm(machine, tmp_path):
+    root, chip = fake_pwm(tmp_path)
+    machine.picker.set_type("servo_tweezers")
+    pins = PiPins(machine, pwm_root=root, output=FakeOutput, sleep=lambda s: None)
+    ok, why = pins.status()
+    assert ok and "GPIO12 (servo)" in why and "GPIO13 (turning servo)" in why
+    pins.grab()  # jaws to 20 degrees: 0.5 ms + 20/180 * 2 ms
+    assert (chip / "pwm0" / "period").read_text() == "20000000"
+    assert (chip / "pwm0" / "duty_cycle").read_text() == str(int(500_000 + 2_000_000 * 20 / 180))
+    assert (chip / "pwm0" / "enable").read_text() == "1"
+    machine.picker.release_angle = 100  # machine.yaml beats the type's 90
+    pins.release()
+    assert (chip / "pwm0" / "duty_cycle").read_text() == str(int(500_000 + 2_000_000 * 100 / 180))
+    pins.turn(180)
+    assert (chip / "pwm1" / "duty_cycle").read_text() == str(500_000)  # 180 = 0 (mod 180)
+    pins.turn(90)
+    assert (chip / "pwm1" / "duty_cycle").read_text() == "1500000"
+
+
+def test_pi_pins_say_what_is_missing(machine, tmp_path):
+    machine.picker.set_type("magnet")  # a servo
+    pins = PiPins(machine, pwm_root=tmp_path / "none", output=FakeOutput)
+    ok, why = pins.status()
+    assert not ok and "install-pi.sh" in why and "reboot" in why
+    with pytest.raises(PrinterError, match="hardware PWM"):
+        pins.grab()
+
+    def no_gpiozero(pin):
+        raise ImportError("No module named 'gpiozero'")
+
+    machine.picker.set_type("suction")
+    ok, why = PiPins(machine, pwm_root=tmp_path, output=no_gpiozero).status()
+    assert not ok and "python3-gpiozero" in why
+
+
+def test_tweezers_on_a_stepper_need_no_turning_servo(machine, tmp_path):
+    machine.picker.set_type("pneumatic_tweezers")  # pump + turning
+    machine.picker.rotate_macro = "SORTERING_ROTATE"
+    pins = PiPins(machine, pwm_root=tmp_path / "none", output=FakeOutput)
+    ok, why = pins.status()
+    assert ok and "SORTERING_ROTATE in Klipper" in why  # no PWM needed at all
+
+
+def test_sortering_pnp_cfg_has_no_picker_in_klipper():
     from pathlib import Path
 
     klipper = Path(__file__).resolve().parents[1] / "klipper"
     main = (klipper / "sortering_pnp.cfg").read_text(encoding="utf-8")
-    assert f"[include {pickers.CONFIG_NAME}]" in main
-    live = [ln for ln in main.splitlines() if ln.startswith("[")]
-    assert (
-        "[gcode_macro SORTERING_GRAB]" not in live and "[gcode_macro SORTERING_ROTATE]" not in live
-    )
-    placeholder = (klipper / pickers.CONFIG_NAME).read_text(encoding="utf-8")
-    assert placeholder == pickers.PLACEHOLDER and "[mcu host]" not in placeholder
+    live = [ln for ln in main.splitlines() if ln and not ln.startswith("#")]
+    assert not any(ln.startswith("[include") for ln in live)  # nothing to install
+    assert not any("SORTERING_GRAB" in ln or "SORTERING_RELEASE" in ln for ln in live)
+    assert "[mcu host]" not in main and not (klipper / "sortering_pnp_picker.cfg").exists()

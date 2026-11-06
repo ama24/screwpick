@@ -13,9 +13,7 @@ import threading
 import urllib.error
 import urllib.parse
 import urllib.request
-import uuid
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 
 from .base import PrinterError, PrinterStatus
@@ -83,53 +81,6 @@ class Moonraker:
 
     def emergency_stop(self) -> None:
         self._request("POST", "/printer/emergency_stop")
-
-    def upload_config(self, name: str, text: str) -> None:
-        """POST /server/files/upload into the "config" root (multipart form)."""
-        boundary = "----sortering_pnp" + uuid.uuid4().hex
-        crlf = "\r\n"
-        head = crlf.join(
-            [
-                f"--{boundary}",
-                'Content-Disposition: form-data; name="root"',
-                "",
-                "config",
-                f"--{boundary}",
-                f'Content-Disposition: form-data; name="file"; filename="{name}"',
-                "Content-Type: text/plain",
-                "",
-                "",
-            ]
-        )
-        body = (head + text + f"{crlf}--{boundary}--{crlf}").encode()
-        req = urllib.request.Request(
-            self.url + "/server/files/upload",
-            data=body,
-            method="POST",
-            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout_s) as r:
-                r.read()
-        except urllib.error.HTTPError as exc:
-            raise PrinterError(f"Moonraker refused {name}: {exc}") from exc
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            raise PrinterError(f"cannot reach Moonraker at {self.url}: {exc}") from exc
-
-    def firmware_restart(self) -> None:
-        try:
-            self._request("POST", "/printer/firmware_restart")
-        except PrinterError as exc:
-            # Klipper busy connecting to a board that is not there does not answer: restart
-            # its service instead (what Mainsail's "Restart Klipper" does)
-            log.warning("firmware restart refused (%s): restarting the klipper service", exc)
-            self._request("POST", "/machine/services/restart?service=klipper")
-
-    def host_mcu_ready(self, serial: str) -> bool | None:
-        host = urllib.parse.urlparse(self.url).hostname or ""
-        if host not in ("localhost", "127.0.0.1", "::1"):
-            return None  # Klipper runs on another computer: its /tmp is not ours
-        return Path(serial).exists()
 
     def close(self) -> None:
         pass

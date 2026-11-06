@@ -33,22 +33,21 @@ def test_photo_is_taken_with_the_part_in_the_picker(machine):
     assert held == [sp for sp, _ in world.dropped]
     # the photo comes between grab and release
     log = printer.log
-    grab = log.index(machine.picker.grab)
-    assert log.index(machine.picker.release, grab) > grab
+    grab = log.index("; pins grab")
+    assert log.index("; pins release", grab) > grab
 
 
 def test_analysis_runs_while_the_part_is_carried(machine):
     machine.run.shake.enabled = False
     runner, world, printer, vision = make(machine, n=2)
     vision.delay_s = 0.4  # the Pi thinking
-    gcode = printer.gcode
+    release = runner.pins.release
 
-    def slow_drop(script: str) -> None:  # the bed travelling to the bin
-        gcode(script)
-        if machine.picker.release in script:
-            time.sleep(0.4)
+    def slow_drop() -> None:  # the bed travelling to the bin
+        release()
+        time.sleep(0.4)
 
-    printer.gcode = slow_drop  # type: ignore[method-assign]
+    runner.pins.release = slow_drop  # type: ignore[method-assign]
     runner.command("step")
     runner.wait(30)
     t = runner.state.timing

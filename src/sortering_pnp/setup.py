@@ -23,8 +23,8 @@ class Step:
     goal: str
 
 
-# The picker comes before anything moves: installing it restarts Klipper (homing is lost), and
-# every move needs it on the printer (TOOL_PICKER, a button in this step).
+# The picker comes before anything moves: every move needs it on the printer (TOOL_PICKER, a
+# button in this step). Its pins are the Pi's, switched by sortering-pnp (pins.py).
 STEPS = (
     Step(
         "printer",
@@ -34,8 +34,7 @@ STEPS = (
     Step(
         "picker",
         "Picker",
-        "The kind of picker, wired to the Pi, installed in Klipper and on the printer; "
-        "grab and release work",
+        "The kind of picker, wired to the Pi and on the printer; grab and release work",
     ),
     Step("homing", "Homing", "Z homes over the middle of the plate, never over a bin"),
     Step("machine", "Machine", "Bed limits, travel height and the photo position are right"),

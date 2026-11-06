@@ -81,6 +81,11 @@ another repository.
   start/step/auto on a real printer until it's complete. Setup moves call
   `preflight(home=False)`, so only *Home now* and sorting ever home. Machine values from the page
   go to `paths.machine`, over machine.yaml.
+- **Picker pins:** `pins.py`. sortering-pnp switches the Pi's own pins itself (gpiozero for a
+  pump, `/sys/class/pwm` for servos); the picker is not in Klipper (no host MCU, nothing to
+  install). Motion sends `M400` before `grab`/`release`; `off()` on stop, error, e-stop and exit.
+  The simulator has `SimPins`. Tweezers on a stepper turn through a Klipper macro
+  (`picker.rotate_macro`).
 - **Grip:** `grip.py`. Screws: axis and centre of mass from the three keypoints (head_top,
   bearing, tip) plus head sizes from parts.json (`vision.shapes_from_parts`); the grip point is
   on the shank. Other parts: area moments of the outline. `Part.grip_bed` is where the tool goes;

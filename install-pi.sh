@@ -34,9 +34,27 @@ if [ "$mem" -lt 1800 ]; then
 fi
 
 # ---------------------------------------------------------------- system packages
-say "system packages (camera, git)"
+say "system packages (camera, the Pi's pins, git)"
 sudo apt-get update
-sudo apt-get install -y python3-venv python3-picamera2 rpicam-apps git libgl1
+sudo apt-get install -y python3-venv python3-picamera2 rpicam-apps git libgl1 \
+  python3-gpiozero python3-lgpio
+
+# ---------------------------------------------------------------- the picker's pins
+# sortering-pnp switches the picker on the Pi's own pins (no Klipper set-up for it). Servos need
+# hardware PWM on GPIO12/13: one line in config.txt, read at boot. Added once, never twice.
+REBOOT=0
+CFGTXT=/boot/firmware/config.txt
+[ -f "$CFGTXT" ] || CFGTXT=/boot/config.txt
+PWM_LINE="dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4"
+if [ -f "$CFGTXT" ] && ! grep -q "^dtoverlay=pwm-2chan" "$CFGTXT"; then
+  say "hardware PWM for the picker's servos ($CFGTXT)"
+  echo "$PWM_LINE" | sudo tee -a "$CFGTXT" >/dev/null
+  REBOOT=1
+fi
+if ! id -nG "$USER" | grep -qw gpio; then
+  sudo usermod -aG gpio "$USER"   # the pins without sudo
+  REBOOT=1
+fi
 
 # ---------------------------------------------------------------- Python packages
 say "Python environment $VENV"
@@ -48,7 +66,7 @@ say "checking the installation"
 "$VENV/bin/python" - <<'EOF'
 import importlib
 for mod in ("cv2", "torch", "ultralytics", "ncnn", "manifold3d", "websocket",
-            "sortering_pnp"):
+            "gpiozero", "sortering_pnp"):
     importlib.import_module(mod)
 import cv2, torch
 assert hasattr(cv2, "aruco"), "OpenCV without ArUco: opencv-python overwrote the contrib build"
@@ -77,7 +95,8 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
   sudo systemctl daemon-reload
-  sudo systemctl enable --now sortering-pnp.service
+  sudo systemctl enable sortering-pnp.service
+  sudo systemctl restart sortering-pnp.service   # runs the code just installed
   echo "Logs: journalctl -u sortering-pnp -f"
 fi
 
@@ -85,9 +104,12 @@ cat <<EOF
 
 Done. Next:
   1. Klipper: cp $HERE/klipper/sortering_pnp.cfg ~/printer_data/config/
-     cp -n $HERE/klipper/sortering_pnp_picker.cfg ~/printer_data/config/   (placeholder, kept if present)
-     and add [include sortering_pnp.cfg] to printer.cfg, then FIRMWARE_RESTART.
-     Choose and install your picker later in the web page (Setup tab, Picker).
+     and add [include sortering_pnp.cfg] to printer.cfg (once), then FIRMWARE_RESTART.
+     The picker needs nothing in Klipper: choose it in the web page (Setup tab, Picker).
   2. source $VENV/bin/activate && cd $HERE && sortering-pnp check
   3. sortering-pnp serve   (or run this script again with --service to start it at every boot)
 EOF
+if [ "$REBOOT" = 1 ]; then
+  echo
+  echo "Reboot once (sudo reboot): the picker's pins are ready after it."
+fi

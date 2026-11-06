@@ -109,23 +109,37 @@ def make(machine, n: int = 4):
     return Runner(machine, printer, vision), world, printer
 
 
-def test_tweezers_turn_across_each_part_and_the_console_says_so(machine):
+def _turns(printer, prefix: str) -> list[float]:
+    """The jaw angles sent, in order: '; pins turn 12.3' (the servo) or 'MACRO ANGLE=12.3'."""
+    out = []
+    for ln in printer.log:
+        if ln.startswith("; pins turn "):
+            out.append(float(ln.split()[-1]))
+        elif prefix and ln.startswith(prefix):
+            out.append(float(ln.split("ANGLE=")[1]))
+    return out
+
+
+@pytest.mark.parametrize("stepper", [False, True])
+def test_tweezers_turn_across_each_part_and_the_console_says_so(machine, stepper):
     machine.picker.mode = "tweezers"
-    machine.picker.rotate = "SORTERING_ROTATE"
-    machine.picker.rotate_home = "SORTERING_ROT_HOME"
+    if stepper:  # tweezers on a stepper: Klipper macros (klipper/sortering_pnp.cfg)
+        machine.picker.rotate_macro = "SORTERING_ROTATE"
+        machine.picker.rotate_home = "SORTERING_ROT_HOME"
     machine.run.shake.enabled = False
     runner, world, printer = make(machine)
     angles = {id(sp): sp.angle for sp in world.parts}
     runner.command("start", "sort")
     runner.wait(60)
     assert runner.state.status == "done" and not world.parts
-    turns = [ln for ln in printer.log if ln.startswith("SORTERING_ROTATE")]
+    turns = _turns(printer, "SORTERING_ROTATE" if stepper else "")
     assert len(turns) == len(world.dropped)
-    for (sp, _), line in zip(world.dropped, turns, strict=True):
+    for (sp, _), got in zip(world.dropped, turns, strict=True):
         want = (angles[id(sp)] + 90.0) % 180.0
-        got = float(line.split("ANGLE=")[1])
         assert min(abs(got - want), 180 - abs(got - want)) < 0.06
-    assert "SORTERING_ROT_HOME" in printer.log  # 0 deg found before sorting
+    # the servo turns on the Pi's pin, a stepper through Klipper (and finds its 0 first)
+    assert any(ln.startswith("; pins turn") for ln in printer.log) != stepper
+    assert ("SORTERING_ROT_HOME" in printer.log) == stepper
     console = runner.snapshot()["console"]
     text = "\n".join(console)
     assert "sorting: sort" in text and "on the plate:" in text and "jaws" in text
@@ -136,14 +150,14 @@ def test_tweezers_turn_across_each_part_and_the_console_says_so(machine):
 
 def test_setup_rotation_test(machine):
     machine.picker.mode = "tweezers"
-    machine.picker.rotate = "SORTERING_ROTATE"
     runner, world, printer = make(machine, n=0)
     runner.setup_picker("grab")
     runner.setup_picker("release")
+    assert printer.log[-2:] == ["; pins grab", "; pins release"]  # on the Pi's pins
     with pytest.raises(Exception, match="0° and 90°"):
         runner.setup_confirm("picker")
+    runner.setup_picker_offset(12)
     runner.setup_rotate(90)
-    runner.setup_rotate(zero=True)
-    assert printer.jaw_angle == 90.0 and "SORTERING_ROT_ZERO" in printer.log
+    assert printer.jaw_angle == 102.0  # the trim is added
     runner.setup_confirm("picker")
     assert runner.setup.is_done("picker")

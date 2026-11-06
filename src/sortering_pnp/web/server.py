@@ -27,9 +27,8 @@ POST /api/bins/full         {"marker": id}: this bin is full (learns the packing
 GET  /api/session           who is logged in; POST /api/login, /api/setup (first account),
 POST /api/logout;  GET /api/users, POST /api/users/add, /api/users/remove, /api/users/password
 GET  /api/setup; POST /api/setup/printer|home|goto|machine|picker|confirm|reset   the Setup tab
-POST /api/setup/picker/type {"type"}, /api/setup/picker/install|uninstall, /api/setup/picker/offset {"deg"};
+POST /api/setup/picker/type {"type"}, /api/setup/picker/offset {"deg"}, /api/setup/rotate {"angle"};
 POST /api/setup/tool {"tool": "picker"|"hotend"}  which tool is on the printer (TOOL_PICKER/_HOTEND)
-GET  /api/setup/picker.cfg?type=…  the picker's Klipper file (sortering_pnp_picker.cfg)
 
 With accounts (the default), everything except the page itself and the session routes needs the
 session cookie set by /api/login; other requests get 401.
@@ -55,7 +54,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from .. import binspec, pickers
+from .. import binspec
 from ..auth import COOKIE, Accounts, AuthError
 from ..layout import Bin, Layout
 from ..printables import export
@@ -230,22 +229,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json(r.save_machine(self._body().get("values") or {}))
         elif method == "POST" and path == "/api/setup/picker/type":
             self._json(r.setup_picker_type(str(self._body()["type"])))
-        elif method == "POST" and path == "/api/setup/picker/install":
-            self._json(r.setup_picker_install())
-        elif method == "POST" and path == "/api/setup/picker/uninstall":
-            self._json(r.setup_picker_uninstall())
         elif method == "POST" and path == "/api/setup/tool":
             self._json(r.setup_tool(str(self._body()["tool"])))
         elif method == "POST" and path == "/api/setup/picker/offset":
             self._json(r.setup_picker_offset(float(self._body()["deg"])))
-        elif method == "GET" and path == "/api/setup/picker.cfg":
-            text = pickers.klipper_config(q.get("type") or r.m.picker.kind.key)
-            self._send(200, text.encode(), "text/plain; charset=utf-8", pickers.CONFIG_NAME)
         elif method == "POST" and path == "/api/setup/picker":
             self._json(r.setup_picker(str(self._body()["action"])))
         elif method == "POST" and path == "/api/setup/rotate":
-            b = self._body()
-            self._json(r.setup_rotate(b.get("angle"), bool(b.get("zero"))))
+            self._json(r.setup_rotate(self._body().get("angle")))
         elif method == "POST" and path == "/api/setup/confirm":
             self._json(r.setup_confirm(str(self._body()["step"])))
         elif method == "POST" and path == "/api/setup/reset":

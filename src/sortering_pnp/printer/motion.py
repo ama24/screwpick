@@ -8,17 +8,24 @@ tip - tool.offset. Every move is checked against the configured limits before it
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from ..config import Machine
 from .base import Printer, PrinterError, PrinterStatus
+
+if TYPE_CHECKING:
+    from ..pins import Pins
 
 log = logging.getLogger("sortering_pnp.motion")
 
 
 class Motion:
-    def __init__(self, printer: Printer, machine: Machine) -> None:
+    def __init__(self, printer: Printer, machine: Machine, pins: Pins | None = None) -> None:
+        from ..pins import make_pins  # pins.py needs this package: imported when used
+
         self.p = printer
         self.m = machine
+        self.pins = pins if pins is not None else make_pins(machine, printer)  # the picker
         self.tip: list[float] | None = None  # last commanded tip position
         self.z_home_xy: tuple[float, float] | None = None  # tip X/Y for homing Z (set by runner)
 
@@ -140,16 +147,27 @@ class Motion:
         return self.current_tip()
 
     # ------------------------------------------------------------------ sequences
+    def turn(self, angle_deg: float) -> None:
+        """Tweezers: the jaws to `angle_deg` (0..180, offset added): the servo on the Pi's turn
+        pin, or a Klipper macro when they turn on a stepper (picker.rotate_macro)."""
+        a = angle_deg % 180.0
+        macro = self.m.picker.rotate_macro
+        if macro:
+            self.p.gcode(f"{macro} ANGLE={a:.1f}")
+        else:
+            self.pins.turn(a)
+
     def pick(self, x: float, y: float, z: float, angle_deg: float | None = None) -> None:
         """Go to the part, descend slowly to z (tip height), grab, lift to the travel height."""
         pk = self.m.picker
         self.travel(x, y)
-        if pk.rotate and angle_deg is not None and pk.kind.rotates:
+        if angle_deg is not None and pk.kind.rotates:
             # the jaws close across the part: `angle_deg` = their closing direction (grip.py)
-            self.p.gcode(f"{pk.rotate} ANGLE={angle_deg % 180.0:.1f}")
+            self.turn(angle_deg)
         self.move(z=z + pk.approach_mm)
         self.move(z=z, feed=pk.feed_z_slow)
-        self.p.gcode(f"M400\n{pk.grab}\nG4 P{pk.dwell_s * 1000:.0f}")
+        self.p.gcode("M400")  # the pins are not in Klipper's queue: wait for the moves first
+        self.pins.grab()
         self.move(z=z + pk.approach_mm, feed=pk.feed_z_slow)
         self.move(z=self.m.printer.travel_z)
 
@@ -159,7 +177,8 @@ class Motion:
         drop_z = rim_z + pk.drop_mm
         if drop_z < self.m.printer.travel_z:
             self.move(z=drop_z)
-        self.p.gcode(f"M400\n{pk.release}\nG4 P{pk.dwell_s * 1000:.0f}")
+        self.p.gcode("M400")
+        self.pins.release()
         self.move(z=self.m.printer.travel_z)
 
     def shake(self) -> None:
