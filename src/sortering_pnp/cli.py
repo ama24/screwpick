@@ -1,13 +1,13 @@
-"""screwpick command line.
+"""sortering-pnp command line.
 
-screwpick serve              web page + sorter + printer-menu buttons (the normal way to run it)
-screwpick serve --sim        the same with a simulated printer, parts and camera (try it on a PC)
-screwpick run --strategy sort [--steps N]   sort without the web page (logs to the terminal)
-screwpick check              is everything there? (config, layout, calibration, printer)
-screwpick user add NAME      page account (new user or new password); user remove / list
-screwpick print bin|baseplate|labels|all    write printable files
-screwpick print catalogue --out prints      every bin size as full build plates, baseplates, labels
-screwpick print mounts --reach 135 --bar-height 364   screen holder + camera arm for the top bar
+sortering_pnp serve              web page + sorter + printer-menu buttons (the normal way to run it)
+sortering_pnp serve --sim        the same with a simulated printer, parts and camera (try it on a PC)
+sortering_pnp run --strategy sort [--steps N]   sort without the web page (logs to the terminal)
+sortering_pnp check              is everything there? (config, layout, calibration, printer)
+sortering_pnp user add NAME      page account (new user or new password); user remove / list
+sortering_pnp print bin|baseplate|labels|all    write printable files
+sortering_pnp print catalogue --out prints      every bin size as full build plates, baseplates, labels
+sortering_pnp print mounts --reach 135 --bar-height 364   screen holder + camera arm for the top bar
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from pathlib import Path
 from . import config as config_mod
 from .config import Machine
 
-log = logging.getLogger("screwpick")
+log = logging.getLogger("sortering_pnp")
 
 DEFAULT_CONFIG = Path("configs/machine.yaml")
 
@@ -93,7 +93,9 @@ def cmd_serve(args: argparse.Namespace) -> int:
     if auto:
         print(f"automatic mode was on: {runner.command('auto', strategy)}", flush=True)
     port = server.server_address[1]
-    print(f"screwpick: open http://{_address()}:{port}/ in a browser (Ctrl+C to quit)", flush=True)
+    print(
+        f"sortering-pnp: open http://{_address()}:{port}/ in a browser (Ctrl+C to quit)", flush=True
+    )
     if world is not None:
         print("simulated printer, parts and camera: nothing real moves", flush=True)
     try:
@@ -137,7 +139,7 @@ def cmd_user(args: argparse.Namespace) -> int:
             print(f"removed {args.name}")
         else:
             if not args.name:
-                raise AuthError("give a user name: screwpick user add NAME")
+                raise AuthError("give a user name: sortering_pnp user add NAME")
             pw = getpass.getpass(f"password for {args.name}: ")
             if pw != getpass.getpass("again: "):
                 raise AuthError("the passwords differ")
@@ -261,7 +263,7 @@ def cmd_print(args: argparse.Namespace) -> int:
     elif args.what == "labels":
         files.append(export.labels_file(lay, args.marker or None))
     else:
-        files.append(("screwpick_print.zip", export.everything_zip(lay)))
+        files.append(("sortering_pnp_print.zip", export.everything_zip(lay)))
     for name, data in files:
         (out / name).write_bytes(data)
         print(out / name)
@@ -281,7 +283,9 @@ def _address() -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
-        prog="screwpick", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+        prog="sortering-pnp",
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ap.add_argument(
         "--config", type=Path, default=None, help="machine.yaml (default: configs/machine.yaml)"

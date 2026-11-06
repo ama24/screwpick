@@ -3,7 +3,7 @@ requires = ["hatchling>=1.18"]
 build-backend = "hatchling.build"
 
 [project]
-name = "screwpick"
+name = "sortering-pnp"
 version = "0.1.0"
 description = "Raspberry Pi pick-and-place screw sorter on a Klipper printer (Ender 3, Prusa MK3)"
 readme = "README.md"
@@ -17,20 +17,20 @@ dependencies = [
 # PC usually has opencv-contrib-python already, and two OpenCV packages overwrite each other.
 
 [project.optional-dependencies]
-# the printer menu buttons (Klipper -> Moonraker -> screwpick) need a websocket
+# the printer menu buttons (Klipper -> Moonraker -> sortering-pnp) need a websocket
 klipper = ["websocket-client>=1.6"]
 # printable Gridfinity bins and baseplates
 print = ["trimesh>=4.0", "manifold3d>=3.0"]
 dev = ["pytest>=8.0", "ruff>=0.6", "trimesh>=4.0", "manifold3d>=3.0", "websocket-client>=1.6"]
 
 [project.scripts]
-screwpick = "screwpick.cli:main"
+sortering-pnp = "sortering_pnp.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/screwpick"]
+packages = ["src/sortering_pnp"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/screwpick/web/index.html" = "screwpick/web/index.html"
+"src/sortering_pnp/web/index.html" = "sortering_pnp/web/index.html"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -49,5 +49,5 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "PTH"]
 ignore = ["E501"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["screwpick"]
+known-first-party = ["sortering_pnp"]
 known-third-party = ["screwsynth", "screwrig"]

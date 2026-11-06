@@ -45,7 +45,7 @@ from .trayview import WorkArea
 from .trayview import rect as tray_rect
 from .vision import Shot, Vision
 
-log = logging.getLogger("screwpick.runner")
+log = logging.getLogger("sortering_pnp.runner")
 
 
 @dataclass
@@ -749,12 +749,12 @@ class Runner:
                 self._set(status="done", message=plan.reason)
                 self.note(f"done: {plan.reason}")
                 self.say("done: " + plan.reason)
-                self.motion.message("screwpick: done")
+                self.motion.message("sortering-pnp: done")
                 return "done"
             if plan.kind == "stuck":
                 self.note(plan.reason)
                 self.say("stuck: " + plan.reason)
-                self.motion.message("screwpick: needs a hand")
+                self.motion.message("sortering-pnp: needs a hand")
                 if auto:
                     self._set(
                         status="stuck", message=plan.reason + "; waiting until they are moved"
@@ -1192,7 +1192,7 @@ class Runner:
         return self.setup_state()
 
     def setup_picker_install(self) -> dict[str, Any]:
-        """Write screwpick_picker.cfg for the chosen picker into Klipper's config folder and
+        """Write sortering_pnp_picker.cfg for the chosen picker into Klipper's config folder and
         restart Klipper's firmware so it reads it."""
         self._idle()
         t = self.m.picker.kind
@@ -1230,9 +1230,9 @@ class Runner:
                 if pc.tool_macro:
                     checks.append(
                         {
-                            "what": "screwpick.cfg is included",
+                            "what": "sortering_pnp.cfg is included",
                             "ok": st.tool is not None,
-                            "detail": "[include screwpick.cfg] in printer.cfg",
+                            "detail": "[include sortering_pnp.cfg] in printer.cfg",
                         }
                     )
                     checks.append(

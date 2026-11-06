@@ -1,4 +1,4 @@
-screwpick baseplate for the Prusa i3 MK3 / MK3S (MK52 bed) (slim)
+sortering-pnp baseplate for the Prusa i3 MK3 / MK3S (MK52 bed) (slim)
 ===================================================================
 
 The 5 x 5 grid with a flat border out to the bed's edges (254 x 231 mm), so it can be

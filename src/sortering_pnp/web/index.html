@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>screwpick</title>
+<title>sortering-pnp</title>
 <style>
 :root{
  --bg:#f3f4f1;--card:#fff;--ink:#1c2024;--mut:#5d6670;--soft:#8a9198;--line:#e3e5e0;--line2:#eef0ec;
@@ -214,7 +214,7 @@ button.p{font-weight:600}button.big{padding:11px 18px}
 </style></head><body>
 <div class="app">
 <aside class="side">
- <div class="brand"><span class="logo"><i></i><i></i><i></i><i></i></span><span class="bl"><b>screwpick</b><small id="machname">pick-and-place sorter</small></span></div>
+ <div class="brand"><span class="logo"><i></i><i></i><i></i><i></i></span><span class="bl"><b>sortering-pnp</b><small id="machname">pick-and-place sorter</small></span></div>
  <nav aria-label="Sections">
   <div class="ngroup"><span class="glabel">Operate</span><button data-t="device" class="on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Device</span><span id="devbadge" class="badge" hidden></span></button></div>
   <div class="ngroup"><span class="glabel">Prepare</span><button data-t="setup"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Setup</span><span id="setupbadge" class="badge" hidden></span></button><button data-t="calib"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg><span>Calibrate</span></button><button data-t="print"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg><span>Print bins</span></button></div>
@@ -228,7 +228,7 @@ button.p{font-weight:600}button.big{padding:11px 18px}
 <div class="content">
 
 <div id="login"><form onsubmit="doLogin(event)">
- <div class="brand"><span class="logo"><i></i><i></i><i></i><i></i></span>screwpick</div>
+ <div class="brand"><span class="logo"><i></i><i></i><i></i><i></i></span>sortering-pnp</div>
  <h3 id="logtitle">Log in</h3>
  <p id="loghelp" class="note" hidden>No account yet. Choose a user name and a password (6 characters or more). This account can add others later in Users.</p>
  <input id="luser" placeholder="User name" autocomplete="username" required>
@@ -282,7 +282,7 @@ button.p{font-weight:600}button.big{padding:11px 18px}
 <section id="calib">
  <div class="phead"><div class="pt"><h1>Calibrate</h1><p>The camera, the camera to the printer, and the picker tip</p></div></div>
  <div class="card"><h2>Camera calibration</h2>
-  <p class="note" style="margin:0 0 12px">Tells the program how the camera sees: the lens, and where it stands over the tray. screwpick parks the bed itself; only the camera is screwrig's. Do it once, and again whenever the camera or the tray moved. The result lands in the Files tab by itself.</p>
+  <p class="note" style="margin:0 0 12px">Tells the program how the camera sees: the lens, and where it stands over the tray. sortering-pnp parks the bed itself; only the camera is screwrig's. Do it once, and again whenever the camera or the tray moved. The result lands in the Files tab by itself.</p>
   <ol class="calsteps">
    <li><b>The board</b>: <button class="b s" onclick="location.href='api/calibration/board.pdf'">Download the tray board (PDF)</button> <span class="note" id="calboard"></span><br>
     <span class="note">Print at 100 % (no scaling), glue it flat on stiff card, measure one square with a caliper.</span>
@@ -318,7 +318,7 @@ button.p{font-weight:600}button.big{padding:11px 18px}
   </div>
  </div>
  <div class="card"><h2>Tip height</h2>
-  <p class="note">Do this after homing, whenever the picker or the Z switch was moved. Jog the tip down over the TPU plate (0.1 mm steps at the end) until a sheet of paper just drags under it, then press the button. Everything screwpick does in Z counts from this.</p>
+  <p class="note">Do this after homing, whenever the picker or the Z switch was moved. Jog the tip down over the TPU plate (0.1 mm steps at the end) until a sheet of paper just drags under it, then press the button. Everything sortering-pnp does in Z counts from this.</p>
   <div class="row"><button class="b p" onclick="tipTouch()">Tip touches the plate</button><span class="note">tip offset <b id="tipz">–</b></span><span id="tipmsg" class="note"></span></div></div>
  <div class="card"><h2>Photo</h2><img id="calshot" class="shot" alt=""></div>
 </section>
@@ -343,7 +343,7 @@ button.p{font-weight:600}button.big{padding:11px 18px}
   <button class="b p s" onclick="location.href=`api/print/mounts?reach=${$('mreach').value}&tilt=${$('mtilt').value}`+($('mbar').value?`&bar_height=${$('mbar').value}`:'')">Download</button></div>
  </div>
  <div class="card"><h2>This layout</h2>
-  <p>Everything for the bins in the layout: <a href="api/print/all">screwpick_print.zip</a> · <a href="api/print/labels">paper labels</a></p>
+  <p>Everything for the bins in the layout: <a href="api/print/all">sortering_pnp_print.zip</a> · <a href="api/print/labels">paper labels</a></p>
   <table id="printlist"></table>
  </div>
 </section>
@@ -353,7 +353,7 @@ button.p{font-weight:600}button.big{padding:11px 18px}
  <div class="cols">
   <div class="card"><h2>Accounts</h2><table id="ulist"></table>
    <div class="row" style="margin-top:14px"><input id="nuser" placeholder="New user name"><input id="npass" type="password" placeholder="Password"><button class="b p" onclick="addUser()">Add user</button></div>
-   <p class="note" style="margin-top:10px">Everyone with an account can do everything. Lost every password? On the Pi: <code>screwpick user add NAME</code>.</p><span id="umsg" class="note"></span></div>
+   <p class="note" style="margin-top:10px">Everyone with an account can do everything. Lost every password? On the Pi: <code>sortering-pnp user add NAME</code>.</p><span id="umsg" class="note"></span></div>
   <div class="card"><h2>My password</h2><div style="display:grid;gap:8px"><input id="oldpw" type="password" placeholder="Current password"><input id="newpw" type="password" placeholder="New password"><div class="row"><button class="b" onclick="changePw()">Change</button><button class="b" onclick="logout()">Log out</button></div></div></div>
  </div>
 </section>
@@ -361,7 +361,7 @@ button.p{font-weight:600}button.big{padding:11px 18px}
 <section id="files">
  <div class="phead"><div class="pt"><h1>Files</h1><p>Files from the other projects, kept on this Pi</p></div></div>
  <div class="card"><h2>How it works</h2>
-  <p class="note">screwpick keeps its own copy of every file it uses, so it runs on its own. Fetch each one from where it says, and drop it on its card: it is checked, kept on this Pi and used at once. A file you leave out is not missing: the card says what is done without it. The models are in the Models tab.</p>
+  <p class="note">sortering-pnp keeps its own copy of every file it uses, so it runs on its own. Fetch each one from where it says, and drop it on its card: it is checked, kept on this Pi and used at once. A file you leave out is not missing: the card says what is done without it. The models are in the Models tab.</p>
   <span id="fmsg" class="note"></span></div>
  <div id="flist" class="card frows"></div>
 </section>
@@ -380,7 +380,7 @@ button.p{font-weight:600}button.big{padding:11px 18px}
  <div class="card"><h2>In use</h2><div id="loaded" class="note">…</div></div>
  <div class="card"><h2>Add a model</h2>
   <div id="drop" onclick="$('file').click()"><b>Drop a model here</b> or click to choose<br>
-   <span class="note">model-trainer package (.zip), a zipped NCNN folder, or a single .onnx / .pt</span></div>
+   <span class="note">training-synth package (.zip), a zipped NCNN folder, or a single .onnx / .pt</span></div>
   <input id="file" type="file" accept=".zip,.onnx,.pt" hidden>
   <div class="row" style="margin-top:12px"><label>name<input id="mname" placeholder="optional, e.g. v3 more nuts"></label><span id="upmsg" class="note"></span></div>
   <progress id="upbar" value="0" max="1" hidden></progress>

@@ -12,7 +12,7 @@ import logging
 from ..config import Machine
 from .base import Printer, PrinterError, PrinterStatus
 
-log = logging.getLogger("screwpick.motion")
+log = logging.getLogger("sortering_pnp.motion")
 
 
 class Motion:
@@ -37,7 +37,7 @@ class Motion:
         if pc.tool_macro:
             if st.tool is None:
                 raise PrinterError(
-                    f"Klipper has no macro {pc.tool_macro}: add [include screwpick.cfg] to printer.cfg"
+                    f"Klipper has no macro {pc.tool_macro}: add [include sortering_pnp.cfg] to printer.cfg"
                 )
             if st.tool != "picker":
                 raise PrinterError(
@@ -53,7 +53,7 @@ class Motion:
         return st
 
     def home(self) -> None:
-        """G28 through klipper/screwpick.cfg's homing override: lift first, home X and Y, home Z
+        """G28 through klipper/sortering_pnp.cfg's homing override: lift first, home X and Y, home Z
         with the tip over `z_home_xy` (the middle of the working area: flat plate, no bins)."""
         pc = self.m.printer
         lines = []

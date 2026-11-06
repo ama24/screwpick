@@ -18,7 +18,7 @@ from .meshio import stl_bytes, threemf_bytes, threemf_plate_bytes
 BED_MM = (220.0, 220.0)  # Ender 3: plates of bins are laid out for this bed
 PLATE_GAP_MM = 8.0
 
-PRINT_NOTES = """screwpick printables
+PRINT_NOTES = """sortering-pnp printables
 ====================
 
 Bins: two parts, "bin" and "marker" (the code on the shelf, or on the corner post).
@@ -29,7 +29,7 @@ Bins: two parts, "bin" and "marker" (the code on the shelf, or on the corner pos
 - STL files contain the bin with the marker merged in (one colour; glue a paper label from
   the labels sheet onto the shelf instead).
 
-The code number tells screwpick the bin's size, and where its code sits:
+The code number tells sortering_pnp the bin's size, and where its code sits:
 {sizes}
 
 Two styles of the same sizes: "shelf" bins carry the code on a 45-degree shelf along the back;
@@ -70,7 +70,7 @@ def bin_file(b: Bin, fmt: str = "3mf") -> tuple[str, bytes]:
 
         v = np.vstack([body[0], ink[0]])
         f = np.vstack([body[1], ink[1] + len(body[0])])
-        return f"bin_{b.marker}.stl", stl_bytes((v, f), f"screwpick bin {b.marker}")
+        return f"bin_{b.marker}.stl", stl_bytes((v, f), f"sortering-pnp bin {b.marker}")
     raise ValueError(f"unknown format {fmt!r} (3mf or stl)")
 
 
@@ -104,7 +104,7 @@ def plate_file(
     return name, threemf_plate_bytes(objects)
 
 
-BED_NOTES = """screwpick baseplate for the {name}
+BED_NOTES = """sortering-pnp baseplate for the {name}
 {line}
 
 The {cols} x {rows} grid with a flat border out to the bed's edges ({w:g} x {d:g} mm), so it can be
@@ -132,7 +132,7 @@ def bed_baseplate_files(
     files = [
         (
             f"baseplate_{b.key}_{kind}_{name}.stl",
-            stl_bytes(mesh, f"screwpick {b.key} baseplate {kind} {name}"),
+            stl_bytes(mesh, f"sortering-pnp {b.key} baseplate {kind} {name}"),
         )
         for name, mesh, _ in pieces
     ]
@@ -174,7 +174,7 @@ def baseplate_file(layout: Layout, lip_mm: float = 8.0, slim: bool = True) -> tu
         cut = (w.x, w.y, w.w, w.d)
         name += f"_work{w.w}x{w.d}"
     mesh = build_baseplate(layout.cols, layout.rows, cut, lip_mm, slim=slim)
-    return name + ".stl", stl_bytes(mesh, f"screwpick baseplate {kind}")
+    return name + ".stl", stl_bytes(mesh, f"sortering-pnp baseplate {kind}")
 
 
 def labels_file(layout: Layout, markers: list[int] | None = None) -> tuple[str, bytes]:

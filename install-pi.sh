@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Install screwpick on a Raspberry Pi 4 or 5 (64-bit Raspberry Pi OS, Bookworm or Trixie).
+# Install sortering-pnp on a Raspberry Pi 4 or 5 (64-bit Raspberry Pi OS, Bookworm or Trixie).
 #
-#   git clone https://github.com/ama24/screwpick.git ~/screwpick
-#   ~/screwpick/install-pi.sh            # add --service to start screwpick at every boot
+#   git clone https://github.com/ama24/sortering-pnp.git ~/sortering-pnp
+#   ~/sortering-pnp/install-pi.sh            # add --service to start sortering-pnp at every boot
 #
 # Everything is pinned, so running this again later installs exactly the same:
 # - the Python packages: requirements-pi.lock.txt (exact versions + file hashes, nothing else);
-# - supreme-screw-sortering (model and camera code): the commit below.
+# - screw-synth (model and camera code): the commit below.
 # To upgrade on purpose: python scripts/lock_pi.py, change SUPREME_COMMIT, test, commit.
 set -euo pipefail
 
-SUPREME_REPO=https://github.com/ama24/supreme-screw-sortering.git
+SUPREME_REPO=https://github.com/ama24/screw-synth.git
 SUPREME_COMMIT=3038baf427bffc0cfd58c08f5dbb4332caea7349
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SUPREME="${SUPREME_DIR:-$HOME/supreme-screw-sortering}"
+SUPREME="${SUPREME_DIR:-$HOME/screw-synth}"
 VENV="${VENV:-$HOME/screwrig}"   # the same environment screwrig uses
 SERVICE=0
 [ "${1:-}" = "--service" ] && SERVICE=1
@@ -41,8 +41,8 @@ say "system packages (camera, git)"
 sudo apt-get update
 sudo apt-get install -y python3-venv python3-picamera2 rpicam-apps git libgl1
 
-# ---------------------------------------------------------------- supreme-screw-sortering
-say "supreme-screw-sortering at $SUPREME_COMMIT"
+# ---------------------------------------------------------------- screw-synth
+say "screw-synth at $SUPREME_COMMIT"
 if [ ! -d "$SUPREME/.git" ]; then
   git clone "$SUPREME_REPO" "$SUPREME"
 fi
@@ -64,7 +64,7 @@ say "checking the installation"
 "$VENV/bin/python" - <<'EOF'
 import importlib
 for mod in ("cv2", "torch", "ultralytics", "ncnn", "manifold3d", "websocket",
-            "screwsynth", "screwrig", "screwpick"):
+            "screwsynth", "screwrig", "sortering_pnp"):
     importlib.import_module(mod)
 import cv2, torch
 assert hasattr(cv2, "aruco"), "OpenCV without ArUco: opencv-python overwrote the contrib build"
@@ -75,17 +75,17 @@ EOF
 
 # ---------------------------------------------------------------- start at boot (optional)
 if [ "$SERVICE" = 1 ]; then
-  say "screwpick service (starts at boot; automatic mode resumes if it was on)"
-  sudo tee /etc/systemd/system/screwpick.service >/dev/null <<EOF
+  say "sortering-pnp service (starts at boot; automatic mode resumes if it was on)"
+  sudo tee /etc/systemd/system/sortering-pnp.service >/dev/null <<EOF
 [Unit]
-Description=screwpick screw sorter
+Description=sortering-pnp screw sorter
 After=network-online.target moonraker.service
 Wants=network-online.target
 
 [Service]
 User=$USER
 WorkingDirectory=$HERE
-ExecStart=$VENV/bin/screwpick serve
+ExecStart=$VENV/bin/sortering-pnp serve
 Restart=on-failure
 RestartSec=10
 
@@ -93,17 +93,17 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
   sudo systemctl daemon-reload
-  sudo systemctl enable --now screwpick.service
-  echo "Logs: journalctl -u screwpick -f"
+  sudo systemctl enable --now sortering-pnp.service
+  echo "Logs: journalctl -u sortering-pnp -f"
 fi
 
 cat <<EOF
 
 Done. Next:
-  1. Klipper: cp $HERE/klipper/screwpick.cfg ~/printer_data/config/
-     cp -n $HERE/klipper/screwpick_picker.cfg ~/printer_data/config/   (placeholder, kept if present)
-     and add [include screwpick.cfg] to printer.cfg, then FIRMWARE_RESTART.
+  1. Klipper: cp $HERE/klipper/sortering_pnp.cfg ~/printer_data/config/
+     cp -n $HERE/klipper/sortering_pnp_picker.cfg ~/printer_data/config/   (placeholder, kept if present)
+     and add [include sortering_pnp.cfg] to printer.cfg, then FIRMWARE_RESTART.
      Choose and install your picker later in the web page (Setup tab, Picker).
-  2. source $VENV/bin/activate && cd $HERE && screwpick check
-  3. screwpick serve   (or run this script again with --service to start it at every boot)
+  2. source $VENV/bin/activate && cd $HERE && sortering-pnp check
+  3. sortering-pnp serve   (or run this script again with --service to start it at every boot)
 EOF

@@ -1,4 +1,4 @@
-"""Calibration and real photos taken by screwpick (the only program that moves the printer);
+"""Calibration and real photos taken by sortering_pnp (the only program that moves the printer);
 screwrig only for the camera. The camera here renders a synthetic ChArUco board."""
 
 from __future__ import annotations
@@ -9,10 +9,10 @@ import zipfile
 import numpy as np
 import pytest
 
-from screwpick.layout import Layout
-from screwpick.printer.sim import SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner
-from screwpick.transform import Transform2D
+from sortering_pnp.layout import Layout
+from sortering_pnp.printer.sim import SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import Transform2D
 
 cv2 = pytest.importorskip("cv2")
 synthetic = pytest.importorskip("screwsynth.calibration.synthetic")

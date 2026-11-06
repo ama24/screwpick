@@ -5,9 +5,9 @@ import math
 import numpy as np
 import pytest
 
-from screwpick.layout import Bin, Layout, yaw_from_up
-from screwpick.parts import Part, compute_gaps, polygon_gap
-from screwpick.transform import BedCalibration, Transform2D, fit_similarity
+from sortering_pnp.layout import Bin, Layout, yaw_from_up
+from sortering_pnp.parts import Part, compute_gaps, polygon_gap
+from sortering_pnp.transform import BedCalibration, Transform2D, fit_similarity
 
 
 def test_fit_similarity_recovers_rotation_scale_shift():

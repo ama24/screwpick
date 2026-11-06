@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from screwpick.parts import Part
-from screwpick.rules import destination, family, match, part_number
-from screwpick.strategies import Planner
+from sortering_pnp.parts import Part
+from sortering_pnp.rules import destination, family, match, part_number
+from sortering_pnp.strategies import Planner
 
 
 def P(cls, length=None, score=0.9, xy=(110.0, 110.0), gap=10.0, unknown=False, pid=1):  # noqa: N802

@@ -7,10 +7,10 @@ import time
 
 import numpy as np
 
-from screwpick.layout import Bin, Layout
-from screwpick.printer.sim import SimPart, SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner
-from screwpick.transform import Transform2D
+from sortering_pnp.layout import Bin, Layout
+from sortering_pnp.printer.sim import SimPart, SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import Transform2D
 
 
 def _runner(machine, n=6, out=True):

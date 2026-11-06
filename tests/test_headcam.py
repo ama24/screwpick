@@ -6,12 +6,12 @@ import math
 
 import numpy as np
 
-from screwpick.headcam import merge_parts, tiles
-from screwpick.layout import Bin, Layout
-from screwpick.parts import Part
-from screwpick.printer.sim import SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner
-from screwpick.transform import BedCalibration, Transform2D
+from sortering_pnp.headcam import merge_parts, tiles
+from sortering_pnp.layout import Bin, Layout
+from sortering_pnp.parts import Part
+from sortering_pnp.printer.sim import SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import BedCalibration, Transform2D
 
 
 def test_tiles_cover_the_area_in_a_zigzag():

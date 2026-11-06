@@ -7,12 +7,12 @@ import math
 import numpy as np
 import pytest
 
-from screwpick.grip import Shape, axis_grip, com_from_bearing, jaw_angle, outline_grip
-from screwpick.layout import Layout
-from screwpick.printer.sim import SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner
-from screwpick.transform import Transform2D
-from screwpick.vision import parts_from_result
+from sortering_pnp.grip import Shape, axis_grip, com_from_bearing, jaw_angle, outline_grip
+from sortering_pnp.layout import Layout
+from sortering_pnp.printer.sim import SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import Transform2D
+from sortering_pnp.vision import parts_from_result
 
 M4_SOCKET = Shape(d=4.0, head_r=3.5, head_k=4.0, socket=True)  # DIN912 M4: dk 7, k 4
 
@@ -111,21 +111,21 @@ def make(machine, n: int = 4):
 
 def test_tweezers_turn_across_each_part_and_the_console_says_so(machine):
     machine.picker.mode = "tweezers"
-    machine.picker.rotate = "SCREWPICK_ROTATE"
-    machine.picker.rotate_home = "SCREWPICK_ROT_HOME"
+    machine.picker.rotate = "SORTERING_ROTATE"
+    machine.picker.rotate_home = "SORTERING_ROT_HOME"
     machine.run.shake.enabled = False
     runner, world, printer = make(machine)
     angles = {id(sp): sp.angle for sp in world.parts}
     runner.command("start", "sort")
     runner.wait(60)
     assert runner.state.status == "done" and not world.parts
-    turns = [ln for ln in printer.log if ln.startswith("SCREWPICK_ROTATE")]
+    turns = [ln for ln in printer.log if ln.startswith("SORTERING_ROTATE")]
     assert len(turns) == len(world.dropped)
     for (sp, _), line in zip(world.dropped, turns, strict=True):
         want = (angles[id(sp)] + 90.0) % 180.0
         got = float(line.split("ANGLE=")[1])
         assert min(abs(got - want), 180 - abs(got - want)) < 0.06
-    assert "SCREWPICK_ROT_HOME" in printer.log  # 0 deg found before sorting
+    assert "SORTERING_ROT_HOME" in printer.log  # 0 deg found before sorting
     console = runner.snapshot()["console"]
     text = "\n".join(console)
     assert "sorting: sort" in text and "on the plate:" in text and "jaws" in text
@@ -136,7 +136,7 @@ def test_tweezers_turn_across_each_part_and_the_console_says_so(machine):
 
 def test_setup_rotation_test(machine):
     machine.picker.mode = "tweezers"
-    machine.picker.rotate = "SCREWPICK_ROTATE"
+    machine.picker.rotate = "SORTERING_ROTATE"
     runner, world, printer = make(machine, n=0)
     runner.setup_picker("grab")
     runner.setup_picker("release")
@@ -144,6 +144,6 @@ def test_setup_rotation_test(machine):
         runner.setup_confirm("picker")
     runner.setup_rotate(90)
     runner.setup_rotate(zero=True)
-    assert printer.jaw_angle == 90.0 and "SCREWPICK_ROT_ZERO" in printer.log
+    assert printer.jaw_angle == 90.0 and "SORTERING_ROT_ZERO" in printer.log
     runner.setup_confirm("picker")
     assert runner.setup.is_done("picker")

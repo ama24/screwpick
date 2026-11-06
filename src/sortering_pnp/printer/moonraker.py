@@ -1,7 +1,7 @@
 """Klipper through Moonraker, its web API (the same one Mainsail and Fluidd use; no OctoPrint).
 
 G-code goes to POST /printer/gcode/script, which answers once Klipper has run it. The printer's
-own menu reaches screwpick through `action_call_remote_method("screwpick", ...)` in a Klipper
+own menu reaches sortering_pnp through `action_call_remote_method("sortering_pnp", ...)` in a Klipper
 macro: Moonraker forwards it to every websocket client that registered the method (MenuListener).
 """
 
@@ -19,9 +19,9 @@ from typing import Any
 
 from .base import PrinterError, PrinterStatus
 
-log = logging.getLogger("screwpick.moonraker")
+log = logging.getLogger("sortering_pnp.moonraker")
 
-REMOTE_METHOD = "screwpick"
+REMOTE_METHOD = "sortering_pnp"
 
 
 class Moonraker:
@@ -85,7 +85,7 @@ class Moonraker:
 
     def upload_config(self, name: str, text: str) -> None:
         """POST /server/files/upload into the "config" root (multipart form)."""
-        boundary = "----screwpick" + uuid.uuid4().hex
+        boundary = "----sortering_pnp" + uuid.uuid4().hex
         crlf = "\r\n"
         head = crlf.join(
             [
@@ -123,7 +123,7 @@ class Moonraker:
 
 
 def parse_remote_call(msg: dict[str, Any]) -> dict[str, Any] | None:
-    """The arguments of a `screwpick` remote-method call in a websocket message, else None."""
+    """The arguments of a `sortering_pnp` remote-method call in a websocket message, else None."""
     if msg.get("method") != REMOTE_METHOD:
         return None
     params = msg.get("params") or {}
@@ -133,7 +133,7 @@ def parse_remote_call(msg: dict[str, Any]) -> dict[str, Any] | None:
 
 
 class MenuListener:
-    """Receives the printer-menu commands (Klipper macro SCREWPICK) and calls `on_command`.
+    """Receives the printer-menu commands (Klipper macro SORTERING) and calls `on_command`.
 
     Runs in a background thread and reconnects when Klipper or Moonraker restarts."""
 
@@ -165,10 +165,10 @@ class MenuListener:
                             "jsonrpc": "2.0",
                             "method": "server.connection.identify",
                             "params": {
-                                "client_name": "screwpick",
+                                "client_name": "sortering_pnp",
                                 "version": "0.1.0",
                                 "type": "other",
-                                "url": "https://github.com/ama24/screwpick",
+                                "url": "https://github.com/ama24/sortering-pnp",
                             },
                             "id": 1,
                         }

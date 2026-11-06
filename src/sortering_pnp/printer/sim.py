@@ -1,6 +1,6 @@
 """A simulated printer, parts and camera: try layouts and strategies with no machine at all.
 
-SimPrinter understands the G-code screwpick sends (G28, G90/G91, G0/G1, M400, G4, M117 and the
+SimPrinter understands the G-code sortering_pnp sends (G28, G90/G91, G0/G1, M400, G4, M117 and the
 picker macros); SimWorld holds the parts, which the picker lifts and drops; SimVision "photographs"
 the world and draws a top view for the web page.
 """

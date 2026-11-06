@@ -1,4 +1,4 @@
-screwpick baseplate for the Creality Ender 3 / Pro / V2 (slim)
+sortering-pnp baseplate for the Creality Ender 3 / Pro / V2 (slim)
 ================================================================
 
 The 5 x 5 grid with a flat border out to the bed's edges (235 x 235 mm), so it can be

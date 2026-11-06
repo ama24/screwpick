@@ -7,11 +7,11 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from screwpick.layout import Layout
-from screwpick.printer.sim import SimPart, SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner
-from screwpick.transform import Transform2D
-from screwpick.trayview import WorkArea, paint_outside, parse_colour, rect
+from sortering_pnp.layout import Layout
+from sortering_pnp.printer.sim import SimPart, SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import Transform2D
+from sortering_pnp.trayview import WorkArea, paint_outside, parse_colour, rect
 
 cv2 = pytest.importorskip("cv2")
 
@@ -49,7 +49,7 @@ def test_painted_where_the_tray_is_in_the_real_camera_model(machine):
     )
     from screwsynth.measure.infer import Scene
 
-    from screwpick.vision import CameraVision
+    from sortering_pnp.vision import CameraVision
 
     full = nominal_camera()
     roi = roi_for_area(full, (0.0, 0.0), (220.0, 220.0), 5.0)

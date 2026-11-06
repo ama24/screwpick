@@ -7,11 +7,11 @@ from collections import Counter
 
 import pytest
 
-from screwpick.binswap import BinRequest, after_ok, choose_swap
-from screwpick.layout import Bin, Layout
-from screwpick.printer.sim import SimPart, SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner
-from screwpick.transform import Transform2D
+from sortering_pnp.binswap import BinRequest, after_ok, choose_swap
+from sortering_pnp.layout import Bin, Layout
+from sortering_pnp.printer.sim import SimPart, SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import Transform2D
 
 
 def _lay() -> Layout:
@@ -306,7 +306,7 @@ def test_a_new_kind_with_no_bin_to_ask_for_goes_to_overflow(machine):
     runner.claims[103] = "DIN912_M3x8"  # taken by a kind no longer on the plate
     runner.printer.gcode("G28")
     shot = runner.take_shot(lay, Transform2D.identity())
-    from screwpick.strategies import Planner
+    from sortering_pnp.strategies import Planner
 
     planner = Planner(lay, machine, "sort")
     planner.claims = runner.claims

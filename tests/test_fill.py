@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from screwpick.fill import (
+from sortering_pnp.fill import (
     BinFill,
     CatalogueVolumes,
     Fill,
@@ -15,11 +15,11 @@ from screwpick.fill import (
     part_volume_mm3,
     polygon_area,
 )
-from screwpick.layout import Layout
-from screwpick.parts import Part
-from screwpick.printer.sim import SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner
-from screwpick.transform import Transform2D
+from sortering_pnp.layout import Layout
+from sortering_pnp.parts import Part
+from sortering_pnp.printer.sim import SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import Transform2D
 
 
 def _part(w: float, length: float, top: float) -> Part:

@@ -25,7 +25,9 @@ class Step:
 
 STEPS = (
     Step(
-        "printer", "Printer", "Klipper answers, screwpick.cfg is included and the picker is mounted"
+        "printer",
+        "Printer",
+        "Klipper answers, sortering_pnp.cfg is included and the picker is mounted",
     ),
     Step("homing", "Homing", "Z homes over the middle of the plate, never over a bin"),
     Step("machine", "Machine", "Bed limits, travel height and the photo position are right"),

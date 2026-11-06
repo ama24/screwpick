@@ -1,13 +1,13 @@
 # Ready-made prints
 
-Every screwpick bin size as full build plates for a 220 × 220 mm bed (Ender 3), plus the
+Every sortering-pnp bin size as full build plates for a 220 × 220 mm bed (Ender 3), plus the
 baseplate and paper labels. Each bin carries its own black-and-white code on a shelf at the
 back, or on a post in its back-right corner (corner bins, below). The camera reads it to find
 the bin and to know its size.
 
 ## Bin sizes
 
-The code number tells screwpick the size, so a new bin can simply be put on the bed: the
+The code number tells sortering-pnp the size, so a new bin can simply be put on the bed: the
 camera recognises it and knows how tall its rim is.
 
 | Codes | Size | Use | Plates (bins per plate) |
@@ -27,7 +27,7 @@ The same sizes again, with the code on a square post (14 × 14 mm) in the **back
 instead of on a shelf. The post goes straight down to the floor, so no part can slide under it
 and get stuck, as parts do under the 45° shelf. **Use a corner tray as the plate**, where the
 parts are thrown in and spread. Shelf bins are fine for the bins that receive the sorted parts.
-Both kinds can be mixed on the bed: the code number tells screwpick which kind it sees and where
+Both kinds can be mixed on the bed: the code number tells sortering-pnp which kind it sees and where
 the bin's centre lies from its code.
 
 | Codes | Size | Plates (bins per plate) |
@@ -85,7 +85,7 @@ board lying in the tray, at the height the parts will lie.
   On the Prusa, a **spare steel sheet** works best: stick the pieces onto it with double-sided
   tape, and the sheet snaps onto the magnetic bed in the same place every time. Binder clips also
   work, but their jaws under the sheet keep it from lying flat. Measure your bed if it isn't
-  stock: the sizes are in `src/screwpick/printables/beds.py`.
+  stock: the sizes are in `src/sortering_pnp/printables/beds.py`.
 - **Holders for the printer's top bar** ([mounts/](mounts/)), both fixed with M5 screws and
   T-nuts in the 2020 top bar of an Ender 3:
   - [screen_holder.stl](mounts/screen_holder.stl): an open frame for the 7" Waveshare HDMI
@@ -101,12 +101,12 @@ board lying in the tray, at the height the parts will lie.
 
   Your printer's sizes differ? Measure the reach and the bar's height above the plate and
   make your own in the web page (Print bins → Holders for the top bar) or with
-  `screwpick print mounts --reach … --bar-height …`. See [mounts/MOUNTS.txt](mounts/MOUNTS.txt).
+  `sortering-pnp print mounts --reach … --bar-height …`. See [mounts/MOUNTS.txt](mounts/MOUNTS.txt).
 - **Labels** ([labels/](labels/)): paper codes for plain bins. Print at 100 % and glue them on
   the shelf.
 
 For another layout (another baseplate size or more bins) the web page's **Print bins** tab
 makes the matching baseplate and bins.
 
-These files are made by `screwpick print catalogue --out prints`. A test checks that they
+These files are made by `sortering-pnp print catalogue --out prints`. A test checks that they
 match the code.

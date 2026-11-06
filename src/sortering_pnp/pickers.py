@@ -21,7 +21,9 @@ from dataclasses import asdict, dataclass
 
 ACTION_PIN = "host:pwmchip0/pwm0"  # GPIO12, header pin 32
 TURN_PIN = "host:pwmchip0/pwm1"  # GPIO13, header pin 33
-CONFIG_NAME = "screwpick_picker.cfg"  # in Klipper's config folder, included by screwpick.cfg
+CONFIG_NAME = (
+    "sortering_pnp_picker.cfg"  # in Klipper's config folder, included by sortering_pnp.cfg
+)
 
 
 @dataclass(frozen=True)
@@ -154,7 +156,7 @@ initial_angle: {initial}
 """
 
 _PUMP = f"""\
-[output_pin screwpick_pump]
+[output_pin sortering_pnp_pump]
 pin: {ACTION_PIN}               # GPIO12 (pin 32) -> SIG of the MOSFET module
 pwm: True
 hardware_pwm: True
@@ -164,80 +166,80 @@ shutdown_value: 0
 """
 
 _ROTATE = f"""\
-{_SERVO.format(name="screwpick_turn", pin=TURN_PIN + "   # GPIO13 (pin 33)", initial=0)}
-[gcode_macro SCREWPICK_ROTATE]
+{_SERVO.format(name="sortering_pnp_turn", pin=TURN_PIN + "   # GPIO13 (pin 33)", initial=0)}
+[gcode_macro SORTERING_ROTATE]
 description: Turn the tweezers so their jaws close along ANGLE (deg, 0 = printer X)
 gcode:
   {{% set a = params.ANGLE|default(0)|float %}}
-  SET_SERVO SERVO=screwpick_turn ANGLE={{[[a, 0]|max, 180]|min}}
+  SET_SERVO SERVO=sortering_pnp_turn ANGLE={{[[a, 0]|max, 180]|min}}
   G4 P350
 
-[gcode_macro SCREWPICK_ROT_ZERO]
+[gcode_macro SORTERING_ROT_ZERO]
 description: A servo knows its 0 by itself: trim it with the offset in the Setup tab
 gcode:
-  RESPOND MSG="screwpick: servo rotation, 0 deg is fixed (trim: Setup tab, Picker)"
+  RESPOND MSG="sortering-pnp: servo rotation, 0 deg is fixed (trim: Setup tab, Picker)"
 """
 
 _BODY = {
     "servo_tweezers": f"""\
-{_SERVO.format(name="screwpick_jaws", pin=ACTION_PIN + "   # GPIO12 (pin 32)", initial=90)}
-[gcode_macro SCREWPICK_GRAB]
+{_SERVO.format(name="sortering_pnp_jaws", pin=ACTION_PIN + "   # GPIO12 (pin 32)", initial=90)}
+[gcode_macro SORTERING_GRAB]
 description: Picker: close the tweezers
 variable_closed: 20             # servo angle with the jaws closed on a part
 gcode:
-  SET_SERVO SERVO=screwpick_jaws ANGLE={{printer["gcode_macro SCREWPICK_GRAB"].closed}}
+  SET_SERVO SERVO=sortering_pnp_jaws ANGLE={{printer["gcode_macro SORTERING_GRAB"].closed}}
   G4 P300
 
-[gcode_macro SCREWPICK_RELEASE]
+[gcode_macro SORTERING_RELEASE]
 description: Picker: open the tweezers
 variable_open: 90
 gcode:
-  SET_SERVO SERVO=screwpick_jaws ANGLE={{printer["gcode_macro SCREWPICK_RELEASE"].open}}
+  SET_SERVO SERVO=sortering_pnp_jaws ANGLE={{printer["gcode_macro SORTERING_RELEASE"].open}}
   G4 P300
 
 {_ROTATE}""",
     "suction": f"""\
 {_PUMP}
-[gcode_macro SCREWPICK_GRAB]
+[gcode_macro SORTERING_GRAB]
 description: Picker: pump on, the cup holds
 gcode:
-  SET_PIN PIN=screwpick_pump VALUE=1
+  SET_PIN PIN=sortering_pnp_pump VALUE=1
   G4 P400
 
-[gcode_macro SCREWPICK_RELEASE]
+[gcode_macro SORTERING_RELEASE]
 description: Picker: pump off, the cup lets go (slowly without a release valve)
 gcode:
-  SET_PIN PIN=screwpick_pump VALUE=0
+  SET_PIN PIN=sortering_pnp_pump VALUE=0
   G4 P600
 """,
     "magnet": f"""\
-{_SERVO.format(name="screwpick_magnet", pin=ACTION_PIN + "   # GPIO12 (pin 32)", initial=20)}
-[gcode_macro SCREWPICK_GRAB]
+{_SERVO.format(name="sortering_pnp_magnet", pin=ACTION_PIN + "   # GPIO12 (pin 32)", initial=20)}
+[gcode_macro SORTERING_GRAB]
 description: Picker: magnet against the rod, the rod holds
 variable_on: 160                # servo angle with the magnet pressed against the rod
 gcode:
-  SET_SERVO SERVO=screwpick_magnet ANGLE={{printer["gcode_macro SCREWPICK_GRAB"].on}}
+  SET_SERVO SERVO=sortering_pnp_magnet ANGLE={{printer["gcode_macro SORTERING_GRAB"].on}}
   G4 P300
 
-[gcode_macro SCREWPICK_RELEASE]
+[gcode_macro SORTERING_RELEASE]
 description: Picker: magnet away from the rod, the part drops
 variable_off: 20
 gcode:
-  SET_SERVO SERVO=screwpick_magnet ANGLE={{printer["gcode_macro SCREWPICK_RELEASE"].off}}
+  SET_SERVO SERVO=sortering_pnp_magnet ANGLE={{printer["gcode_macro SORTERING_RELEASE"].off}}
   G4 P400
 """,
     "pneumatic_tweezers": f"""\
 {_PUMP}
-[gcode_macro SCREWPICK_GRAB]
+[gcode_macro SORTERING_GRAB]
 description: Picker: pump on, the tweezers close
 gcode:
-  SET_PIN PIN=screwpick_pump VALUE=1
+  SET_PIN PIN=sortering_pnp_pump VALUE=1
   G4 P400
 
-[gcode_macro SCREWPICK_RELEASE]
+[gcode_macro SORTERING_RELEASE]
 description: Picker: pump off, the tweezers spring open
 gcode:
-  SET_PIN PIN=screwpick_pump VALUE=0
+  SET_PIN PIN=sortering_pnp_pump VALUE=0
   G4 P500
 
 {_ROTATE}""",
@@ -245,23 +247,23 @@ gcode:
 
 
 def klipper_config(mode: str) -> str:
-    """screwpick_picker.cfg for this picker: the Pi as an MCU, its pins and the macros."""
+    """sortering_pnp_picker.cfg for this picker: the Pi as an MCU, its pins and the macros."""
     p = picker_type(mode)
     return (
-        f"# screwpick picker: {p.title}. Written by screwpick (Setup tab, Picker); choose another\n"
+        f"# sortering_pnp picker: {p.title}. Written by sortering_pnp (Setup tab, Picker); choose another\n"
         f"# type there to replace this file. Aims at the {'head' if p.aim == 'head' else 'centre of gravity'}"
         f"{', turns 0-180 deg' if p.rotates else ''}.\n#\n" + _HOST_MCU + "\n" + _BODY[p.key]
     )
 
 
 PLACEHOLDER = f"""\
-# screwpick picker: not chosen yet. Choose the picker in screwpick's Setup tab (Picker) and press
+# sortering_pnp picker: not chosen yet. Choose the picker in sortering_pnp's Setup tab (Picker) and press
 # "Install in Klipper": it replaces this file ({CONFIG_NAME}).
-[gcode_macro SCREWPICK_GRAB]
+[gcode_macro SORTERING_GRAB]
 gcode:
-  RESPOND TYPE=error MSG="screwpick: choose the picker in the Setup tab first"
+  RESPOND TYPE=error MSG="sortering-pnp: choose the picker in the Setup tab first"
 
-[gcode_macro SCREWPICK_RELEASE]
+[gcode_macro SORTERING_RELEASE]
 gcode:
-  RESPOND MSG="screwpick: no picker chosen yet"
+  RESPOND MSG="sortering-pnp: no picker chosen yet"
 """

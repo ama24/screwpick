@@ -6,9 +6,9 @@ import zipfile
 import numpy as np
 import pytest
 
-from screwpick import binspec
-from screwpick.layout import Layout
-from screwpick.markers import detect, labels_sheet_svg, marker_bits, marker_pose
+from sortering_pnp import binspec
+from sortering_pnp.layout import Layout
+from sortering_pnp.markers import detect, labels_sheet_svg, marker_bits, marker_pose
 
 cv2 = pytest.importorskip("cv2")
 
@@ -60,7 +60,7 @@ pytest.importorskip("manifold3d")
 
 
 def test_bin_geometry_and_marker_cells():
-    from screwpick.printables.gridfinity import build_bin
+    from sortering_pnp.printables.gridfinity import build_bin
 
     body, ink = build_bin(100, 1, 1, 3)
     b, k = tm.Trimesh(*body), tm.Trimesh(*ink)
@@ -79,7 +79,7 @@ def test_bin_geometry_and_marker_cells():
 
 
 def test_baseplate_cut_out_and_lip():
-    from screwpick.printables.gridfinity import build_baseplate
+    from sortering_pnp.printables.gridfinity import build_baseplate
 
     v, f = build_baseplate(5, 5, (1, 1, 3, 3), lip_mm=8.0)
     m = tm.Trimesh(v, f)
@@ -93,7 +93,7 @@ def test_baseplate_cut_out_and_lip():
 
 
 def test_export_zip_and_3mf():
-    from screwpick.printables import export
+    from sortering_pnp.printables import export
 
     lay = Layout.default()
     lay.bins = lay.bins[:2]

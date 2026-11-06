@@ -1,10 +1,10 @@
-# screwpick
+# sortering-pnp
 
 **Turn a 3D printer into a screw sorter.** You throw a handful of screws, nuts and washers into a
 tray on the printer bed. A camera looks at them, a trained model recognises each part (type, size
 and length), and the printer picks them up one by one and drops each into its own bin.
 
-screwpick is the program that runs the machine. It lives on a Raspberry Pi next to Klipper (the
+sortering-pnp is the program that runs the machine. It lives on a Raspberry Pi next to Klipper (the
 printer's firmware) and you use it from a web page on your phone or PC, or from the printer's own
 display.
 
@@ -22,12 +22,12 @@ It is one of three projects that work together:
 
 | Project | Runs on | Does |
 |---|---|---|
-| [supreme-screw-sortering](https://github.com/ama24/supreme-screw-sortering) | your PC | makes the training pictures and measures the parts' lengths |
-| [model-trainer](https://github.com/ama24/model-trainer) | your PC (GPU) | trains the model that recognises the parts |
-| **screwpick** (this one) | the Raspberry Pi | runs the machine: camera, decisions, printer, bins, web page |
+| [screw-synth](https://github.com/ama24/screw-synth) | your PC | makes the training pictures and measures the parts' lengths |
+| [training-synth](https://github.com/ama24/training-synth) | your PC (GPU) | trains the model that recognises the parts |
+| **sortering-pnp** (this one) | the Raspberry Pi | runs the machine: camera, decisions, printer, bins, web page |
 
 They only exchange files (a trained model, a calibration, a parts table), which you drop into
-screwpick's web page. screwpick never reaches into the other projects' folders.
+sortering-pnp's web page. sortering-pnp never reaches into the other projects' folders.
 
 ### What's new
 
@@ -45,7 +45,7 @@ screwpick's web page. screwpick never reaches into the other projects' folders.
   printer. The machine keeps sorting the rest meanwhile. [Everyday use](#everyday-use).
 - **Queued bin changes:** edit, add, turn or take off bins, then *Apply* them all at once, even
   while sorting.
-- **Camera calibration and real photos from the page** (Calibrate and Real photos tabs): screwpick is
+- **Camera calibration and real photos from the page** (Calibrate and Real photos tabs): sortering-pnp is
   the only program that moves the printer.
 - **Files tab:** one row per file from the other projects, each with its drop area.
 - **Faster page:** the Pi answers on IPv6 and IPv4 and no longer re-reads files every second.
@@ -68,7 +68,7 @@ screwpick's web page. screwpick never reaches into the other projects' folders.
 
 ## How it works, in one minute
 
-![How screwpick works: tray and bins, photo, recognise, decide, pick and drop, again](docs/images/how-it-works.png)
+![How sortering-pnp works: tray and bins, photo, recognise, decide, pick and drop, again](docs/images/how-it-works.png)
 
 1. **The bed.** A grid of [Gridfinity](https://gridfinity.xyz/) bins sits on the bed. One big bin,
    the **tray**, is where you throw the parts; the small bins around it receive the sorted parts.
@@ -78,7 +78,7 @@ screwpick's web page. screwpick never reaches into the other projects' folders.
    the model, so the bins around it can't confuse it.
 3. **Recognising.** The model outlines every part and names it (for example `DIN912_M4`, a socket
    head screw M4). For screws it also measures the length (`DIN912_M4x16`).
-4. **Deciding.** screwpick counts what is in the tray and starts with the most numerous kind. Each
+4. **Deciding.** sortering-pnp counts what is in the tray and starts with the most numerous kind. Each
    kind goes to the bin you assigned it, or claims a free bin by itself.
 5. **Picking.** The printer moves the picker (tweezers, a gripper or a small suction cup) over the
    part, at the right angle, takes it and drops it into its bin. While it carries the part, the Pi
@@ -128,10 +128,10 @@ See [prints/README.md](prints/README.md) for which files to print and how.
 You don't need a printer to see how it works. On any PC with Python 3.10 or newer:
 
 ```bash
-git clone https://github.com/ama24/screwpick.git
-cd screwpick
+git clone https://github.com/ama24/sortering-pnp.git
+cd sortering-pnp
 pip install -e ".[dev]" opencv-python   # OpenCV draws the simulated photos
-screwpick serve --sim
+sortering-pnp serve --sim
 ```
 
 Open the address it prints. Everything works with a simulated printer, camera and parts: give bins
@@ -141,22 +141,22 @@ rules, press **Sort once** and watch them get sorted.
 
 1. **Install Klipper and Moonraker** the usual way (MainsailOS, or KIAUH on Raspberry Pi OS), and
    make sure the printer works from Mainsail.
-2. **Install screwpick:**
+2. **Install sortering-pnp:**
 
    ```bash
-   git clone https://github.com/ama24/screwpick.git ~/screwpick
-   ~/screwpick/install-pi.sh --service
+   git clone https://github.com/ama24/sortering-pnp.git ~/sortering-pnp
+   ~/sortering-pnp/install-pi.sh --service
    ```
 
    The script installs everything in one go, with **exact, checked versions** of every package and
    of the screw-sorting code, so an install today and one next year give the same program.
-   `--service` starts screwpick at every boot.
+   `--service` starts sortering-pnp at every boot.
 3. **Tell Klipper about the sorter:**
 
    ```bash
-   cp ~/screwpick/klipper/screwpick.cfg ~/printer_data/config/
-   cp -n ~/screwpick/klipper/screwpick_picker.cfg ~/printer_data/config/
-   echo "[include screwpick.cfg]" >> ~/printer_data/config/printer.cfg
+   cp ~/sortering-pnp/klipper/sortering_pnp.cfg ~/printer_data/config/
+   cp -n ~/sortering-pnp/klipper/sortering_pnp_picker.cfg ~/printer_data/config/
+   echo "[include sortering_pnp.cfg]" >> ~/printer_data/config/printer.cfg
    ```
 
    The second file is a placeholder for your picker; `-n` keeps one you've already installed.
@@ -165,7 +165,7 @@ rules, press **Sort once** and watch them get sorted.
 4. **Open the page:** `http://<your-pi>:8080` on your phone or PC. The first visit asks you to
    create an account.
 
-From now on **screwpick is the only program that moves the printer**. Even the camera calibration
+From now on **sortering-pnp is the only program that moves the printer**. Even the camera calibration
 photos are taken from its page.
 
 ### Finding your way around the page
@@ -200,14 +200,14 @@ Until the setup is complete, the machine only makes the moves you ask for on the
 
 Go through the seven steps once, in order:
 
-1. **Printer:** screwpick asks Klipper a few questions (is the picker mounted, is the hotend cold).
+1. **Printer:** sortering-pnp asks Klipper a few questions (is the picker mounted, is the hotend cold).
    Nothing moves.
-2. **Homing:** press *Home now* and watch. screwpick lifts the head first, then homes Z over the
+2. **Homing:** press *Home now* and watch. sortering-pnp lifts the head first, then homes Z over the
    middle of the tray, never over a bin.
 3. **Machine:** the bed limits, the travel height and the **photo position** (bed all the way out,
    head out of the picture). *Show me* drives to each so you can check.
 4. **Tip height:** jog the picker tip down onto the plate until a sheet of paper just drags, then
-   press the button. Every height screwpick uses counts from here.
+   press the button. Every height sortering-pnp uses counts from here.
 5. **Picker:** choose yours, wire it as the page shows, install it in Klipper, then try *Grab*
    and *Release* (see [The picker](#the-picker)).
 6. **Camera to printer:** see step 3 below.
@@ -251,7 +251,7 @@ Power comes straight from the printer's 24 V supply, as part of the conversion:
 - **Not the heater outputs:** don't take power from the bed or hotend heater outputs. Klipper
   switches them under its heater safety checks.
 
-Then press **Install in Klipper**: screwpick writes `screwpick_picker.cfg` for that type next
+Then press **Install in Klipper**: sortering-pnp writes `sortering_pnp_picker.cfg` for that type next
 to `printer.cfg` and restarts Klipper. Once, beforehand, the Pi has to be set up as a Klipper
 board; the page lists the commands (or use KIAUH). Finally test *Grab* and *Release*, and for
 tweezers *Turn to 0°* and *90°*: at 0° the jaws must close left–right; if they don't, set the
@@ -306,7 +306,7 @@ In the **Calibrate** tab:
 ### 4. The model and the files
 
 Upload the trained model in the **Models** tab (drag the file onto the page; old models are kept,
-so you can switch back). The **Files** tab takes the other files screwpick can use. Each card says
+so you can switch back). The **Files** tab takes the other files sortering-pnp can use. Each card says
 where to find the file, what it's for and what happens without it:
 
 ![The Files tab](docs/images/files.png)
@@ -371,7 +371,7 @@ kind that claims it. Unknown parts go to the *unknown* bin, parts the model isn'
 finished or which is nearly full.
 
 **Picking.** For a screw the model finds the top of the head, the underside of the head and the
-tip, so screwpick knows which way it lies, how long it is and where its centre of mass is. Tweezers
+tip, so sortering-pnp knows which way it lies, how long it is and where its centre of mass is. Tweezers
 turn to close across the shank at that point; a suction cup or a magnet goes onto the head. If a pick fails (the part is still there on the next
 photo) it tries again; if parts are stuck in a clump, it shakes the bed to spread them.
 
@@ -406,7 +406,7 @@ it in the screw-sorting project's `data/real/` on your PC.
 On the Pi:
 
 ```bash
-cd ~/screwpick && git pull && ./install-pi.sh --service
+cd ~/sortering-pnp && git pull && ./install-pi.sh --service
 ```
 
 The install script brings everything to the versions this release was tested with.
@@ -421,4 +421,4 @@ The install script brings everything to the versions this release was tested wit
 - **[prints/README.md](prints/README.md):** which parts to print and how.
 - **[configs/machine.yaml](configs/machine.yaml):** all settings, each with a comment.
 - **Development:** `pip install -e ".[dev]"`, then `pytest` and `ruff check .` before every commit.
-  The code is in [src/screwpick/](src/screwpick/); [CLAUDE.md](CLAUDE.md) explains how it is built.
+  The code is in [src/sortering_pnp/](src/sortering_pnp/); [CLAUDE.md](CLAUDE.md) explains how it is built.

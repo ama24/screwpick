@@ -14,11 +14,11 @@ import numpy as np
 import pytest
 import yaml
 
-from screwpick.layout import Layout
-from screwpick.models import ModelError, ModelStore, find_formats, pick_weights
-from screwpick.printer.sim import SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner
-from screwpick.transform import Transform2D
+from sortering_pnp.layout import Layout
+from sortering_pnp.models import ModelError, ModelStore, find_formats, pick_weights
+from sortering_pnp.printer.sim import SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import Transform2D
 
 CLASSES = ["DIN912_M3", "DIN912_M4", "DIN934_M4"]
 
@@ -43,7 +43,7 @@ def package_zip(tmp: Path, card: dict | None = None, ncnn_names=None) -> Path:
             json.dumps(
                 card
                 or {
-                    "format": "model-trainer/1",
+                    "format": "training-synth/1",
                     "task": "segment",
                     "classes": CLASSES,
                     "imgsz": 1024,
@@ -177,7 +177,7 @@ def test_find_and_pick_weights(tmp_path):
 
 
 def test_active_choice(machine, store, tmp_path):
-    from screwpick.vision import active_choice
+    from sortering_pnp.vision import active_choice
 
     a = store.add_upload(package_zip(tmp_path), "a.zip")
     store.set_active("stage1", a.id)
@@ -197,7 +197,7 @@ def _runner(machine, store):
 
 
 def test_web_upload_and_switch(machine, store, tmp_path):
-    from screwpick.web.server import make_server
+    from sortering_pnp.web.server import make_server
 
     runner = _runner(machine, store)
     srv = make_server(runner, "127.0.0.1", 0)
@@ -271,7 +271,7 @@ class _Model:
 
 def test_run_boxes_detect_and_obb():
     pytest.importorskip("screwsynth")
-    from screwpick.analysis import run_boxes
+    from sortering_pnp.analysis import run_boxes
 
     scene = type("S", (), {"image": np.zeros((2048, 2048, 3), np.uint8)})()
     st = type("St", (), {"stage1_imgsz": 1024, "conf": 0.25, "iou": 0.6, "max_det": 300})()

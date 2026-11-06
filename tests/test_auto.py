@@ -6,12 +6,12 @@ import time
 
 import numpy as np
 
-from screwpick.layout import Layout
-from screwpick.parts import Part
-from screwpick.printer.sim import SimPart, SimPrinter, SimVision, SimWorld
-from screwpick.runner import Runner, same_parts
-from screwpick.strategies import Planner
-from screwpick.transform import Transform2D
+from sortering_pnp.layout import Layout
+from sortering_pnp.parts import Part
+from sortering_pnp.printer.sim import SimPart, SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner, same_parts
+from sortering_pnp.strategies import Planner
+from sortering_pnp.transform import Transform2D
 
 
 def make(machine, n: int = 6):
@@ -53,7 +53,7 @@ def test_automatic_mode_sorts_waits_and_sorts_new_parts(machine):
     assert len(homes) >= 2
     cx = (x0 + x1) / 2
     assert (
-        f"SET_GCODE_VARIABLE MACRO=_SCREWPICK_HOME VARIABLE=z_home_x VALUE={cx:.2f}" in printer.log
+        f"SET_GCODE_VARIABLE MACRO=_SORTERING_HOME VARIABLE=z_home_x VALUE={cx:.2f}" in printer.log
     )
     runner.shutdown()  # the program ends: automatic mode is remembered
     assert runner.saved_mode()[0] is True
