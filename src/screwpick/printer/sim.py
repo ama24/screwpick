@@ -124,6 +124,7 @@ class SimPrinter:
         self.log: list[str] = []
         self.rng = random.Random(1)
         self.jaw_angle: float | None = None  # last tweezer rotation
+        self.configs: dict[str, str] = {}  # files "uploaded" to Klipper's config folder
 
     def _tip(self) -> list[float]:
         return [p + o for p, o in zip(self.pos, self.m.tool.offset, strict=True)]
@@ -178,6 +179,13 @@ class SimPrinter:
             hotend_c=24.0,
             tool="picker" if tool_macro else None,
         )
+
+    def upload_config(self, name: str, text: str) -> None:
+        self.configs[name] = text
+        self.log.append(f"; uploaded {name}")
+
+    def firmware_restart(self) -> None:
+        self.log.append("FIRMWARE_RESTART")
 
     def emergency_stop(self) -> None:
         self.log.append("EMERGENCY_STOP")

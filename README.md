@@ -31,6 +31,9 @@ screwpick's web page. screwpick never reaches into the other projects' folders.
 
 ### What's new
 
+- **Four pickers to choose from** in the Setup tab: servo tweezers, suction cup, magnet,
+  pneumatic tweezers. Each with its wiring to the Raspberry Pi drawn on the page, and installed
+  in Klipper with one button. [The picker](#the-picker).
 - **New look:** the sections are in a sidebar on the left, grouped by what you do, with the
   machine's state and the STOP button always at its bottom. Every page has a title, and a full
   bin or unfinished setup shows as an orange banner at the top of Device.
@@ -90,8 +93,15 @@ screwpick's web page. screwpick never reaches into the other projects' folders.
 **Hardware**
 
 - A **3D printer running Klipper** with Moonraker (e.g. an Ender 3 or a Prusa MK3 with MainsailOS
-  or a KIAUH install). The hotend comes off; a **picker** goes on in its place: tweezers turned by
-  a motor, a small servo gripper, or a suction cup on a little pump.
+  or a KIAUH install). The hotend comes off; a **picker** goes on in its place, wired to the
+  Raspberry Pi's own pins. Four kinds, chosen in the Setup tab:
+
+  | Picker | Holds the part with | Aims at | Turns |
+  |---|---|---|---|
+  | **Servo tweezers** | a servo closing the tweezers | the centre of gravity (on the shank) | yes, a second servo, 0–180° |
+  | **Suction cup** | a vacuum pump, switched by a MOSFET module | the head | no |
+  | **Magnet** | a servo pressing a magnet against an iron rod | the head | no |
+  | **Pneumatic tweezers** | a pump, switched by a MOSFET module | the centre of gravity | yes, a servo, 0–180° |
 - A **Raspberry Pi 4 or 5** with 4 GB or more, running 64-bit Raspberry Pi OS. It runs Klipper,
   the camera, the model and the web page together.
 - A **Raspberry Pi Camera Module 3** about 300 mm above the bed, looking straight down.
@@ -145,12 +155,13 @@ rules, press **Sort once** and watch them get sorted.
 
    ```bash
    cp ~/screwpick/klipper/screwpick.cfg ~/printer_data/config/
+   cp -n ~/screwpick/klipper/screwpick_picker.cfg ~/printer_data/config/
    echo "[include screwpick.cfg]" >> ~/printer_data/config/printer.cfg
    ```
 
-   Open `screwpick.cfg` in Mainsail and adapt the *PICKER HARDWARE* part to how your picker is
-   wired (examples for a pump, a servo gripper and rotating tweezers are in the file). Then restart
-   Klipper.
+   The second file is a placeholder for your picker; `-n` keeps one you've already installed.
+   You don't edit anything by hand: in the Setup tab you choose the picker and press **Install in
+   Klipper** (see [Picker](#the-picker) below).
 4. **Open the page:** `http://<your-pi>:8080` on your phone or PC. The first visit asks you to
    create an account.
 
@@ -197,12 +208,54 @@ Go through the seven steps once, in order:
    head out of the picture). *Show me* drives to each so you can check.
 4. **Tip height:** jog the picker tip down onto the plate until a sheet of paper just drags, then
    press the button. Every height screwpick uses counts from here.
-5. **Picker:** try *Grab* and *Release*.
+5. **Picker:** choose yours, wire it as the page shows, install it in Klipper, then try *Grab*
+   and *Release* (see [The picker](#the-picker)).
 6. **Camera to printer:** see step 3 below.
 7. **Layout:** see step 2 below.
 
 A step un-checks itself when something it depends on changes, so the setup can't silently go
 stale.
+
+### The picker
+
+![The Picker step in the Setup tab](docs/images/picker.png)
+
+In the **Setup tab → Picker**, choose one of four (numbered in this order):
+
+1. **Servo tweezers:** one servo opens and closes them, a second turns them up to 180°.
+2. **Suction cup:** a vacuum pump, switched on and off by a MOSFET module.
+3. **Magnet:** a servo presses a magnet against an iron rod; the rod's tip holds the screw. Steel
+   only.
+4. **Pneumatic tweezers:** a pump closes them, a servo turns them up to 180°.
+
+The cup and the magnet are put on the screw's **head**. Both tweezers close at the **centre of
+gravity**, on the shank, turned across the part.
+
+Every signal comes from the **Raspberry Pi**, never from the printer's board, so the wiring is
+the same on any printer: Klipper uses the Pi's pins as a second board. The page draws the wiring
+for the type you chose:
+
+| Pi pin | Does |
+|---|---|
+| 32 (GPIO12) | grabs: the jaw servo, the magnet servo, or the MOSFET module's SIG (pump on/off) |
+| 33 (GPIO13) | turns: the rotation servo (tweezers only) |
+| 34 (GND) | joined with the ground of the 5 V converter, the MOSFET module and the 24 V supply |
+
+Power comes straight from the printer's 24 V supply, as part of the conversion:
+
+- **Servos:** run a pair of wires from the 24 V supply to the tip and put a small 5 V buck
+  converter there, next to the servos. Never power them from the Pi's 5 V pin.
+- **Pumps:** they run from the 24 V supply through the MOSFET module, with a diode across the pump.
+  A logic-level module (AOD4184 / D4184) switches fully at the Pi's 3.3 V; the classic IRF520
+  module only switches halfway.
+- **Not the heater outputs:** don't take power from the bed or hotend heater outputs. Klipper
+  switches them under its heater safety checks.
+
+Then press **Install in Klipper**: screwpick writes `screwpick_picker.cfg` for that type next
+to `printer.cfg` and restarts Klipper. Once, beforehand, the Pi has to be set up as a Klipper
+board; the page lists the commands (or use KIAUH). Finally test *Grab* and *Release*, and for
+tweezers *Turn to 0°* and *90°*: at 0° the jaws must close left–right; if they don't, set the
+offset.
 
 ### 2. Bins on the bed
 
@@ -319,7 +372,7 @@ finished or which is nearly full.
 
 **Picking.** For a screw the model finds the top of the head, the underside of the head and the
 tip, so screwpick knows which way it lies, how long it is and where its centre of mass is. Tweezers
-turn to close across the shank at that point. If a pick fails (the part is still there on the next
+turn to close across the shank at that point; a suction cup or a magnet goes onto the head. If a pick fails (the part is still there on the next
 photo) it tries again; if parts are stuck in a clump, it shakes the bed to spread them.
 
 **Pick, photo, drop.** After picking, the machine goes to the photo position with the part in the

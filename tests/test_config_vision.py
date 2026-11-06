@@ -14,7 +14,7 @@ REPO = Path(__file__).resolve().parents[1]
 
 def test_shipped_config_loads_and_resolves_paths():
     m = config_mod.load(REPO / "configs" / "machine.yaml")
-    assert m.printer.driver == "moonraker" and m.picker.mode == "vacuum"
+    assert m.printer.driver == "moonraker" and m.picker.mode == "suction"
     assert m.path(m.paths.layout) == (REPO / "data" / "layout.yaml").resolve()
     assert m.path(m.paths.model) is None
     assert m.run.shake.axis == "Y"
@@ -22,7 +22,7 @@ def test_shipped_config_loads_and_resolves_paths():
 
 def test_config_errors(tmp_path):
     p = tmp_path / "m.yaml"
-    p.write_text("picker: {mode: magnet}\n", encoding="utf-8")
+    p.write_text("picker: {mode: teleport}\n", encoding="utf-8")
     with pytest.raises(ConfigError, match="picker.mode"):
         config_mod.load(p)
     p.write_text("printer: {speed: 3}\n", encoding="utf-8")

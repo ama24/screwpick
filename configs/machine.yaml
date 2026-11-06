@@ -54,10 +54,10 @@ tool:
   offset: [0, 0, 0]            # picker tip minus the toolhead position Klipper reports (X Y Z)
 
 picker:
-  mode: vacuum                 # vacuum | gripper | tweezers (turned by a Z rotation axis) | both
+  mode: suction                # servo_tweezers | suction | magnet | pneumatic_tweezers (Setup tab: Picker)
   grab: SCREWPICK_GRAB         # macros in klipper/screwpick.cfg
   release: SCREWPICK_RELEASE
-  rotate: null                 # SCREWPICK_ROTATE for tweezers / a turning gripper (null: it cannot turn)
+  rotate: null                 # set by the type: SCREWPICK_ROTATE for tweezers, null for cup and magnet
   rotate_home: null            # SCREWPICK_ROT_HOME: a 0-degree switch, found before every sort
   rotate_zero: SCREWPICK_ROT_ZERO  # Setup tab "Set zero": the jaws close along printer X now
   rotate_offset_deg: 0         # fine trim of the jaw angle

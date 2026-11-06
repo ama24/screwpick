@@ -101,7 +101,9 @@ cat <<EOF
 
 Done. Next:
   1. Klipper: cp $HERE/klipper/screwpick.cfg ~/printer_data/config/
+     cp -n $HERE/klipper/screwpick_picker.cfg ~/printer_data/config/   (placeholder, kept if present)
      and add [include screwpick.cfg] to printer.cfg, then FIRMWARE_RESTART.
+     Choose and install your picker later in the web page (Setup tab, Picker).
   2. source $VENV/bin/activate && cd $HERE && screwpick check
   3. screwpick serve   (or run this script again with --service to start it at every boot)
 EOF

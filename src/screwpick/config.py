@@ -19,8 +19,9 @@ import yaml
 from .fill import Fill
 from .headcam import HeadCamera
 from .photos import Calibration
+from .pickers import MODES as PICKER_MODES
+from .pickers import PickerType, picker_type
 
-PICKER_MODES = ("vacuum", "gripper", "tweezers", "both")
 PRINTER_DRIVERS = ("moonraker", "sim")
 
 
@@ -101,7 +102,7 @@ class Tool:
 
 @dataclass
 class Picker:
-    mode: str = "vacuum"  # vacuum | gripper | tweezers (turned by a Z rotation axis) | both
+    mode: str = "suction"  # servo_tweezers | suction | magnet | pneumatic_tweezers (pickers.py)
     grab: str = "SCREWPICK_GRAB"  # Klipper macros, see klipper/screwpick.cfg
     release: str = "SCREWPICK_RELEASE"
     rotate: str | None = None  # SCREWPICK_ROTATE ANGLE=<deg> when the gripper can turn
@@ -116,6 +117,19 @@ class Picker:
     drop_mm: float = 10.0  # release this far above the bin's rim
     dwell_s: float = 0.3  # wait after grab / release
     feed_z_slow: float = 300.0
+
+    @property
+    def kind(self) -> PickerType:
+        return picker_type(self.mode)
+
+    def set_type(self, mode: str) -> None:
+        """Use this kind of picker (old names are mapped); tweezers turn with SCREWPICK_ROTATE."""
+        t = picker_type(mode)
+        self.mode = t.key
+        if t.rotates and not self.rotate:
+            self.rotate = "SCREWPICK_ROTATE"
+        elif not t.rotates:
+            self.rotate = None
 
 
 @dataclass
@@ -203,6 +217,7 @@ class Machine:
             raise ConfigError(
                 f"picker.mode must be one of {PICKER_MODES}, got {self.picker.mode!r}"
             )
+        self.picker.set_type(self.picker.mode)
         if self.printer.driver not in PRINTER_DRIVERS:
             raise ConfigError(
                 f"printer.driver must be one of {PRINTER_DRIVERS}, got {self.printer.driver!r}"
