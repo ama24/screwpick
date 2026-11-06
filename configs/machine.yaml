@@ -48,6 +48,8 @@ printer:
   auto_home: true              # G28 when an axis is not homed
   home_macro: _SORTERING_HOME  # Z is homed over the middle of the working area (null: plain G28)
   tool_macro: _SORTERING_TOOL  # Klipper macro whose `tool` must be "picker" (null: no check)
+  tool_picker: TOOL_PICKER     # the Setup tab's "The picker is on the printer" runs this
+  tool_hotend: TOOL_HOTEND     # ... and "The hotend is back on" this
   accel: null                  # mm/s^2 while sorting: lower = gentler bed, loose parts stay put (null: printer's)
 
 tool:

@@ -125,6 +125,7 @@ class SimPrinter:
         self.rng = random.Random(1)
         self.jaw_angle: float | None = None  # last tweezer rotation
         self.configs: dict[str, str] = {}  # files "uploaded" to Klipper's config folder
+        self.tool = "picker"  # TOOL_PICKER / TOOL_HOTEND
 
     def _tip(self) -> list[float]:
         return [p + o for p, o in zip(self.pos, self.m.tool.offset, strict=True)]
@@ -156,6 +157,10 @@ class SimPrinter:
                 self.world.grab(self._tip())
             elif word == pk.release.upper():
                 self.world.release(self._tip())
+            elif word == self.m.printer.tool_picker.upper():
+                self.tool = "picker"
+            elif word == self.m.printer.tool_hotend.upper():
+                self.tool = "hotend"
             elif word in ("M84", "M18"):
                 self.homed = ""  # motors off: the axes are no longer homed
             elif word in ("M400", "G4", "M117", "SET_GCODE_VARIABLE") or (
@@ -177,7 +182,7 @@ class SimPrinter:
             homed=self.homed,
             position=list(self.pos),
             hotend_c=24.0,
-            tool="picker" if tool_macro else None,
+            tool=self.tool if tool_macro else None,
         )
 
     def upload_config(self, name: str, text: str) -> None:

@@ -91,6 +91,9 @@ class Printer:
     # this macro's variables z_home_x / z_home_y (klipper/sortering_pnp.cfg); None = plain G28
     home_macro: str | None = "_SORTERING_HOME"
     tool_macro: str | None = "_SORTERING_TOOL"  # its variable `tool` must be "picker"; None = skip
+    # what the Setup tab's tool buttons run (klipper/sortering_pnp.cfg)
+    tool_picker: str = "TOOL_PICKER"  # the picker is on the printer (heaters off)
+    tool_hotend: str = "TOOL_HOTEND"  # the hotend is back on (printing allowed, sorting refused)
     timeout_s: float = 120.0
     # mm/s^2 while sorting (gentler bed moves: loose parts stay where the photo saw them);
     # None = the printer's own setting
