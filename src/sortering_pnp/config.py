@@ -79,6 +79,9 @@ class Printer:
     # tip X Y Z for photos and standby: bed all the way out (Y max on a bed-slinger), head out
     # of the picture; the camera calibration is made with the bed here
     photo_position: list[float] = field(default_factory=lambda: [0.0, 220.0, 60.0])
+    # tip X Y Z where the head waits while the picker is put on (Setup tab, after the Machine
+    # step): head high and in the middle, bed out, so the head is easy to reach
+    change_position: list[float] = field(default_factory=lambda: [110.0, 220.0, 100.0])
     travel_z: float = 50.0  # tip height for every move (above the bins)
     feed_xy: float = 6000.0
     feed_z: float = 1200.0
@@ -226,9 +229,9 @@ class Machine:
             raise ConfigError(
                 f"printer.driver must be one of {PRINTER_DRIVERS}, got {self.printer.driver!r}"
             )
-        for name in ("photo_position", "limits_x", "limits_y", "limits_z"):
+        for name in ("photo_position", "change_position", "limits_x", "limits_y", "limits_z"):
             v = getattr(self.printer, name)
-            if len(v) != (3 if name == "photo_position" else 2):
+            if len(v) != (3 if name.endswith("_position") else 2):
                 raise ConfigError(f"printer.{name}: wrong number of values {v}")
         if len(self.tool.offset) != 3:
             raise ConfigError("tool.offset needs X Y Z")

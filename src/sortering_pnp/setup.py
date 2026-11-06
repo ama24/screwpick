@@ -23,21 +23,22 @@ class Step:
     goal: str
 
 
-# The picker comes before anything moves: every move needs it on the printer (TOOL_PICKER, a
-# button in this step). Its pins are the Pi's, switched by sortering-pnp (pins.py).
+# The order the machine is set up in: the printer answers, it homes, its limits are right, then
+# the head waits at the change position while the picker is put on (OK = TOOL_PICKER), then the
+# tip height, the camera and the bins. Only sorting needs the picker on; these moves do not.
 STEPS = (
     Step(
         "printer",
         "Printer",
         "Klipper answers, sortering_pnp.cfg is included and the hotend is cold",
     ),
-    Step(
-        "picker",
-        "Picker",
-        "The kind of picker, wired to the Pi and on the printer; grab and release work",
-    ),
     Step("homing", "Homing", "Z homes over the middle of the plate, never over a bin"),
-    Step("machine", "Machine", "Bed limits, travel height and the photo position are right"),
+    Step(
+        "machine",
+        "Machine",
+        "Bed limits, travel height, the photo and picker-change positions are right",
+    ),
+    Step("picker", "Picker", "The kind of picker, wired to the Pi and put on the head"),
     Step("tip", "Tip height", "Where the picker tip touches the plate"),
     Step(
         "camera", "Camera to printer", "The camera's millimetres match the printer's (error < 1 mm)"

@@ -223,17 +223,24 @@ Go through the seven steps once, in order:
 
 1. **Printer:** sortering-pnp asks Klipper a few questions (is `sortering_pnp.cfg` included, is the
    hotend cold). Nothing moves.
-2. **Picker:** choose yours, wire it as the page shows, install it in Klipper, press **The picker
-   is on the printer**, then try *Grab* and *Release* (see [The picker](#the-picker)). Nothing
-   moves until the picker is on.
-3. **Homing:** press *Home now* and watch. sortering-pnp lifts the head first, then homes Z over the
+2. **Homing:** press *Home now* and watch. sortering-pnp lifts the head first, then homes Z over the
    middle of the tray, never over a bin.
-4. **Machine:** the bed limits, the travel height and the **photo position** (bed all the way out,
-   head out of the picture). *Show me* drives to each so you can check.
-5. **Tip height:** jog the picker tip down onto the plate until a sheet of paper just drags, then
-   press the button. Every height sortering-pnp uses counts from here.
-6. **Camera to printer:** see step 3 below.
-7. **Layout:** see step 2 below.
+3. **Machine:** the bed limits, the travel height, the **photo position** (bed all the way out,
+   head out of the picture) and the **picker-change position** (head high and in the middle).
+   *Show me* drives to each so you can check. *All positions are right* then sends the head to
+   the picker-change position, ready for the next step.
+4. **Picker:** choose yours and wire it as the page shows (sortering-pnp switches the Pi's pins
+   itself, see [The picker](#the-picker)). *Grab* and *Release* try it if you like. Put it on the
+   head and press **OK**: from then on sorting may move it.
+5. **Tip height:** *Above the plate*, then jog the tip down with the Z buttons on the same row
+   until a sheet of paper just drags, and press *The tip touches the plate*. Every height
+   sortering-pnp uses counts from here.
+6. **Camera to printer:** *Take photo* shows what the camera sees, with every code it reads
+   circled and named (no model needed). Jog the tip onto the centre of three codes far apart,
+   press *Tip is here* on each, then *Fit*. Do the **Camera calibration** (Calibrate tab, step 3
+   below) before it.
+7. **Layout:** *Find the bins*: one photo finds the grid, every bin and which way it faces (see
+   step 2 below).
 
 A step un-checks itself when something it depends on changes, so the setup can't silently go
 stale.
@@ -275,10 +282,10 @@ Power comes straight from the printer's 24 V supply, as part of the conversion:
 
 The page says whether the pins are ready. A pump is a plain on/off pin and needs nothing more.
 Servos use the Pi's hardware PWM, which `install-pi.sh` turns on (one line in `config.txt`;
-reboot once after the first install). Mount the picker and press **The picker is on the
-printer** (to print again: **The hotend is back on**). Finally test *Grab* and *Release*, and for
-tweezers *Turn to 0°* and *90°*: at 0° the jaws must close left–right; if they don't, set the
-offset. Servo angles and pins can be changed in `configs/machine.yaml` (`picker:`).
+reboot once after the first install). Try *Grab* and *Release*, and for tweezers *Turn to 0°*
+and *90°*: at 0° the jaws must close left–right; if they don't, set the offset. Then put the
+picker on the head (it waits at the picker-change position) and press **OK**. Servo angles and
+pins can be changed in `configs/machine.yaml` (`picker:`).
 
 ### 2. Bins on the bed
 
@@ -323,8 +330,11 @@ In the **Calibrate** tab:
    result is saved by itself.
 2. **What the model sees:** take a photo and check that only the tray's inside is left; adjust the
    margin if a bit of the tray's wall shows.
-3. **Camera to printer:** take a photo, jog the tip onto the centre of three codes, press *Tip is
-   here* on each, then *Fit*. Now the program knows where every pixel is on the printer.
+3. **Camera to printer** is step 6 of the Setup tab: take a photo, jog the tip onto the centre
+   of three codes, press *Tip is here* on each, then *Fit*. Now the program knows where every
+   pixel is on the printer.
+
+None of these needs a model: the photos only read the codes. The model is needed for sorting.
 
 ### 4. The model and the files
 

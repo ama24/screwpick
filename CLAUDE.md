@@ -37,7 +37,8 @@ another repository.
   camera) used by the tests and by `sortering-pnp serve --sim`.
 - **Motion safety:** every move goes through `printer/motion.py`, which applies the tool offset
   and the soft limits. `preflight()` refuses to move unless Klipper is ready, not printing, the
-  hotend is cold, the axes are homed, and `_SORTERING_TOOL.tool == "picker"`.
+  hotend is cold, the axes are homed, and (for sorting, not for the Setup tab's watched moves)
+  `_SORTERING_TOOL.tool == "picker"`.
 - **Frames:** plate frame = screw-synth's (mm, z = 0 on the TPU top). Printer frame = G-code X/Y
   of the bed. The plate is fixed to the bed, so one 2D similarity (`transform.py`, fitted from
   marker/tip pairs) maps one to the other. Z values in sortering-pnp are printer Z of the TIP; the
@@ -79,8 +80,11 @@ another repository.
   without the cookie.
 - **Setup:** `setup.py` keeps the checklist (`paths.setup`). `Runner.command` refuses
   start/step/auto on a real printer until it's complete. Setup moves call
-  `preflight(home=False)`, so only *Home now* and sorting ever home. Machine values from the page
-  go to `paths.machine`, over machine.yaml.
+  `preflight(home=False)`, so only *Home now* and sorting ever home, and they need no picker.
+  Order: printer, homing, machine (then the head goes to `printer.change_position`), picker (OK =
+  TOOL_PICKER), tip, camera, layout; tip height and camera to printer are done in their steps.
+  Photos for calibration and Resync need no model (`CameraVision.analyse` reads only the codes
+  then); sorting does. Machine values from the page go to `paths.machine`, over machine.yaml.
 - **Picker pins:** `pins.py`. sortering-pnp switches the Pi's own pins itself (gpiozero for a
   pump, `/sys/class/pwm` for servos); the picker is not in Klipper (no host MCU, nothing to
   install). Motion sends `M400` before `grab`/`release`; `off()` on stop, error, e-stop and exit.

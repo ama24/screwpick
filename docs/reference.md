@@ -81,11 +81,12 @@ The old names still work: `vacuum` = `suction`; `gripper`, `tweezers` and `both`
 
 ### Swappable tool
 
-Klipper remembers which tool is mounted. After mounting the picker press **The picker is on the
-printer** (Setup tab, Picker), and **The hotend is back on** after putting the hotend back. They
-run `TOOL_PICKER` and `TOOL_HOTEND`, which also work from the printer menu (*Screw sorter →
-Picker mounted*) or Mainsail's console. The sorter refuses to move unless the picker is mounted
-and the hotend is cold. `TOOL_PICKER` also switches the heaters off.
+Klipper remembers whether the picker is on. **OK** in the Setup tab's Picker step runs
+`TOOL_PICKER` (it also switches the heaters off); `TOOL_PICKER` / `TOOL_HOTEND` also work from the
+printer menu (*Screw sorter → Picker mounted / Hotend mounted*) or Mainsail's console, e.g. when
+the head is used for printing. **Sorting** refuses to move unless the picker is on and the hotend
+is cold; the Setup tab's own moves (homing, the limits, jogging, the photos) only need a cold
+hotend, because someone watches them and they come before the picker is put on.
 
 ## Installing and the pinned versions
 
@@ -131,17 +132,23 @@ menu, until every step of the **Setup** tab is checked:
 
 1. **Printer:** Klipper answers, `sortering_pnp.cfg` is included, the hotend is cold, nothing is
    printing. Only questions, nothing moves.
-2. **Picker:** choose the type (the page draws its wiring to the Pi and says whether its pins
-   are ready), *The picker is on the printer* (`TOOL_PICKER`: nothing moves without it), then
-   *Grab* and *Release* without moving; tweezers also *Turn to 0°* / *90°* and the offset. Then
-   confirm. Choosing another type un-checks the step.
-3. **Homing:** press *Home now* and watch. Z must come down over the middle of the plate, not
+2. **Homing:** press *Home now* and watch. Z must come down over the middle of the plate, not
    over a bin. Then confirm.
-4. **Machine:** limits, travel height and photo position, editable on the page. *Show me*
-   buttons drive to each position (at travel height) so you can check them.
-5. **Tip height:** checks itself when you measure it (Calibrate tab).
-6. **Camera to printer:** checks itself when the calibration's worst error is under 1 mm.
-7. **Layout:** checks itself when Resync finds the bins and a plate without problems.
+3. **Machine:** limits, travel height, photo position and picker-change position
+   (`printer.change_position`), editable on the page. *Show me* buttons drive to each position
+   (at travel height). *All positions are right* confirms and sends the head to the
+   picker-change position.
+4. **Picker:** choose the type (the page draws its wiring to the Pi and says whether its pins
+   are ready); *Grab* / *Release* and, for tweezers, *Turn to 0°* / *90°* and the offset try it
+   without moving. Put it on the head, then **OK** (`TOOL_PICKER`: sorting needs it). Choosing
+   another type un-checks the step.
+5. **Tip height:** in the step: *Above the plate*, the Z jog buttons and *The tip touches the
+   plate* on one row. Checks itself.
+6. **Camera to printer:** in the step: *Take photo* (the codes circled on it and listed with
+   their bin size; no model needed), the jog pad, *Tip is here* per code, *Fit*. Checks itself
+   when the worst error is under 1 mm.
+7. **Layout:** *Find the bins* (= Resync). Checks itself when the bins and a plate are found
+   without problems.
 
 Until then the machine moves only when you ask it to in these steps. Jogging and the calibration
 photos never home by themselves. Changing the machine values, a worse calibration or a layout
@@ -161,12 +168,12 @@ The steps below are the same work in more detail.
    and a TPU sheet cut to size in the tray. To hold the baseplate down, print the version that
    **covers the whole bed** (Ender 3 or Prusa MK3, slim or standard, in 4 pieces that fit the
    printer) and clamp it with binder clips, or on the Prusa stick it onto a spare steel sheet.
-4. Mount the picker and press *The picker is on the printer* (Setup tab). Set `tool.offset` in
+4. Put the picker on and press **OK** (Setup tab, Picker). Set `tool.offset` in
    [configs/machine.yaml](../configs/machine.yaml) if the picker tip is not where the nozzle was.
 5. Set `printer.photo_position`: where the head waits during photos, out of the picture.
 6. **Camera calibration** (Calibrate tab, *Camera calibration*): lay the ChArUco board **in the
    tray**, where the parts will lie. Its surface is the height everything is measured from.
-   **Calibrate tab**: take a photo, then jog the tip onto the centre of 3 or more markers
+   **Setup tab, Camera to printer**: take a photo, then jog the tip onto the centre of 3 or more markers
    (spread over the bed), pressing **Tip is here** on each. Then **Fit**. Errors under 0.5 mm
    are good. **Check** moves the tip just above a marker to confirm.
 7. **Device tab → Resync** (next to the bed): one photo finds where the baseplate lies, which
@@ -492,7 +499,7 @@ Two dangers when homing a sorter that a plain `G28` doesn't handle:
 until the switch triggers with the picker tip **2–3 mm above the plate**. Then:
 
 1. In `printer.cfg`, allow Z a little below 0: `[stepper_z] position_min: -5`.
-2. Home, then on the **Calibrate tab → Tip height**: jog the tip down over the plate in 0.1 mm
+2. Home, then in the **Setup tab → Tip height**: jog the tip down over the plate in 0.1 mm
    steps until a sheet of paper just drags, and press **Tip touches the plate**. From then on,
    every Z that sortering-pnp uses counts from that point. Repeat this whenever the switch or the
    picker is moved.

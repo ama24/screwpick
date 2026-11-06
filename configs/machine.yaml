@@ -38,6 +38,7 @@ printer:
   driver: moonraker            # moonraker (Klipper on this Pi) | sim (simulated, nothing moves)
   url: http://localhost:7125   # Moonraker
   photo_position: [0, 220, 60] # tip X Y Z for photos and standby: bed all the way out, head out of the picture
+  change_position: [110, 220, 100]  # tip X Y Z where the head waits while the picker is put on (head high, bed out)
   travel_z: 50                 # tip height for moves across the bed (above the bins)
   feed_xy: 6000
   feed_z: 1200
@@ -48,8 +49,8 @@ printer:
   auto_home: true              # G28 when an axis is not homed
   home_macro: _SORTERING_HOME  # Z is homed over the middle of the working area (null: plain G28)
   tool_macro: _SORTERING_TOOL  # Klipper macro whose `tool` must be "picker" (null: no check)
-  tool_picker: TOOL_PICKER     # the Setup tab's "The picker is on the printer" runs this
-  tool_hotend: TOOL_HOTEND     # ... and "The hotend is back on" this
+  tool_picker: TOOL_PICKER     # the Setup tab's Picker step, OK: the picker is on (sorting may move it)
+  tool_hotend: TOOL_HOTEND     # the printer menu's "Hotend mounted": sorting refused (e.g. to print)
   accel: null                  # mm/s^2 while sorting: lower = gentler bed, loose parts stay put (null: printer's)
 
 tool:

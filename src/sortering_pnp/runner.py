@@ -121,6 +121,8 @@ class Runner:
         self._setup_homed = False  # homed from the Setup tab since the program started
         self._setup_picker: set[str] = set()  # grab / release tried
         self._tool: str | None = None  # the tool Klipper said is mounted, when last asked
+        self._calib_markers: list[dict[str, Any]] = []  # the codes in the last calibration photo
+        self._calib_fit: dict[str, Any] | None = None  # the last Fit (Camera to printer)
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="analyse")
 
     # ------------------------------------------------------------------ files
@@ -605,6 +607,9 @@ class Runner:
     def _sort(self, strategy: str, steps: int | None, auto: bool = False) -> str:
         """Sort until the working area is empty: "done", "stuck" (only when `auto`: then the
         caller waits for the parts to change), "stopped" or "steps"."""
+        missing = getattr(self.vision, "model_missing", lambda: None)()
+        if missing:
+            raise PrinterError(missing)
         layout, T = self._prepare()
         with self._lock:
             self.motion.preflight()
@@ -1012,13 +1017,21 @@ class Runner:
         cal = self.calibration()
         with self._lock:
             self.motion.preflight(home=False)
-        shot = self.take_shot(layout, cal.transform if cal else None, area="here")
+        shot = self.take_shot(layout, cal.transform if cal else None, area="here", paint=False)
         out = []
-        for mk in shot.markers:
-            d: dict[str, Any] = {"marker": mk.marker, "plate": [round(v, 2) for v in mk.centre]}
+        for mk in sorted(shot.markers, key=lambda m: m.marker):
+            size = binspec.size_for_marker(mk.marker)
+            d: dict[str, Any] = {
+                "marker": mk.marker,
+                "plate": [round(v, 2) for v in mk.centre],
+                "what": size.name if size else "calibration board" if mk.marker < 50 else "?",
+                "view_px": [round(v, 1) for v in mk.view_px] if mk.view_px else None,
+            }
             if cal is not None:
                 d["bed"] = [round(float(v), 2) for v in cal.transform.apply(mk.centre)]
             out.append(d)
+        self._calib_markers = out
+        self.say(f"camera: {len(out)} code(s) seen" if out else "camera: no codes seen")
         return out
 
     def calib_record(self, marker: int) -> dict[str, Any]:
@@ -1048,14 +1061,17 @@ class Runner:
             self.setup.mark("camera", f"{len(self.calib_pairs)} points, worst {worst:.2f} mm")
         else:
             self.setup.reset("camera")
-        return {
+        self._calib_fit = {
             "residuals_mm": cal.residuals_mm,
+            "worst_mm": round(worst, 2),
             "angle_deg": round(cal.transform.angle_deg, 3),
             "scale": round(cal.transform.scale, 5),
         }
+        return self._calib_fit
 
     def calib_clear(self) -> None:
         self.calib_pairs = []
+        self._calib_fit = None
 
     def goto_marker(self, marker: int) -> list[float]:
         """Check the calibration: put the tip 2 mm above a marker."""
@@ -1102,7 +1118,14 @@ class Runner:
         return {**report, "bins": bins, "problems": problems}
 
     # ------------------------------------------------------------------ the Setup tab
-    MACHINE_KEYS = ("photo_position", "travel_z", "limits_x", "limits_y", "limits_z")
+    MACHINE_KEYS = (
+        "photo_position",
+        "change_position",
+        "travel_z",
+        "limits_x",
+        "limits_y",
+        "limits_z",
+    )
 
     def _load_machine(self) -> None:
         p = self.m.path(self.m.paths.machine)
@@ -1140,18 +1163,20 @@ class Runner:
                 new[k] = float(v)
             else:
                 vals = [float(x) for x in v]
-                if len(vals) != (3 if k == "photo_position" else 2):
+                position = k.endswith("_position")
+                if len(vals) != (3 if position else 2):
                     raise ValueError(f"{k}: wrong number of values")
-                if k != "photo_position" and not vals[0] < vals[1]:
+                if not position and not vals[0] < vals[1]:
                     raise ValueError(f"{k}: the minimum must be below the maximum")
                 new[k] = vals
         old = self.machine_values()
         for k, v in new.items():
             setattr(self.m.printer, k, v)
         try:
-            x, y, z = new["photo_position"]
-            self.motion.check(x, y, z)
-            self.motion.check(x, y, new["travel_z"])
+            for key in ("photo_position", "change_position"):
+                x, y, z = new[key]
+                self.motion.check(x, y, z)
+                self.motion.check(x, y, new["travel_z"])
         except PrinterError:
             for k, v in old.items():
                 setattr(self.m.printer, k, v)
@@ -1173,6 +1198,15 @@ class Runner:
             "homed_now": self._setup_homed,
             "picker_tried": sorted(self._setup_picker),
             "tool": self._tool,  # the mounted tool, as Klipper last said (None: not asked yet)
+            "tip_offset_z": self.m.tool.offset[2],
+            "camera": {
+                "calibrated": self._camera_calibrated(),
+                "markers": self._calib_markers,
+                "pairs": self.calib_pairs,
+                "fit": self._calib_fit,
+                "view": self.state.view,
+                "view_h": self.state.view_h,
+            },
             "rotation": self.m.picker.kind.rotates,
             "picker": {
                 "mode": self.m.picker.kind.key,
@@ -1183,6 +1217,12 @@ class Runner:
                 "pins": dict(zip(("ok", "message"), self.pins.status(), strict=True)),
             },
         }
+
+    def _camera_calibrated(self) -> str | None:
+        """Where the camera calibration (the board in the tray) comes from, or None."""
+        key = "head_calibration" if self.m.camera.source == "head" else "calibration"
+        path, source = files_mod.find(self.m, key)
+        return source if path is not None else None
 
     def setup_picker_type(self, mode: str) -> dict[str, Any]:
         """The kind of picker (Setup tab): how it takes a part, where it aims, whether it turns.
@@ -1307,6 +1347,8 @@ class Runner:
             self.motion.preflight(home=False)
             if target == "photo":
                 self.motion.photo_position()
+            elif target == "change":
+                self.motion.change_position()
             elif target in spots:
                 self.motion.travel(*spots[target])
                 self.printer.gcode("M400")
@@ -1347,21 +1389,30 @@ class Runner:
             raise PrinterError("press Home now and watch where Z comes down first")
         if key == "machine" and not self.setup.is_done("printer"):
             raise PrinterError("check the printer first")
-        if key == "picker" and not {"grab", "release"} <= self._setup_picker:
-            raise PrinterError("try Grab and Release first")
-        if key == "picker" and self.m.picker.kind.rotates and "rotate" not in self._setup_picker:
-            raise PrinterError("turn the tweezers to 0° and 90° first")
-        if key == "picker" and self.m.printer.tool_macro:
-            with self._lock:
-                tool = self._ask_tool()
-            if tool != "picker":
-                raise PrinterError(
-                    f"Klipper has {tool!r} mounted: press The picker is on the printer"
-                )
         if key in ("printer", "tip", "camera", "layout"):
             raise PrinterError("this step is checked by the machine, not by hand")
+        if key == "picker":
+            return self.setup_picker_ok()
+        if key == "machine":  # the next step puts the picker on: the head goes where that is easy
+            with self._lock:
+                self.motion.preflight(home=False)
+                self.motion.change_position()
+            self.say("the head waits at the picker-change position: put the picker on")
         self.setup.mark(key)
         self.note(f"setup: {key} confirmed")
+        return self.setup_state()
+
+    def setup_picker_ok(self) -> dict[str, Any]:
+        """The picker is on the head (Setup tab, Picker: OK): its pins work, and Klipper is told
+        (TOOL_PICKER) so that sorting may move. Only a person can say it is on."""
+        self._idle()
+        ok, why = self.pins.status()
+        if not ok:
+            raise PrinterError(f"the picker's pins: {why}")
+        if self.m.printer.tool_macro:
+            self.setup_tool("picker")
+        self.setup.mark("picker", self.m.picker.kind.title)
+        self.note(f"setup: picker ({self.m.picker.kind.title.lower()}) is on")
         return self.setup_state()
 
     def setup_reset(self, key: str) -> dict[str, Any]:
