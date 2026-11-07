@@ -81,6 +81,21 @@ class Camera:
 
 
 @dataclass
+class YMotion:
+    """Gentle bed moves (Y on a bed-slinger): loose parts lie on the bed. Klipper has one
+    acceleration for all axes, so it is lowered for each move that moves Y and set back after."""
+
+    enabled: bool = True  # False: Y moves like X (the printer's acceleration, one G1)
+    accel: float = 1000.0  # mm/s^2 of the bed (the Y part of a move); X and Z keep theirs
+    # s_curve: the speed rises and falls smoothly (the move split into short G1 steps whose
+    # speeds follow an S) | trapezoid: one G1, Klipper's own ramp at `accel`
+    profile: str = "s_curve"
+    max_feed: float | None = None  # mm/min of the bed (the Y part); None = printer.feed_xy
+    steps: int = 8  # s_curve: speed steps per ramp (up and down)
+    min_step_mm: float = 1.0  # s_curve: steps at least this long on average (short moves get fewer)
+
+
+@dataclass
 class Printer:
     driver: str = "moonraker"  # moonraker (Klipper) | sim (no printer: a simulated one)
     url: str = "http://localhost:7125"  # Moonraker on this Pi
@@ -109,6 +124,7 @@ class Printer:
     # mm/s^2 while sorting (gentler bed moves: loose parts stay where the photo saw them);
     # None = the printer's own setting
     accel: float | None = None
+    y_motion: YMotion = field(default_factory=YMotion)  # gentle bed moves (docs/reference.md)
 
 
 @dataclass
@@ -257,6 +273,13 @@ class Machine:
             raise ConfigError("run.order must be census, largest_group or nearest")
         if self.run.shake.axis.upper() not in ("X", "Y"):
             raise ConfigError("run.shake.axis must be X or Y")
+        ym = self.printer.y_motion
+        if ym.profile not in ("s_curve", "trapezoid"):
+            raise ConfigError("printer.y_motion.profile must be s_curve or trapezoid")
+        if ym.accel <= 0 or ym.steps < 1 or ym.min_step_mm <= 0:
+            raise ConfigError("printer.y_motion: accel, steps and min_step_mm must be above 0")
+        if ym.max_feed is not None and ym.max_feed <= 0:
+            raise ConfigError("printer.y_motion.max_feed must be above 0 (or null)")
 
 
 def _build(cls: type, data: Mapping[str, Any] | None, where: str) -> Any:

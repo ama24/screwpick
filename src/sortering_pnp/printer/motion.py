@@ -8,9 +8,11 @@ tip - tool.offset. Every move is checked against the configured limits before it
 from __future__ import annotations
 
 import logging
+import math
 from typing import TYPE_CHECKING
 
 from ..config import Machine
+from . import smooth
 from .base import Printer, PrinterError, PrinterStatus
 
 if TYPE_CHECKING:
@@ -28,6 +30,7 @@ class Motion:
         self.pins = pins if pins is not None else make_pins(machine, printer)  # the picker
         self.tip: list[float] | None = None  # last commanded tip position
         self.z_home_xy: tuple[float, float] | None = None  # tip X/Y for homing Z (set by runner)
+        self._accel: float | None = None  # Klipper's acceleration, read once (0 = unknown)
 
     # ------------------------------------------------------------------ checks
     def preflight(self, home: bool = True, tool: bool | None = None) -> PrinterStatus:
@@ -127,8 +130,56 @@ class Motion:
         if not words:
             return
         f = feed or (self.m.printer.feed_z if x is None and y is None else self.m.printer.feed_xy)
-        self.p.gcode(f"G90\nG1 {' '.join(words)} F{f:.0f}")
+        last = f"G1 {' '.join(words)}"
+        if self.m.printer.y_motion.enabled and abs(ty - cur[1]) > 1e-6:
+            self.p.gcode("\n".join(["G90", *self._gentle_y(cur, [tx, ty, tz], f, last)]))
+        else:
+            self.p.gcode(f"G90\n{last} F{f:.0f}")
         self.tip = [tx, ty, tz]
+
+    def _normal_accel(self) -> float | None:
+        """The acceleration X and Z keep: printer.accel, else Klipper's (read once: Motion
+        always sets it back after a bed move). None: unknown."""
+        if self.m.printer.accel:
+            return float(self.m.printer.accel)
+        if self._accel is None:
+            self._accel = self.p.status(None).max_accel
+            if self._accel is None:
+                log.warning("the printer's acceleration is unknown: bed moves leave it lowered")
+                self._accel = 0.0
+        return self._accel or None
+
+    def _gentle_y(self, cur: list[float], to: list[float], feed: float, last: str) -> list[str]:
+        """A move that moves the bed (printer.y_motion): lowered acceleration while it runs,
+        with `s_curve` split into straight G1 steps whose speeds follow an S; `last` (the
+        target, as a plain move would send it) ends it, so the end point is exact."""
+        ym = self.m.printer.y_motion
+        delta = [b - a for a, b in zip(cur, to, strict=True)]
+        length = math.sqrt(sum(d * d for d in delta))
+        f, a = smooth.path_limits(length, delta[1], feed, ym.accel, ym.max_feed)
+        normal = self._normal_accel()
+        if normal is not None:
+            a = min(a, normal)
+        steps = (
+            smooth.s_curve(length, f, a, ym.steps, ym.min_step_mm)
+            if ym.profile == "s_curve"
+            else [(length, f)]
+        )
+        lines = []
+        if normal is None or a < normal - 1e-6:
+            lines.append(f"SET_VELOCITY_LIMIT ACCEL={a:.0f}")
+        ox, oy, oz = self.m.tool.offset
+        axes = ((0, "X", ox), (1, "Y", oy), (2, "Z", oz))
+        for dist, sf in steps[:-1]:
+            t = dist / length
+            p = [c + t * d for c, d in zip(cur, delta, strict=True)]
+            self.check(*p)  # on the straight line between two checked points: inside
+            words = [f"{n}{p[i] - o:.3f}" for i, n, o in axes if abs(delta[i]) > 1e-9]
+            lines.append(f"G1 {' '.join(words)} F{max(sf, 1.0):.0f}")
+        lines.append(f"{last} F{max(steps[-1][1], 1.0):.0f}")
+        if normal is not None and a < normal - 1e-6:
+            lines.append(f"SET_VELOCITY_LIMIT ACCEL={normal:.0f}")
+        return lines
 
     def travel(self, x: float, y: float) -> None:
         """Up to the travel height first, then across."""
@@ -192,7 +243,8 @@ class Motion:
         self.move(z=self.m.printer.travel_z)
 
     def shake(self) -> None:
-        """Quick back-and-forth moves of the bed (or head) to spread a clump of parts."""
+        """Quick back-and-forth moves of the bed (or head) to spread a clump of parts. They are
+        meant to be sharp: sent as they are, without printer.y_motion's gentle ramps."""
         sh = self.m.run.shake
         axis = sh.axis.upper()
         self.photo_position()

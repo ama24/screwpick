@@ -71,6 +71,7 @@ def test_preflight_homes_when_needed(machine):
 
 def test_moves_apply_tool_offset_and_limits(machine):
     machine.tool.offset = [5.0, -2.0, 1.0]
+    machine.printer.y_motion.enabled = False  # plain moves (the gentle bed: test_y_motion.py)
     fp = FakePrinter(ready())
     mo = Motion(fp, machine)
     assert mo.current_tip() == [15.0, 18.0, 31.0]
