@@ -8,6 +8,7 @@ mm/min, angles in degrees.
 from __future__ import annotations
 
 import dataclasses
+import logging
 import typing
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -23,6 +24,10 @@ from .pickers import MODES as PICKER_MODES
 from .pickers import PickerType, picker_type
 
 PRINTER_DRIVERS = ("moonraker", "sim")
+# settings that are gone (section class, key): an old machine.yaml with them still loads
+RETIRED = {("Run", "pipeline"), ("Standby", "settle_s")}
+
+log = logging.getLogger(__name__)
 
 
 class ConfigError(ValueError):
@@ -72,12 +77,28 @@ class Camera:
     mask_margin_mm: float = 0.0
     # the picture flipped by the camera itself (photos and live picture; Calibrate tab):
     # both = turned 180 degrees, e.g. a camera mounted the other way round
-    hflip: bool = False
-    vflip: bool = False
+    # (on by default: the camera on this machine is mounted the other way round)
+    hflip: bool = True
+    vflip: bool = True
     # lens above the tray floor (TPU top), used while there is no camera calibration: the
     # camera is taken as straight down over the picture's centre (Calibrate tab: Skip for now)
     # None: vision.yaml's nominal_camera.height_mm
     height_mm: float | None = None
+
+
+@dataclass
+class YMotion:
+    """Gentle bed moves (Y on a bed-slinger): loose parts lie on the bed. Klipper has one
+    acceleration for all axes, so it is lowered for each move that moves Y and set back after."""
+
+    enabled: bool = True  # False: Y moves like X (the printer's acceleration, one G1)
+    accel: float = 1000.0  # mm/s^2 of the bed (the Y part of a move); X and Z keep theirs
+    # s_curve: the speed rises and falls smoothly (the move split into short G1 steps whose
+    # speeds follow an S) | trapezoid: one G1, Klipper's own ramp at `accel`
+    profile: str = "s_curve"
+    max_feed: float | None = None  # mm/min of the bed (the Y part); None = printer.feed_xy
+    steps: int = 8  # s_curve: speed steps per ramp (up and down)
+    min_step_mm: float = 1.0  # s_curve: steps at least this long on average (short moves get fewer)
 
 
 @dataclass
@@ -109,6 +130,7 @@ class Printer:
     # mm/s^2 while sorting (gentler bed moves: loose parts stay where the photo saw them);
     # None = the printer's own setting
     accel: float | None = None
+    y_motion: YMotion = field(default_factory=YMotion)  # gentle bed moves (docs/reference.md)
 
 
 @dataclass
@@ -134,7 +156,10 @@ class Picker:
     depth_mm: float = 0.5  # go this far below the top of the part (spring-loaded cup)
     grip_height: float = 0.5  # gripper: close at this share of the part height (0 bed, 1 top)
     clearance_mm: float = 1.0  # free space a part needs around it to be picked first
-    drop_mm: float = 10.0  # release this far above the bin's rim
+    drop_mm: float = 10.0  # release at least this far above the bin's rim
+    # lower to rim + drop_mm over the bin before letting go; False: let go at the travel
+    # height (never below rim + drop_mm). Setup tab, Picker step
+    lower_to_drop: bool = False
     dwell_s: float = 0.3  # wait after grab / release
     feed_z_slow: float = 300.0
 
@@ -171,9 +196,6 @@ class Run:
     # census: the most numerous kind first, finished before the next, and back to a kind
     # done earlier when more of it turns up | largest_group: the biggest on each photo | nearest
     order: str = "census"
-    # photo right after the pick (the part in the picker), analysed while it is carried to
-    # its bin: the Pi's thinking time hides behind the move
-    pipeline: bool = True
     shake: Shake = field(default_factory=Shake)
     fill: Fill = field(default_factory=Fill)  # how full the bins are (estimated, see fill.py)
     # a new kind and no free wild bin: ask (a bin change, chosen by binswap.py) | overflow
@@ -184,7 +206,6 @@ class Run:
 @dataclass
 class Standby:
     interval_s: float = 60.0  # automatic mode: look for new parts this often
-    settle_s: float = 8.0  # parts must lie still this long before sorting (a hand still throwing)
     min_parts: int = 1  # start sorting from this many parts
     motors_off: bool = True  # motors off while waiting (quiet; homes again before sorting)
     max_errors: int = 3  # automatic mode switches itself off after this many errors in a row
@@ -257,6 +278,13 @@ class Machine:
             raise ConfigError("run.order must be census, largest_group or nearest")
         if self.run.shake.axis.upper() not in ("X", "Y"):
             raise ConfigError("run.shake.axis must be X or Y")
+        ym = self.printer.y_motion
+        if ym.profile not in ("s_curve", "trapezoid"):
+            raise ConfigError("printer.y_motion.profile must be s_curve or trapezoid")
+        if ym.accel <= 0 or ym.steps < 1 or ym.min_step_mm <= 0:
+            raise ConfigError("printer.y_motion: accel, steps and min_step_mm must be above 0")
+        if ym.max_feed is not None and ym.max_feed <= 0:
+            raise ConfigError("printer.y_motion.max_feed must be above 0 (or null)")
 
 
 def _build(cls: type, data: Mapping[str, Any] | None, where: str) -> Any:
@@ -265,6 +293,9 @@ def _build(cls: type, data: Mapping[str, Any] | None, where: str) -> Any:
     kwargs: dict[str, Any] = {}
     names = {f.name for f in dataclasses.fields(cls)}
     for key, value in data.items():
+        if key not in names and (cls.__name__, key) in RETIRED:
+            log.warning("%s: %r is no longer used and is ignored", where, key)
+            continue
         if key not in names or key == "base_dir":
             raise ConfigError(f"{where}: unknown key {key!r} (known: {sorted(names)})")
         hint = hints[key]

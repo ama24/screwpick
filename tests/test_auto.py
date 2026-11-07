@@ -35,7 +35,6 @@ def until(cond, timeout: float = 30.0) -> bool:
 
 def test_automatic_mode_sorts_waits_and_sorts_new_parts(machine):
     machine.standby.interval_s = 0.2
-    machine.standby.settle_s = 0.05
     machine.run.shake.enabled = False
     runner, world, printer, lay = make(machine)
     assert runner.command("auto", "sort").startswith("automatic")
@@ -63,24 +62,25 @@ def test_automatic_mode_sorts_waits_and_sorts_new_parts(machine):
     assert again.saved_mode()[0] is False
 
 
-def test_automatic_mode_waits_for_parts_to_lie_still(machine):
-    machine.standby.interval_s = 0.1
-    machine.standby.settle_s = 0.05
+def test_automatic_mode_sorts_parts_at_once(machine):
+    """Parts on the plate don't move: sorted on the first look, no wait, no second look."""
+    machine.standby.interval_s = 60.0
+    machine.run.shake.enabled = False
+    machine.run.scan_bins_on_start = machine.run.only_seen_bins = False
     runner, world, printer, lay = make(machine, n=1)
-    moving = {"n": 0}
-    original = runner.vision.snap
+    snap = runner.vision.snap
 
-    def jittery(name):  # a hand is still moving the part around
-        moving["n"] += 1
-        world.parts[0].x += 5.0 if moving["n"] % 2 else -5.0
-        return original(name)
+    def logged(name):  # noqa: ANN001, ANN202
+        printer.log.append("; photo")
+        return snap(name)
 
-    runner.vision.snap = jittery  # type: ignore[method-assign]
+    runner.vision.snap = logged  # type: ignore[method-assign]
     runner.command("auto")
-    time.sleep(1.0)
-    assert len(world.dropped) == 0  # never sorted while it moves
-    runner.vision.snap = original  # type: ignore[method-assign]
-    assert until(lambda: len(world.dropped) == 1)
+    assert until(lambda: len(world.dropped) == 1, 10)
+    # the standby look, then the sorting photo, then the pick: no second look to wait for
+    grab = printer.log.index("; pins grab")
+    assert printer.log[:grab].count("; photo") == 2
+    assert not any("still" in line for line in runner.console)
     runner.command("stop")
     runner.wait(10)
     assert runner.state.status == "idle"
@@ -150,3 +150,28 @@ def test_same_parts():
     b[0].bed_xy = (60.0, 50.0)
     assert not same_parts(a, b)
     assert not same_parts(a, a[:1])
+
+
+def test_same_parts_allows_the_model_to_flicker():
+    """A real model: a class changes, a part is missed in one photo: still lying still."""
+    a = [P("DIN912_M3", 8.0, (10.0 * i, 10.0), i) for i in range(1, 11)]
+    b = [
+        P("UNKNOWN" if i == 3 else "DIN912_M4", 8.0, (10.0 * i + 1, 10.5), i) for i in range(1, 10)
+    ]
+    assert same_parts(a, b)  # 10 then 9, classes changed, positions within a mm
+    moved = [P(p.cls, 8.0, (p.bed_xy[0], p.bed_xy[1] + 20), 0) for p in a]
+    assert not same_parts(a, moved)  # a hand swept them along
+
+
+def test_resume_in_automatic_mode_looks_now(machine):
+    """Parts put down while it waits for the next look: Resume looks and sorts them at once."""
+    machine.standby.interval_s = 60.0
+    machine.run.shake.enabled = False
+    runner, world, printer, lay = make(machine, n=0)
+    runner.command("auto")
+    assert until(lambda: "waiting for parts" in runner.state.message, 10)
+    world.populate(lay, n=2)
+    assert runner.command("resume") == "looking now"
+    assert until(lambda: len(world.dropped) == 2, 30)  # sorted, without waiting 60 s
+    assert runner.command("start") == "looking now"  # Start in standby does the same
+    runner.command("stop")

@@ -14,7 +14,6 @@ import math
 import threading
 import time
 from collections import Counter, deque
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -58,7 +57,7 @@ class State:
     failed_picks: int = 0
     counts: dict[int, int] = field(default_factory=dict)
     shot: str | None = None  # file name of the latest picture with outlines
-    timing: dict[str, float] = field(default_factory=dict)  # the last pick cycle (pipeline)
+    timing: dict[str, float] = field(default_factory=dict)  # the last cycle: photo, pick, drop
     parts: list[dict[str, Any]] = field(default_factory=list)
     markers: list[dict[str, Any]] = field(default_factory=list)
     phase: str = ""  # what the machine does right now, in a few words
@@ -85,6 +84,8 @@ class Runner:
         self._thread: threading.Thread | None = None
         self._pause = threading.Event()
         self._stop = threading.Event()
+        self._now = threading.Event()  # automatic mode: Resume / Start, look and sort now
+        self._in_auto = False
         self._shot_no = 0
         self.calib_pairs: list[dict[str, Any]] = []
         cal = self.calibration()
@@ -124,7 +125,6 @@ class Runner:
         self._tool: str | None = None  # the tool Klipper said is mounted, when last asked
         self._calib_markers: list[dict[str, Any]] = []  # the codes in the last calibration photo
         self._calib_fit: dict[str, Any] | None = None  # the last Fit (Camera to printer)
-        self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="analyse")
 
     # ------------------------------------------------------------------ files
     @property
@@ -265,7 +265,8 @@ class Runner:
             return "finish the Setup tab first: " + ", ".join(self.setup.missing())
         if cmd in ("start", "step"):
             if running:
-                if self.state.status in ("paused", "stuck") and cmd == "start":
+                standby = self._in_auto and self.state.status in ("standby", "stuck", "error")
+                if cmd == "start" and (self.state.status in ("paused", "stuck") or standby):
                     return self.command("resume")
                 return "already running"
             strat = (strategy or self.state.strategy or self.m.run.strategy).lower()
@@ -333,6 +334,10 @@ class Runner:
                 self._set(status="paused", message="pausing after this move")
             return "paused"
         if cmd == "resume":
+            if running and self._in_auto and not self._pause.is_set():
+                self._now.set()  # automatic mode waiting: look and sort now
+                self._set(message="looking now: sorting what lies on the plate")
+                return "looking now"
             if running:
                 self._pause.clear()
                 self._set(status="running", message="resumed")
@@ -792,20 +797,22 @@ class Runner:
                     break
                 prev = None
                 first = None
-            if self._layout_changed.is_set():  # changes from the page: use them from now on
-                self._layout_changed.clear()
-                layout = self.layout()
-                planner.layout = layout
-                self.note("layout changes applied")
             if self._ok.is_set():  # after a bin change: a new photo, with the bins
                 first = None
             check = self._ok.is_set()  # it must look into the bins: nothing painted over
             area = "bins" if check else "work"
+            # one cycle: photo (parked, picker empty) -> pick -> drop -> back here for the next
+            t0 = time.perf_counter()
             shot, first = (
                 (first, None)
                 if first is not None
                 else (self.take_shot(layout, T, area=area, paint=not check), None)
             )
+            if self._layout_changed.is_set():  # changes from the page (also during the photo)
+                self._layout_changed.clear()
+                layout = self.layout()
+                planner.layout = layout
+                self.note("layout changes applied")
             if self._ok.is_set():  # a bin was changed: this photo shows what stands there now
                 self._ok.clear()
                 self._resolve_requests(layout, shot, T)
@@ -900,24 +907,26 @@ class Runner:
                 with self._lock:
                     self.note(plan.reason)
                     self.motion.shake()
-            elif (
-                self.m.run.pipeline
-                and hasattr(self.vision, "snap")
-                and self.m.camera.source != "head"  # it travels with the part in the picker
-            ):
-                first = self._pick_photo_drop(plan, layout, T)
             else:
                 with self._lock:
                     self._pick(plan, layout)
                     self._drop(plan, layout)
-            prev = plan
+                self._set(timing={"cycle_s": round(time.perf_counter() - t0, 2)})
+            prev = plan  # the next photo shows whether the pick worked
             done_steps += 1
         return "stopped"
 
     # ------------------------------------------------------------------ automatic mode
-    def _wait(self, seconds: float) -> bool:
-        """Sleep, waking up for stop; True when stopped."""
-        return self._stop.wait(max(0.0, seconds))
+    def _wait(self, seconds: float, wake: bool = False) -> bool:
+        """Sleep, waking up for stop (and with `wake`, for Resume/Start: look now); True when
+        stopped."""
+        end = time.monotonic() + max(0.0, seconds)
+        while not self._stop.is_set():
+            left = end - time.monotonic()
+            if left <= 0 or (wake and self._now.is_set()):
+                return False
+            self._stop.wait(min(left, 0.2))
+        return True
 
     def _look(self) -> tuple[Shot, list[Any], Layout]:
         """A standby photo. With the motors off nothing moves: the bed is still parked out."""
@@ -932,13 +941,21 @@ class Runner:
         return shot, [p for p in shot.parts if layout.in_work(p.bed_xy, margin)], layout
 
     def _auto(self, strategy: str) -> None:
-        """Standby: look for parts every standby.interval_s; when some lie still on the plate, sort
-        them; then wait again. Runs until Stop (or too many errors in a row)."""
+        """Standby: look for parts every standby.interval_s; when some lie on the plate, sort
+        them at once; then wait again. Runs until Stop (or too many errors in a row)."""
+        self._in_auto = True
+        try:
+            self._auto_loop(strategy)
+        finally:
+            self._in_auto = False
+
+    def _auto_loop(self, strategy: str) -> None:
         sb = self.m.standby
         tried: list[Any] | None = None  # the parts of a stuck plate: wait until they change
         errors = 0
         self.note(f"automatic mode on: {STRATEGIES[strategy]}")
         self.phase("automatic: waiting for parts")
+        self._now.clear()
         while not self._stop.is_set():
             try:
                 if self._pause.is_set():
@@ -947,36 +964,33 @@ class Runner:
                         time.sleep(0.2)
                     tried = None
                     continue
+                now = self._now.is_set()  # Resume / Start: sort what is there, at once
+                self._now.clear()
+                if now:
+                    tried = None
                 _, parts, _ = self._look()
+                # parts on the plate don't move by themselves: sort them at once, no second look
                 if len(parts) >= sb.min_parts and not (
                     tried is not None and same_parts(parts, tried)
                 ):
-                    self.say(f"{len(parts)} part(s) seen: waiting until they lie still")
-                    self._set(
-                        status="standby",
-                        message=f"{len(parts)} part(s) seen: waiting until they lie still",
-                    )
-                    if self._wait(sb.settle_s):
+                    self.say(f"{len(parts)} part(s) seen: sorting")
+                    outcome = self._sort(strategy, None, auto=True)
+                    tried = None
+                    if outcome == "stuck" and self.last_shot is not None:
+                        _, tried, _ = self._look()
+                    if outcome == "stopped":
                         break
-                    _, again, _ = self._look()
-                    if same_parts(parts, again):
-                        outcome = self._sort(strategy, None, auto=True)
-                        tried = None
-                        if outcome == "stuck" and self.last_shot is not None:
-                            _, tried, _ = self._look()
-                        if outcome == "stopped":
-                            break
-                        if sb.motors_off and self.m.camera.source != "head":
-                            with self._lock:
-                                self.motion.motors_off()
-                        errors = 0
-                        continue  # look again at once: more parts may have arrived meanwhile
+                    if sb.motors_off and self.m.camera.source != "head":
+                        with self._lock:
+                            self.motion.motors_off()
+                    errors = 0
+                    continue  # look again at once: more parts may have arrived meanwhile
                 errors = 0
                 nxt = time.strftime("%H:%M:%S", time.localtime(time.time() + sb.interval_s))
                 status = "stuck" if tried is not None else "standby"
                 msg = "parts need a hand" if tried is not None else "waiting for parts"
-                self._set(status=status, message=f"{msg} · next look at {nxt}")
-                if self._wait(sb.interval_s):
+                self._set(status=status, message=f"{msg} · next look at {nxt} (Resume: now)")
+                if self._wait(sb.interval_s, wake=True):
                     break
             except Exception as exc:  # noqa: BLE001 - shown on the page; standby keeps trying
                 errors += 1
@@ -1047,37 +1061,6 @@ class Runner:
             f"tip height: touches the plate at toolhead Z {pos[2]:.2f} (offset {offset_z:+.2f} mm)"
         )
         return {"offset_z": offset_z, "toolhead_z": pos[2]}
-
-    def _pick_photo_drop(self, plan: Plan, layout: Layout, T: Transform2D) -> Shot:
-        """Pick, photo with the part in the picker, then drop it while the photo is analysed.
-        Returns the analysed photo: the next plan starts from it (and it shows whether the pick
-        worked: the part is gone from the plate)."""
-        t0 = time.perf_counter()
-        with self._lock:
-            self._pick(plan, layout)
-            self.phase("taking a photo, the part in the picker")
-            self.motion.photo_position()
-            name = self._photo_name()
-            photo = self.vision.snap(name)
-        self.phase("running the model while the part is carried to its bin")
-        t_photo = time.perf_counter()
-        heights = lambda mid: _marker_plate_height(layout, mid)  # noqa: E731
-        job = self._pool.submit(
-            self.vision.analyse, photo, name, heights, self._work_area(layout, T)
-        )
-        with self._lock:
-            self._drop(plan, layout)
-        t_drop = time.perf_counter()
-        shot = job.result()
-        t_end = time.perf_counter()
-        self._set(
-            timing={
-                "cycle_s": round(t_end - t0, 2),
-                "move_s": round((t_photo - t0) + (t_drop - t_photo), 2),
-                "waited_for_analysis_s": round(t_end - t_drop, 2),
-            }
-        )
-        return self._finish_shot(shot, layout, T)
 
     def _pick(self, plan: Plan, layout: Layout) -> None:
         p, b = plan.part, plan.bin
@@ -1271,6 +1254,8 @@ class Runner:
                 self.m.picker.set_type(str(v))
             elif k == "rotate_offset_deg":
                 self.m.picker.rotate_offset_deg = float(v)
+            elif k == "lower_to_drop":  # Setup tab, Picker step
+                self.m.picker.lower_to_drop = bool(v)
             elif k == "camera_settings":  # locked in the Calibrate tab
                 self.m.camera.settings = str(v)
             elif k == "calibration":
@@ -1342,6 +1327,8 @@ class Runner:
                 "mode": self.m.picker.kind.key,
                 "types": [pickers.as_dict(t) for t in pickers.PICKERS],
                 "offset_deg": self.m.picker.rotate_offset_deg,
+                "lower_to_drop": self.m.picker.lower_to_drop,
+                "drop_mm": self.m.picker.drop_mm,
                 "action_pin": self.m.picker.action_pin,
                 "turn_pin": self.m.picker.turn_pin,
                 "pins": dict(zip(("ok", "message"), self.pins.status(), strict=True)),
@@ -1374,6 +1361,16 @@ class Runner:
         self.m.picker.rotate_offset_deg = float(deg) % 180.0
         self.remember_machine({"rotate_offset_deg": self.m.picker.rotate_offset_deg})
         self._setup_picker.discard("rotate")
+        return self.setup_state()
+
+    def setup_picker_drop(self, lower: bool) -> dict[str, Any]:
+        """Over the bin: lower to rim + drop_mm before letting go, or let go at the travel
+        height (the default). Kept in machine.json."""
+        self._idle()
+        self.m.picker.lower_to_drop = bool(lower)
+        self.remember_machine({"lower_to_drop": self.m.picker.lower_to_drop})
+        how = "lowered to the bin's rim" if lower else "at the travel height"
+        self.note(f"parts are let go {how}")
         return self.setup_state()
 
     def setup_check_printer(self) -> dict[str, Any]:
@@ -2075,16 +2072,20 @@ def _describe(plan: Plan) -> str:
     return f"{plan.kind}: {plan.reason}"
 
 
-def same_parts(a: list[Any], b: list[Any], tol_mm: float = 3.0) -> bool:
-    """The same parts at the same places (nothing moved, no hand in the picture)?"""
-    if len(a) != len(b):
-        return False
+def same_parts(a: list[Any], b: list[Any], tol_mm: float = 4.0, share: float = 0.8) -> bool:
+    """The same parts in the same places on two photos (a stuck plate nobody has touched)?
+
+    Matched by place only: the model's class for a part, and whether it finds a part at all,
+    may differ from one photo to the next. Still when at least `share` of the parts of each
+    photo have one in the other within `tol_mm` (and at most a part or two do not)."""
+    if not a or not b:
+        return not a and not b
     left = list(b)
+    matched = 0
     for p in a:
-        hit = next(
-            (q for q in left if q.cls == p.cls and math.dist(q.bed_xy, p.bed_xy) <= tol_mm), None
-        )
-        if hit is None:
-            return False
-        left.remove(hit)
-    return True
+        hit = min(left, key=lambda q: math.dist(q.bed_xy, p.bed_xy), default=None)
+        if hit is not None and math.dist(hit.bed_xy, p.bed_xy) <= tol_mm:
+            left.remove(hit)
+            matched += 1
+    unmatched = len(a) + len(b) - 2 * matched
+    return matched >= share * max(len(a), len(b)) and unmatched <= max(2, round(0.2 * len(a)))

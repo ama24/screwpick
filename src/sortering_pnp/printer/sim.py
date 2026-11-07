@@ -1,8 +1,8 @@
 """A simulated printer, parts and camera: try layouts and strategies with no machine at all.
 
-SimPrinter understands the G-code sortering_pnp sends (G28, G90/G91, G0/G1, M400, G4, M117 and the
-picker macros); SimWorld holds the parts, which the picker lifts and drops; SimVision "photographs"
-the world and draws a top view for the web page.
+SimPrinter understands the G-code sortering_pnp sends (G28, G90/G91, G0/G1, M400, G4, M117,
+SET_VELOCITY_LIMIT and the picker macros); SimWorld holds the parts, which the picker lifts and
+drops; SimVision "photographs" the world and draws a top view for the web page.
 """
 
 from __future__ import annotations
@@ -125,6 +125,7 @@ class SimPrinter:
         self.rng = random.Random(1)
         self.jaw_angle: float | None = None  # last tweezer rotation (SimPins)
         self.tool = "picker"  # TOOL_PICKER / TOOL_HOTEND
+        self.accel = 3000.0  # SET_VELOCITY_LIMIT ACCEL= (Klipper's max_accel)
 
     def _tip(self) -> list[float]:
         return [p + o for p, o in zip(self.pos, self.m.tool.offset, strict=True)]
@@ -155,6 +156,9 @@ class SimPrinter:
                 self.tool = "picker"
             elif word == self.m.printer.tool_hotend.upper():
                 self.tool = "hotend"
+            elif word == "SET_VELOCITY_LIMIT":
+                m = re.search(r"ACCEL=(\d+(?:\.\d+)?)", line.upper())
+                self.accel = float(m.group(1)) if m else self.accel
             elif word in ("M84", "M18"):
                 self.homed = ""  # motors off: the axes are no longer homed
             elif self.m.picker.rotate_macro and word == self.m.picker.rotate_macro.upper():
@@ -176,6 +180,7 @@ class SimPrinter:
             position=list(self.pos),
             hotend_c=24.0,
             tool=self.tool if tool_macro else None,
+            max_accel=self.accel,
         )
 
     def emergency_stop(self) -> None:
@@ -247,7 +252,7 @@ class SimVision:
         self.painted: list[bool] = []  # per photo: was everything outside the tray painted over
         self._px: np.ndarray | None = None  # bed mm -> picture pixels of the last drawing
 
-    delay_s: float = 0.0  # pretend the analysis takes this long (tests of the pipeline)
+    delay_s: float = 0.0  # pretend the analysis takes this long (time to act while it sorts)
 
     def capture(self, name: str, marker_height: Callable[[int], float], work=None) -> Shot:  # noqa: ANN001
         return self.analyse(self.snap(name), name, marker_height, work)

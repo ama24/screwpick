@@ -28,8 +28,8 @@ camera:
   mask: true                   # only the tray's inside goes to the model (the rest painted over)
   mask_colour: auto            # auto: the tray floor's colour | #RRGGBB, e.g. #FFFFFF
   mask_margin_mm: 0            # + keeps the wall's foot, - paints more of the floor's edge (Calibrate tab)
-  hflip: false                 # the camera flips its picture left-right (both flips: turned 180 deg)
-  vflip: false                 # ... and top-bottom (Calibrate tab: Turn 180 / Mirror)
+  hflip: true                  # the camera flips its picture left-right (both flips: turned 180 deg, a camera mounted the other way round)
+  vflip: true                  # ... and top-bottom (Calibrate tab: Turn 180 / Mirror)
   height_mm: null              # lens above the tray floor without a camera calibration (null: vision.yaml's)
   head:                        # only for source: head
     fov_mm: [80, 60]           # what one photo covers at the photo height, X x Y
@@ -55,6 +55,13 @@ printer:
   tool_picker: TOOL_PICKER     # the Setup tab's Picker step, OK: the picker is on (sorting may move it)
   tool_hotend: TOOL_HOTEND     # the printer menu's "Hotend mounted": sorting refused (e.g. to print)
   accel: null                  # mm/s^2 while sorting: lower = gentler bed, loose parts stay put (null: printer's)
+  y_motion:                    # gentle bed moves: every move that changes Y (docs/reference.md, Gentle bed moves)
+    enabled: true              # false: Y moves like X (one G1 at the printer's acceleration)
+    accel: 1000                # mm/s^2 for the bed (its Y part); set back after each move, X and Z keep theirs
+    profile: s_curve           # s_curve: speed rises and falls along an S (short G1 steps) | trapezoid: one G1
+    max_feed: null             # mm/min for the bed (its Y part); null: feed_xy
+    steps: 8                   # s_curve: speed steps per ramp
+    min_step_mm: 1.0           # s_curve: steps at least this long on average (short moves get fewer)
 
 tool:
   offset: [0, 0, 0]            # picker tip minus the toolhead position Klipper reports (X Y Z)
@@ -74,7 +81,8 @@ picker:
   depth_mm: 0.5                # vacuum: press this far below the part's top (spring-loaded cup)
   grip_height: 0.5             # gripper/tweezers: close at this share of the part's height (screws: the shank's middle)
   clearance_mm: 1.0            # parts with this much free space around them are picked first
-  drop_mm: 10                  # release this far above the bin's rim
+  drop_mm: 10                  # release at least this far above the bin's rim
+  lower_to_drop: false         # lower to rim + drop_mm before letting go (false: let go at travel_z; Setup tab, Picker)
   dwell_s: 0.3
   feed_z_slow: 300
 
@@ -87,7 +95,6 @@ run:
   work_margin_mm: 3.0
   keep_photos: 300
   order: census                # census: biggest kind first, finish it, back to a kind that turns up again | largest_group | nearest
-  pipeline: true               # photo right after the pick, analysed while the part goes to its bin
   scan_bins_on_start: true     # find the bins with the camera when a run starts (new markers = wild bins)
   only_seen_bins: true         # use only the bins the camera sees in that first photo
   shake:
@@ -108,7 +115,6 @@ run:
 
 standby:                       # automatic mode
   interval_s: 60               # look for new parts this often
-  settle_s: 8                  # parts must lie still this long (no hand in the picture)
   min_parts: 1
   motors_off: true             # quiet while waiting; homes again before sorting
   max_errors: 3                # switch automatic mode off after this many errors in a row
