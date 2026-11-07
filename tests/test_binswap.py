@@ -207,10 +207,9 @@ def _running(machine, lay, cam):
 
 
 def test_the_check_after_ok_uses_a_new_photo(machine):
-    """Photo during the drop (pipeline): the photo from before parking must not be used to
-    check the bins after the second OK (it would show the old bin: "emptied")."""
+    """The photo from before parking must not be used to check the bins after the second OK
+    (it would show the old bin: "emptied")."""
     machine.run.shake.enabled = False
-    assert machine.run.pipeline
     lay = _lay()
     lay.save(machine.path(machine.paths.layout))
     cam = {"layout": Layout.from_dict(lay.to_dict())}

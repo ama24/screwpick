@@ -87,7 +87,6 @@ run:
   work_margin_mm: 3.0
   keep_photos: 300
   order: census                # census: biggest kind first, finish it, back to a kind that turns up again | largest_group | nearest
-  pipeline: true               # photo right after the pick, analysed while the part goes to its bin
   scan_bins_on_start: true     # find the bins with the camera when a run starts (new markers = wild bins)
   only_seen_bins: true         # use only the bins the camera sees in that first photo
   shake:
@@ -108,7 +107,6 @@ run:
 
 standby:                       # automatic mode
   interval_s: 60               # look for new parts this often
-  settle_s: 8                  # parts must lie still this long (no hand in the picture)
   min_parts: 1
   motors_off: true             # quiet while waiting; homes again before sorting
   max_errors: 3                # switch automatic mode off after this many errors in a row

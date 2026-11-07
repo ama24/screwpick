@@ -14,7 +14,6 @@ import math
 import threading
 import time
 from collections import Counter, deque
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -58,7 +57,7 @@ class State:
     failed_picks: int = 0
     counts: dict[int, int] = field(default_factory=dict)
     shot: str | None = None  # file name of the latest picture with outlines
-    timing: dict[str, float] = field(default_factory=dict)  # the last pick cycle (pipeline)
+    timing: dict[str, float] = field(default_factory=dict)  # the last cycle: photo, pick, drop
     parts: list[dict[str, Any]] = field(default_factory=list)
     markers: list[dict[str, Any]] = field(default_factory=list)
     phase: str = ""  # what the machine does right now, in a few words
@@ -126,7 +125,6 @@ class Runner:
         self._tool: str | None = None  # the tool Klipper said is mounted, when last asked
         self._calib_markers: list[dict[str, Any]] = []  # the codes in the last calibration photo
         self._calib_fit: dict[str, Any] | None = None  # the last Fit (Camera to printer)
-        self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="analyse")
 
     # ------------------------------------------------------------------ files
     @property
@@ -799,20 +797,22 @@ class Runner:
                     break
                 prev = None
                 first = None
-            if self._layout_changed.is_set():  # changes from the page: use them from now on
-                self._layout_changed.clear()
-                layout = self.layout()
-                planner.layout = layout
-                self.note("layout changes applied")
             if self._ok.is_set():  # after a bin change: a new photo, with the bins
                 first = None
             check = self._ok.is_set()  # it must look into the bins: nothing painted over
             area = "bins" if check else "work"
+            # one cycle: photo (parked, picker empty) -> pick -> drop -> back here for the next
+            t0 = time.perf_counter()
             shot, first = (
                 (first, None)
                 if first is not None
                 else (self.take_shot(layout, T, area=area, paint=not check), None)
             )
+            if self._layout_changed.is_set():  # changes from the page (also during the photo)
+                self._layout_changed.clear()
+                layout = self.layout()
+                planner.layout = layout
+                self.note("layout changes applied")
             if self._ok.is_set():  # a bin was changed: this photo shows what stands there now
                 self._ok.clear()
                 self._resolve_requests(layout, shot, T)
@@ -907,17 +907,12 @@ class Runner:
                 with self._lock:
                     self.note(plan.reason)
                     self.motion.shake()
-            elif (
-                self.m.run.pipeline
-                and hasattr(self.vision, "snap")
-                and self.m.camera.source != "head"  # it travels with the part in the picker
-            ):
-                first = self._pick_photo_drop(plan, layout, T)
             else:
                 with self._lock:
                     self._pick(plan, layout)
                     self._drop(plan, layout)
-            prev = plan
+                self._set(timing={"cycle_s": round(time.perf_counter() - t0, 2)})
+            prev = plan  # the next photo shows whether the pick worked
             done_steps += 1
         return "stopped"
 
@@ -946,8 +941,8 @@ class Runner:
         return shot, [p for p in shot.parts if layout.in_work(p.bed_xy, margin)], layout
 
     def _auto(self, strategy: str) -> None:
-        """Standby: look for parts every standby.interval_s; when some lie still on the plate, sort
-        them; then wait again. Runs until Stop (or too many errors in a row)."""
+        """Standby: look for parts every standby.interval_s; when some lie on the plate, sort
+        them at once; then wait again. Runs until Stop (or too many errors in a row)."""
         self._in_auto = True
         try:
             self._auto_loop(strategy)
@@ -974,41 +969,22 @@ class Runner:
                 if now:
                     tried = None
                 _, parts, _ = self._look()
+                # parts on the plate don't move by themselves: sort them at once, no second look
                 if len(parts) >= sb.min_parts and not (
                     tried is not None and same_parts(parts, tried)
                 ):
-                    still = now
-                    if not now:
-                        self.say(f"{len(parts)} part(s) seen: waiting until they lie still")
-                        self._set(
-                            status="standby",
-                            message=f"{len(parts)} part(s) seen: waiting until they lie still",
-                        )
-                        if self._wait(sb.settle_s, wake=True):
-                            break
-                        if self._now.is_set():
-                            self._now.clear()
-                            still = True
-                        else:
-                            _, again, _ = self._look()
-                            still = same_parts(parts, again)
-                            if not still:
-                                self.say(
-                                    f"not still yet: {len(parts)} then {len(again)} part(s), "
-                                    "moved (Resume sorts them now)"
-                                )
-                    if still:
-                        outcome = self._sort(strategy, None, auto=True)
-                        tried = None
-                        if outcome == "stuck" and self.last_shot is not None:
-                            _, tried, _ = self._look()
-                        if outcome == "stopped":
-                            break
-                        if sb.motors_off and self.m.camera.source != "head":
-                            with self._lock:
-                                self.motion.motors_off()
-                        errors = 0
-                        continue  # look again at once: more parts may have arrived meanwhile
+                    self.say(f"{len(parts)} part(s) seen: sorting")
+                    outcome = self._sort(strategy, None, auto=True)
+                    tried = None
+                    if outcome == "stuck" and self.last_shot is not None:
+                        _, tried, _ = self._look()
+                    if outcome == "stopped":
+                        break
+                    if sb.motors_off and self.m.camera.source != "head":
+                        with self._lock:
+                            self.motion.motors_off()
+                    errors = 0
+                    continue  # look again at once: more parts may have arrived meanwhile
                 errors = 0
                 nxt = time.strftime("%H:%M:%S", time.localtime(time.time() + sb.interval_s))
                 status = "stuck" if tried is not None else "standby"
@@ -1085,37 +1061,6 @@ class Runner:
             f"tip height: touches the plate at toolhead Z {pos[2]:.2f} (offset {offset_z:+.2f} mm)"
         )
         return {"offset_z": offset_z, "toolhead_z": pos[2]}
-
-    def _pick_photo_drop(self, plan: Plan, layout: Layout, T: Transform2D) -> Shot:
-        """Pick, photo with the part in the picker, then drop it while the photo is analysed.
-        Returns the analysed photo: the next plan starts from it (and it shows whether the pick
-        worked: the part is gone from the plate)."""
-        t0 = time.perf_counter()
-        with self._lock:
-            self._pick(plan, layout)
-            self.phase("taking a photo, the part in the picker")
-            self.motion.photo_position()
-            name = self._photo_name()
-            photo = self.vision.snap(name)
-        self.phase("running the model while the part is carried to its bin")
-        t_photo = time.perf_counter()
-        heights = lambda mid: _marker_plate_height(layout, mid)  # noqa: E731
-        job = self._pool.submit(
-            self.vision.analyse, photo, name, heights, self._work_area(layout, T)
-        )
-        with self._lock:
-            self._drop(plan, layout)
-        t_drop = time.perf_counter()
-        shot = job.result()
-        t_end = time.perf_counter()
-        self._set(
-            timing={
-                "cycle_s": round(t_end - t0, 2),
-                "move_s": round((t_photo - t0) + (t_drop - t_photo), 2),
-                "waited_for_analysis_s": round(t_end - t_drop, 2),
-            }
-        )
-        return self._finish_shot(shot, layout, T)
 
     def _pick(self, plan: Plan, layout: Layout) -> None:
         p, b = plan.part, plan.bin
@@ -2114,7 +2059,7 @@ def _describe(plan: Plan) -> str:
 
 
 def same_parts(a: list[Any], b: list[Any], tol_mm: float = 4.0, share: float = 0.8) -> bool:
-    """Nothing moved between two photos (no hand in the picture, nothing still rolling)?
+    """The same parts in the same places on two photos (a stuck plate nobody has touched)?
 
     Matched by place only: the model's class for a part, and whether it finds a part at all,
     may differ from one photo to the next. Still when at least `share` of the parts of each

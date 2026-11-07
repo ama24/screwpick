@@ -8,6 +8,7 @@ mm/min, angles in degrees.
 from __future__ import annotations
 
 import dataclasses
+import logging
 import typing
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -23,6 +24,10 @@ from .pickers import MODES as PICKER_MODES
 from .pickers import PickerType, picker_type
 
 PRINTER_DRIVERS = ("moonraker", "sim")
+# settings that are gone (section class, key): an old machine.yaml with them still loads
+RETIRED = {("Run", "pipeline"), ("Standby", "settle_s")}
+
+log = logging.getLogger(__name__)
 
 
 class ConfigError(ValueError):
@@ -171,9 +176,6 @@ class Run:
     # census: the most numerous kind first, finished before the next, and back to a kind
     # done earlier when more of it turns up | largest_group: the biggest on each photo | nearest
     order: str = "census"
-    # photo right after the pick (the part in the picker), analysed while it is carried to
-    # its bin: the Pi's thinking time hides behind the move
-    pipeline: bool = True
     shake: Shake = field(default_factory=Shake)
     fill: Fill = field(default_factory=Fill)  # how full the bins are (estimated, see fill.py)
     # a new kind and no free wild bin: ask (a bin change, chosen by binswap.py) | overflow
@@ -184,7 +186,6 @@ class Run:
 @dataclass
 class Standby:
     interval_s: float = 60.0  # automatic mode: look for new parts this often
-    settle_s: float = 8.0  # parts must lie still this long before sorting (a hand still throwing)
     min_parts: int = 1  # start sorting from this many parts
     motors_off: bool = True  # motors off while waiting (quiet; homes again before sorting)
     max_errors: int = 3  # automatic mode switches itself off after this many errors in a row
@@ -265,6 +266,9 @@ def _build(cls: type, data: Mapping[str, Any] | None, where: str) -> Any:
     kwargs: dict[str, Any] = {}
     names = {f.name for f in dataclasses.fields(cls)}
     for key, value in data.items():
+        if key not in names and (cls.__name__, key) in RETIRED:
+            log.warning("%s: %r is no longer used and is ignored", where, key)
+            continue
         if key not in names or key == "base_dir":
             raise ConfigError(f"{where}: unknown key {key!r} (known: {sorted(names)})")
         hint = hints[key]

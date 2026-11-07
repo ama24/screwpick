@@ -247,7 +247,7 @@ class SimVision:
         self.painted: list[bool] = []  # per photo: was everything outside the tray painted over
         self._px: np.ndarray | None = None  # bed mm -> picture pixels of the last drawing
 
-    delay_s: float = 0.0  # pretend the analysis takes this long (tests of the pipeline)
+    delay_s: float = 0.0  # pretend the analysis takes this long (time to act while it sorts)
 
     def capture(self, name: str, marker_height: Callable[[int], float], work=None) -> Shot:  # noqa: ANN001
         return self.analyse(self.snap(name), name, marker_height, work)

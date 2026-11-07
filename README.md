@@ -419,9 +419,9 @@ tip, so sortering-pnp knows which way it lies, how long it is and where its cent
 turn to close across the shank at that point; a suction cup or a magnet goes onto the head. If a pick fails (the part is still there on the next
 photo) it tries again; if parts are stuck in a clump, it shakes the bed to spread them.
 
-**Pick, photo, drop.** After picking, the machine goes to the photo position with the part in the
-picker, takes the photo, and carries the part to its bin while the Pi analyses the photo. The
-thinking hides behind the movement.
+**Photo, pick, drop, park.** Each cycle the machine takes a photo with the head parked at the photo
+position and the picker empty, picks the part chosen from it, leaves it in its bin and parks again
+for the next photo.
 
 **How full the bins are.** Every part dropped adds its volume to the bin: the exact volume from
 the parts table if you dropped one in the Files tab, otherwise an estimate from its outline and

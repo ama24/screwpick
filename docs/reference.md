@@ -19,7 +19,7 @@ Settings are in [configs/machine.yaml](../configs/machine.yaml) (each has a comm
 - [Strategies and picking order](#strategies-and-picking-order)
 - [Where a part is taken: grip point, direction, centre of mass](#where-a-part-is-taken-grip-point-direction-centre-of-mass)
 - [Tweezers on a Z rotation axis](#tweezers-on-a-z-rotation-axis)
-- [One cycle: pick, photo, drop](#one-cycle-pick-photo-drop)
+- [One cycle: photo, pick, drop, park](#one-cycle-photo-pick-drop-park)
 - [Automatic mode](#automatic-mode)
 - [Homing](#homing)
 - [A camera on the tool head (optional)](#a-camera-on-the-tool-head-optional)
@@ -459,25 +459,22 @@ through Klipper, so set `picker.rotate_macro: SORTERING_ROTATE` (and for B
   remembered; run `SORTERING_ROT_ZERO` in the console when the jaws close along X.
 - **B, a spare driver with a small 0° switch:** the axis finds 0° by itself before every sort.
 
-## One cycle: pick, photo, drop
+## One cycle: photo, pick, drop, park
 
-1. **Pick** the part chosen from the last photo and lift it.
-2. **Photo:** go to the photo position, holding the part, and take the photo (about 1 s). The
-   part is in the picker, so the photo also shows whether the pick worked: if the part is still
-   on the plate, the pick failed and is tried again.
-3. **Drop:** carry the part to its bin and release it. **Meanwhile the Pi analyses the photo**,
-   so its 1–3 s of thinking hide behind the move.
-4. The next part is chosen from that photo. Back to 1.
+1. **Photo:** the head is parked at the photo position (`printer.photo_position`), the picker
+   empty, and the photo is taken and analysed. It also shows whether the last pick worked: if
+   that part is still on the plate, the pick failed and is tried again.
+2. **Pick** the part chosen from that photo and lift it.
+3. **Drop:** carry the part to its bin and release it.
+4. **Park:** back to the photo position. Back to 1.
 
-The Device tab's activity shows how long the last cycle took and how long the machine had to wait for the Pi
-after the drop. On a Pi 4 or Pi 5 that wait should be about 0. A Pi 3B (1 GB) is too small for
+The Device tab's activity shows how long the last cycle took. A Pi 3B (1 GB) is too small for
 Klipper and the model together.
 
-- **The photo position must keep the head, and the part it holds, outside the working area in
-  the picture**, ideally off the plate.
-- **Loose parts and quick bed moves:** after the photo the bed moves to the bin and back, and
-  fast moves can nudge loose parts. `printer.accel` sets a gentler acceleration while sorting.
-- **Turning it off:** `run.pipeline: false` photographs only with an empty picker (slower).
+- **The photo position must keep the head outside the working area in the picture**, ideally
+  off the plate.
+- **Loose parts and quick bed moves:** the bed moves to the part, the bin and back, and fast
+  moves can nudge loose parts. `printer.accel` sets a gentler acceleration while sorting.
 
 ## Automatic mode
 
@@ -488,8 +485,8 @@ then runs by itself until you press Stop:
    and the motors are switched off, so it's quiet (`standby.motors_off`). Every minute
    (`standby.interval_s`) the camera looks at the plate. With the motors off nothing moves:
    the bed is still parked where the camera was calibrated.
-2. **Parts seen:** it waits `standby.settle_s` seconds and looks again. Only if the parts lie in
-   the same places, with no hand still throwing or spreading them, does it start.
+2. **Parts seen:** it starts at once (parts on the plate don't move by themselves). **Resume**
+   (or Start) while it waits looks now, without waiting for the next look.
 3. **Sorting:** it homes (see below), finds the bins, and sorts the largest group first, until
    the plate is empty. Then it goes back to standby, and complete bins are marked ready.
 4. **Stuck parts** (a clump that shaking can't spread) are left alone. It tries again as soon
@@ -558,8 +555,7 @@ Set it up:
 4. Models tab: **Use on head camera** on a stage-1 model trained at the head camera's scale.
    Without one the normal stage-1 model is used, with a warning.
 
-The head camera cannot look while the picker holds a part (it travels with it), so the
-photo-during-drop pipeline is off, and in automatic mode the motors stay on (it must move to
+The head camera travels with the head, so in automatic mode the motors stay on (it must move to
 look).
 
 ## Real photos (Photos tab)
