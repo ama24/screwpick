@@ -1,7 +1,7 @@
 sortering-pnp holders for the printer's top bar
 ============================================
 
-Both fix to the top bar (Ender 3: a 2020 aluminium profile) with M5 screws and T-nuts (drop-in
+Both fix to the top bar (Ender 3: a 2020 aluminium profile) with screws and T-nuts (drop-in
 T-nuts go in without taking the printer apart). Print in PETG or PLA, 0.2 mm layers, 4 walls,
 30 % infill, lying as the files are; no supports.
 
@@ -18,10 +18,24 @@ screen_holder.stl: an open frame for the Waveshare 7inch HDMI LCD (H) (case 191 
 camera_arm.stl: the plate goes on the bar's front face, at the bar's centre: 2 x M4 x
   7 (heads up to 7 mm) from the front into T-nuts in the front slot,
   40 mm apart; the holes are counterbored and open to the front for the screwdriver.
-  The arm reaches 135 mm forward, straight: the camera right under it, as high as it goes (it sees the most): the lens is then over the bed's centre with
-  the bed all the way out (where a print ends, the photo position), 24 mm below the
-  bar's top. The Camera Module 3 screws on under its end with 4 x M2 x 6 (they cut their own
-  thread), lens down, the flat cable towards the bar.
+  A slim T-section beam (20 mm deep at the bar, 12 mm at its end) reaches
+  148 mm forward: the lens is then over the bed's centre with the bed all the way out
+  (where a print ends, the photo position), 16 mm below the bar's top (straight: as high as it goes, it sees the most). The
+  Camera Module 3 screws on under its end with 4 x M2 x 6 (they cut their own thread), lens
+  down, the flat cable towards the bar.
+
+camera_arm_ring.stl, ring_bracket.stl, ring_clamp.stl, ring_diffuser.stl: the same arm with a
+  ring light round the lens, the Opulo LumenPnP top ring light (a 40 mm disc with a 20 mm hole,
+  8 WS2812B LEDs, 1.6 mm thick, a 12 mm tab with a 3-pin JST XH; no mounting holes). From the
+  top down: the arm, the camera (screwed on as above), the bracket (lens through its
+  15 mm hole), the ring in the bracket's underside (LEDs down, the tab forward, away
+  from the bar: a vertical plug goes up through the slot in front of the camera), and under it
+  the clamp ring or the diffuser, all held by 4 x M2 x 10 (M2 x 12
+  with the diffuser) through them and the bracket into the arm's legs (25 x 41 mm
+  apart); the clamp presses the ring's edge into its pocket. The diffuser is optional: print
+  it in white or clear PETG, its 1 mm window lies under the LEDs, open in the middle
+  so the camera sees past it. Nothing is in the camera's view (Camera Module 3, and the
+  Wide one).
 
 Your printer differs? Measure and make your own (web page: Print bins; or
 sortering_pnp print mounts --help):

@@ -95,10 +95,22 @@ board lying in the tray, at the height the parts will lie.
     back where it is (it isn't centred) and sits free in the 148 × 85 mm opening, with 45 mm of
     room for it and its cables. A leg at each end stands on the bar, with one M5 in each foot
     (180 mm apart). Put it on one side of the bar.
-  - [camera_arm.stl](mounts/camera_arm.stl): a straight arm at the bar's centre, reaching
-    135 mm forward, with the Camera Module 3 right under its end, as high as it goes, looking
-    straight down at the bed's centre with the bed all the way out (where a print ends). 2 x M4 x 7 (heads up to 7 mm) from the front into
-    T-nuts, 40 mm apart, in counterbored holes the screwdriver reaches straight on.
+  - [camera_arm.stl](mounts/camera_arm.stl): a slim straight arm at the bar's centre (a T
+    section, 20 mm deep at the bar, 12 mm at its end), reaching 148 mm forward, with the Camera
+    Module 3 right under its end (4 x M2 x 6), as high as it goes, looking straight down at the
+    bed's centre with the bed all the way out (where a print ends). 2 x M4 x 7 (heads up to
+    7 mm) from the front into T-nuts, 40 mm apart, in counterbored holes the screwdriver
+    reaches straight on. Printed upside down, no supports.
+  - With a ring light: [camera_arm_ring.stl](mounts/camera_arm_ring.stl) (the same arm with
+    four legs beside the camera), [ring_bracket.stl](mounts/ring_bracket.stl),
+    [ring_clamp.stl](mounts/ring_clamp.stl) and/or [ring_diffuser.stl](mounts/ring_diffuser.stl)
+    for the Opulo LumenPnP top ring light (40 mm disc, 20 mm hole, 8 WS2812B, a 12 mm tab with
+    a 3-pin JST XH; it has no mounting holes). From the top down: arm, camera, bracket (the lens
+    through its 15 mm hole), the ring in a pocket in the bracket's underside (LEDs down, the tab
+    forward: a vertical plug goes up through the bracket's slot in front of the camera), then
+    the clamp ring, or the diffuser (print it in white or clear PETG; it covers the LEDs and
+    leaves the middle open). 4 x M2 x 10 (M2 x 12 with the diffuser) through all of them into
+    the legs. Nothing is in the camera's view, also with the Camera Module 3 Wide.
 
   Your printer's sizes differ? Measure the reach (and, only for a lower camera on a post, the
   bar's height above the plate) and make your own in the web page (Print bins → Holders for the top bar) or with

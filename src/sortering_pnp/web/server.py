@@ -482,10 +482,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             else:
                 name, data = export.baseplate_file(lay, float(q.get("lip", 8.0)), slim=slim)
                 ctype = "model/stl"
-        elif what == "mounts":  # screen holder + camera arm, from the page's measurements
+        elif what == "mounts":  # screen holder, camera arms, ring light, from the page
             from ..printables.mounts import CameraArm, ScreenHolder, drop_for, mount_files
 
-            arm = CameraArm(reach=float(q.get("reach", 135.0)))
+            arm = CameraArm(reach=float(q.get("reach", 148.0)))
             if q.get("bar_height"):
                 arm.drop = drop_for(float(q["bar_height"]), float(q.get("lens_height", 300.0)), arm)
             screen = ScreenHolder(tilt_deg=float(q.get("tilt", 20.0)))
