@@ -55,6 +55,13 @@ printer:
   tool_picker: TOOL_PICKER     # the Setup tab's Picker step, OK: the picker is on (sorting may move it)
   tool_hotend: TOOL_HOTEND     # the printer menu's "Hotend mounted": sorting refused (e.g. to print)
   accel: null                  # mm/s^2 while sorting: lower = gentler bed, loose parts stay put (null: printer's)
+  y_motion:                    # gentle bed moves: every move that changes Y (docs/reference.md, Gentle bed moves)
+    enabled: true              # false: Y moves like X (one G1 at the printer's acceleration)
+    accel: 1000                # mm/s^2 for the bed (its Y part); set back after each move, X and Z keep theirs
+    profile: s_curve           # s_curve: speed rises and falls along an S (short G1 steps) | trapezoid: one G1
+    max_feed: null             # mm/min for the bed (its Y part); null: feed_xy
+    steps: 8                   # s_curve: speed steps per ramp
+    min_step_mm: 1.0           # s_curve: steps at least this long on average (short moves get fewer)
 
 tool:
   offset: [0, 0, 0]            # picker tip minus the toolhead position Klipper reports (X Y Z)

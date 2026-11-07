@@ -20,6 +20,7 @@ Settings are in [configs/machine.yaml](../configs/machine.yaml) (each has a comm
 - [Where a part is taken: grip point, direction, centre of mass](#where-a-part-is-taken-grip-point-direction-centre-of-mass)
 - [Tweezers on a Z rotation axis](#tweezers-on-a-z-rotation-axis)
 - [One cycle: photo, pick, drop, park](#one-cycle-photo-pick-drop-park)
+- [Gentle bed moves](#gentle-bed-moves)
 - [Automatic mode](#automatic-mode)
 - [Homing](#homing)
 - [A camera on the tool head (optional)](#a-camera-on-the-tool-head-optional)
@@ -474,7 +475,40 @@ Klipper and the model together.
 - **The photo position must keep the head outside the working area in the picture**, ideally
   off the plate.
 - **Loose parts and quick bed moves:** the bed moves to the part, the bin and back, and fast
-  moves can nudge loose parts. `printer.accel` sets a gentler acceleration while sorting.
+  moves can nudge loose parts. `printer.y_motion` makes every bed move start and stop gently
+  ([Gentle bed moves](#gentle-bed-moves)); `printer.accel` lowers the acceleration of all axes
+  while sorting.
+
+## Gentle bed moves
+
+On a bed-slinger the loose parts ride on the Y axis. Klipper has one acceleration for all axes
+and only straight (trapezoid) ramps, so sortering-pnp shapes each move that changes Y itself
+(`printer/motion.py`, `printer/smooth.py`); X and Z moves are sent as before.
+
+```yaml
+printer:
+  y_motion:
+    enabled: true       # false: Y moves like X (one G1 at the printer's acceleration)
+    accel: 1000         # mm/s^2 for the bed (the Y part of a move)
+    profile: s_curve    # s_curve | trapezoid
+    max_feed: null      # mm/min for the bed (the Y part); null: printer.feed_xy
+    steps: 8            # s_curve: speed steps per ramp
+    min_step_mm: 1.0    # s_curve: steps at least this long on average
+```
+
+- **Acceleration:** before the move `SET_VELOCITY_LIMIT ACCEL=` lowers it so that the bed gets
+  `accel` (along a diagonal path a little more, so that its Y part gets `accel`); after the move
+  it is set back to `printer.accel`, or else to Klipper's own value (read once). It is never
+  raised above that.
+- **`s_curve`:** the speed follows an S (smoothstep: no jump in acceleration at the start and end
+  of a ramp; its peak is `accel`). The move is split into short G1 steps along the same straight
+  line, their speeds rising and falling along the S, and Klipper's lookahead runs them without
+  stopping between them. A short move gets a lower top speed and fewer steps; under 4 mm (with
+  `min_step_mm: 1`) it is one G1. The last G1 is the target itself, so the end point is exact. A 0 -> 200 mm travel at
+  6000 mm/min becomes 7 steps up (F87 ... F5913 over 7.5 mm), one at F6000, 7 down.
+- **`trapezoid`:** one G1 at the lowered acceleration.
+- **Not shaped:** moves that keep Y (Z up and down, X only) and the shake (`run.shake`), whose
+  quick moves are meant to be sharp.
 
 ## Automatic mode
 
