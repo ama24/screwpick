@@ -283,7 +283,9 @@ Power comes straight from the printer's 24 V supply, as part of the conversion:
 The page says whether the pins are ready. A pump is a plain on/off pin and needs nothing more.
 Servos use the Pi's hardware PWM, which `install-pi.sh` turns on (one line in `config.txt`;
 reboot once after the first install). Try *Grab* and *Release*, and for tweezers *Turn to 0°*
-and *90°*: at 0° the jaws must close left–right; if they don't, set the offset. Then put the
+and *90°*: at 0° the jaws must close left–right; if they don't, set the offset. Parts are let
+go at the travel height; tick *Lower over the bin before letting go* to go down to `drop_mm`
+above the bin's rim first (`picker.lower_to_drop`). Then put the
 picker on the head (it waits at the picker-change position) and press **OK**. Servo angles and
 pins can be changed in `configs/machine.yaml` (`picker:`).
 
@@ -326,7 +328,8 @@ In the **Calibrate** tab:
 
 1. **Camera:** the live picture from the camera, at the top. Upside down or mirrored? **Turn 180°**
    / **Mirror left-right** make the camera turn its own picture (photos too); then do Camera to
-   printer again.
+   printer again. The picture starts turned 180° (`camera.hflip`/`vflip: true`), for a camera
+   mounted the other way round.
 2. **Camera calibration** teaches the program how the camera sees. Download and print the small
    tray board, home the printer, empty the tray, then press **Calibrate**: one button. It parks
    the bed, locks the camera (measures the light and focus once and freezes them), then asks you
