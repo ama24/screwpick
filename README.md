@@ -123,8 +123,8 @@ project works without the others.
 
 - a Gridfinity **baseplate** for the bed (thin versions that clamp to a whole Ender 3 or MK3 bed),
 - the **tray** (3 × 3 or 4 × 4 cells) and **bins**, with their codes,
-- a **camera arm** and a **screen holder** for the printer's top bar (for the Pi with a 7"
-  screen).
+- a **camera arm** (plain, or with an LED ring light round the lens) and a **screen holder** for
+  the printer's top bar (for the Pi with a 7" screen).
 
 See [prints/README.md](prints/README.md) for which files to print and how.
 
