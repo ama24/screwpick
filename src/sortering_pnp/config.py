@@ -72,8 +72,9 @@ class Camera:
     mask_margin_mm: float = 0.0
     # the picture flipped by the camera itself (photos and live picture; Calibrate tab):
     # both = turned 180 degrees, e.g. a camera mounted the other way round
-    hflip: bool = False
-    vflip: bool = False
+    # (on by default: the camera on this machine is mounted the other way round)
+    hflip: bool = True
+    vflip: bool = True
     # lens above the tray floor (TPU top), used while there is no camera calibration: the
     # camera is taken as straight down over the picture's centre (Calibrate tab: Skip for now)
     # None: vision.yaml's nominal_camera.height_mm
@@ -134,7 +135,10 @@ class Picker:
     depth_mm: float = 0.5  # go this far below the top of the part (spring-loaded cup)
     grip_height: float = 0.5  # gripper: close at this share of the part height (0 bed, 1 top)
     clearance_mm: float = 1.0  # free space a part needs around it to be picked first
-    drop_mm: float = 10.0  # release this far above the bin's rim
+    drop_mm: float = 10.0  # release at least this far above the bin's rim
+    # lower to rim + drop_mm over the bin before letting go; False: let go at the travel
+    # height (never below rim + drop_mm). Setup tab, Picker step
+    lower_to_drop: bool = False
     dwell_s: float = 0.3  # wait after grab / release
     feed_z_slow: float = 300.0
 

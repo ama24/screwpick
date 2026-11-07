@@ -28,15 +28,16 @@ def test_turn_180_is_kept_and_asks_for_camera_to_printer_again(machine):
     runner.vision.reopen_camera = lambda: reopened.append(True)
     runner.setup.mark("camera")
     runner.calib_pairs = [{"marker": 100, "plate": [0, 0], "bed": [1, 1]}]
-    st = runner.camera_flip(True, True)
-    assert st["flip"] == {"h": True, "v": True} and reopened == [True]
+    assert (machine.camera.hflip, machine.camera.vflip) == (True, True)  # turned by default
+    st = runner.camera_flip(False, False)
+    assert st["flip"] == {"h": False, "v": False} and reopened == [True]
     assert not runner.setup.is_done("camera") and runner.calib_pairs == []
-    runner.camera_flip(True, True)  # unchanged: nothing reset again
+    runner.camera_flip(False, False)  # unchanged: nothing reset again
     assert reopened == [True]
     fresh = copy.deepcopy(machine)  # after a restart
-    fresh.camera.hflip = fresh.camera.vflip = False
+    fresh.camera.hflip = fresh.camera.vflip = True
     again = Runner(fresh, SimPrinter(fresh, SimWorld()), runner.vision)
-    assert (again.m.camera.hflip, again.m.camera.vflip) == (True, True)
+    assert (again.m.camera.hflip, again.m.camera.vflip) == (False, False)
 
 
 def test_the_camera_gets_the_flip(monkeypatch):

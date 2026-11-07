@@ -28,8 +28,8 @@ camera:
   mask: true                   # only the tray's inside goes to the model (the rest painted over)
   mask_colour: auto            # auto: the tray floor's colour | #RRGGBB, e.g. #FFFFFF
   mask_margin_mm: 0            # + keeps the wall's foot, - paints more of the floor's edge (Calibrate tab)
-  hflip: false                 # the camera flips its picture left-right (both flips: turned 180 deg)
-  vflip: false                 # ... and top-bottom (Calibrate tab: Turn 180 / Mirror)
+  hflip: true                  # the camera flips its picture left-right (both flips: turned 180 deg, a camera mounted the other way round)
+  vflip: true                  # ... and top-bottom (Calibrate tab: Turn 180 / Mirror)
   height_mm: null              # lens above the tray floor without a camera calibration (null: vision.yaml's)
   head:                        # only for source: head
     fov_mm: [80, 60]           # what one photo covers at the photo height, X x Y
@@ -74,7 +74,8 @@ picker:
   depth_mm: 0.5                # vacuum: press this far below the part's top (spring-loaded cup)
   grip_height: 0.5             # gripper/tweezers: close at this share of the part's height (screws: the shank's middle)
   clearance_mm: 1.0            # parts with this much free space around them are picked first
-  drop_mm: 10                  # release this far above the bin's rim
+  drop_mm: 10                  # release at least this far above the bin's rim
+  lower_to_drop: false         # lower to rim + drop_mm before letting go (false: let go at travel_z; Setup tab, Picker)
   dwell_s: 0.3
   feed_z_slow: 300
 

@@ -1271,6 +1271,8 @@ class Runner:
                 self.m.picker.set_type(str(v))
             elif k == "rotate_offset_deg":
                 self.m.picker.rotate_offset_deg = float(v)
+            elif k == "lower_to_drop":  # Setup tab, Picker step
+                self.m.picker.lower_to_drop = bool(v)
             elif k == "camera_settings":  # locked in the Calibrate tab
                 self.m.camera.settings = str(v)
             elif k == "calibration":
@@ -1342,6 +1344,8 @@ class Runner:
                 "mode": self.m.picker.kind.key,
                 "types": [pickers.as_dict(t) for t in pickers.PICKERS],
                 "offset_deg": self.m.picker.rotate_offset_deg,
+                "lower_to_drop": self.m.picker.lower_to_drop,
+                "drop_mm": self.m.picker.drop_mm,
                 "action_pin": self.m.picker.action_pin,
                 "turn_pin": self.m.picker.turn_pin,
                 "pins": dict(zip(("ok", "message"), self.pins.status(), strict=True)),
@@ -1374,6 +1378,16 @@ class Runner:
         self.m.picker.rotate_offset_deg = float(deg) % 180.0
         self.remember_machine({"rotate_offset_deg": self.m.picker.rotate_offset_deg})
         self._setup_picker.discard("rotate")
+        return self.setup_state()
+
+    def setup_picker_drop(self, lower: bool) -> dict[str, Any]:
+        """Over the bin: lower to rim + drop_mm before letting go, or let go at the travel
+        height (the default). Kept in machine.json."""
+        self._idle()
+        self.m.picker.lower_to_drop = bool(lower)
+        self.remember_machine({"lower_to_drop": self.m.picker.lower_to_drop})
+        how = "lowered to the bin's rim" if lower else "at the travel height"
+        self.note(f"parts are let go {how}")
         return self.setup_state()
 
     def setup_check_printer(self) -> dict[str, Any]:
