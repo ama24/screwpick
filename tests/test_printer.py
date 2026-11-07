@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import http.server
 import json
 import threading
@@ -7,10 +8,13 @@ import urllib.parse
 
 import pytest
 
+from sortering_pnp.layout import Layout
 from sortering_pnp.printer import Motion, PrinterError
 from sortering_pnp.printer.base import PrinterStatus
 from sortering_pnp.printer.moonraker import Moonraker, parse_remote_call
-from sortering_pnp.printer.sim import SimPins, SimPrinter, SimWorld
+from sortering_pnp.printer.sim import SimPins, SimPrinter, SimVision, SimWorld
+from sortering_pnp.runner import Runner
+from sortering_pnp.transform import Transform2D
 
 
 class FakePrinter:
@@ -122,6 +126,7 @@ def test_pick_and_drop_sequence(machine):
     assert fp.sent[grab - 1] == "M400" and "G1 Z3.000 F300" in fp.sent[grab - 2]
     assert fp.sent[-1].endswith("Z50.000 F1200")
     fp.sent.clear()
+    machine.picker.lower_to_drop = True
     mo.drop(20.0, 20.0, rim_z=21.0)
     assert fp.sent.index("PINS release") == fp.sent.index("M400") + 1
     assert "G1 Z31.000" in "\n".join(fp.sent)
@@ -238,3 +243,42 @@ def test_parse_remote_call():
         "cmd": "stop"
     }
     assert parse_remote_call({"method": "notify_status_update", "params": []}) is None
+
+
+# letting go over a bin: travel height by default, lowered when picker.lower_to_drop is on
+
+
+def _drop(machine, rim_z: float) -> list[str]:
+    fp = FakePrinter(ready(position=[0.0, 0.0, machine.printer.travel_z]))
+    Motion(fp, machine, pins=RecordingPins(fp.sent)).drop(20.0, 20.0, rim_z=rim_z)
+    return fp.sent[: fp.sent.index("PINS release")]
+
+
+def test_by_default_the_part_is_let_go_at_the_travel_height(machine):
+    assert machine.picker.lower_to_drop is False
+    before = _drop(machine, rim_z=21.0)
+    assert not any(" Z" in s for s in before)  # no Z move before the release
+
+
+def test_never_below_rim_plus_drop_even_with_a_low_travel_height(machine):
+    machine.printer.travel_z = 30.0  # below a 6u bin's rim + drop_mm
+    assert "G1 Z52.000" in "\n".join(_drop(machine, rim_z=42.0))
+
+
+def test_lowering_is_the_old_behaviour(machine):
+    machine.picker.lower_to_drop = True
+    assert "G1 Z31.000" in "\n".join(_drop(machine, rim_z=21.0))
+
+
+def test_the_tick_box_is_kept_over_a_restart(machine):
+    lay = Layout.default()
+    lay.save(machine.path(machine.paths.layout))
+    world = SimWorld(seed=1)
+    vision = SimVision(world, lambda: lay, Transform2D.identity)
+    runner = Runner(machine, SimPrinter(machine, world), vision)
+    st = runner.setup_picker_drop(True)
+    assert st["picker"]["lower_to_drop"] is True and machine.picker.lower_to_drop
+    fresh = copy.deepcopy(machine)  # after a restart
+    fresh.picker.lower_to_drop = False
+    again = Runner(fresh, SimPrinter(fresh, SimWorld()), vision)
+    assert again.m.picker.lower_to_drop is True

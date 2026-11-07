@@ -182,10 +182,15 @@ class Motion:
         self.move(z=self.m.printer.travel_z)
 
     def drop(self, x: float, y: float, rim_z: float) -> None:
+        """Over the bin, let go: at the travel height, or lowered to rim + drop_mm when
+        picker.lower_to_drop is on. Never below rim + drop_mm, also when travel_z is low."""
         pk = self.m.picker
         self.travel(x, y)
+        tz = self.m.printer.travel_z
         drop_z = rim_z + pk.drop_mm
-        if drop_z < self.m.printer.travel_z:
+        if not pk.lower_to_drop:
+            drop_z = max(drop_z, tz)
+        if abs(drop_z - self.current_tip()[2]) > 1e-6:
             self.move(z=drop_z)
         self.p.gcode("M400")
         self.pins.release()
