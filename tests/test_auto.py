@@ -150,3 +150,28 @@ def test_same_parts():
     b[0].bed_xy = (60.0, 50.0)
     assert not same_parts(a, b)
     assert not same_parts(a, a[:1])
+
+
+def test_same_parts_allows_the_model_to_flicker():
+    """A real model: a class changes, a part is missed in one photo: still lying still."""
+    a = [P("DIN912_M3", 8.0, (10.0 * i, 10.0), i) for i in range(1, 11)]
+    b = [
+        P("UNKNOWN" if i == 3 else "DIN912_M4", 8.0, (10.0 * i + 1, 10.5), i) for i in range(1, 10)
+    ]
+    assert same_parts(a, b)  # 10 then 9, classes changed, positions within a mm
+    moved = [P(p.cls, 8.0, (p.bed_xy[0], p.bed_xy[1] + 20), 0) for p in a]
+    assert not same_parts(a, moved)  # a hand swept them along
+
+
+def test_resume_in_automatic_mode_sorts_now(machine):
+    """Parts that never lie still (or a model that flickers): Resume sorts them at once."""
+    machine.standby.interval_s = 60.0
+    machine.standby.settle_s = 60.0
+    machine.run.shake.enabled = False
+    runner, world, printer, lay = make(machine, n=2)
+    runner.command("auto")
+    assert until(lambda: "lie still" in runner.state.message, 10)
+    assert runner.command("resume") == "looking now"
+    assert until(lambda: not world.parts, 30)  # sorted, without waiting 60 s
+    assert runner.command("start") == "looking now"  # Start in standby does the same
+    runner.command("stop")

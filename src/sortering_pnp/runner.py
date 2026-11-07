@@ -85,6 +85,8 @@ class Runner:
         self._thread: threading.Thread | None = None
         self._pause = threading.Event()
         self._stop = threading.Event()
+        self._now = threading.Event()  # automatic mode: Resume / Start, look and sort now
+        self._in_auto = False
         self._shot_no = 0
         self.calib_pairs: list[dict[str, Any]] = []
         cal = self.calibration()
@@ -265,7 +267,8 @@ class Runner:
             return "finish the Setup tab first: " + ", ".join(self.setup.missing())
         if cmd in ("start", "step"):
             if running:
-                if self.state.status in ("paused", "stuck") and cmd == "start":
+                standby = self._in_auto and self.state.status in ("standby", "stuck", "error")
+                if cmd == "start" and (self.state.status in ("paused", "stuck") or standby):
                     return self.command("resume")
                 return "already running"
             strat = (strategy or self.state.strategy or self.m.run.strategy).lower()
@@ -333,6 +336,10 @@ class Runner:
                 self._set(status="paused", message="pausing after this move")
             return "paused"
         if cmd == "resume":
+            if running and self._in_auto and not self._pause.is_set():
+                self._now.set()  # automatic mode waiting: look and sort now
+                self._set(message="looking now: sorting what lies on the plate")
+                return "looking now"
             if running:
                 self._pause.clear()
                 self._set(status="running", message="resumed")
@@ -915,9 +922,16 @@ class Runner:
         return "stopped"
 
     # ------------------------------------------------------------------ automatic mode
-    def _wait(self, seconds: float) -> bool:
-        """Sleep, waking up for stop; True when stopped."""
-        return self._stop.wait(max(0.0, seconds))
+    def _wait(self, seconds: float, wake: bool = False) -> bool:
+        """Sleep, waking up for stop (and with `wake`, for Resume/Start: look now); True when
+        stopped."""
+        end = time.monotonic() + max(0.0, seconds)
+        while not self._stop.is_set():
+            left = end - time.monotonic()
+            if left <= 0 or (wake and self._now.is_set()):
+                return False
+            self._stop.wait(min(left, 0.2))
+        return True
 
     def _look(self) -> tuple[Shot, list[Any], Layout]:
         """A standby photo. With the motors off nothing moves: the bed is still parked out."""
@@ -934,11 +948,19 @@ class Runner:
     def _auto(self, strategy: str) -> None:
         """Standby: look for parts every standby.interval_s; when some lie still on the plate, sort
         them; then wait again. Runs until Stop (or too many errors in a row)."""
+        self._in_auto = True
+        try:
+            self._auto_loop(strategy)
+        finally:
+            self._in_auto = False
+
+    def _auto_loop(self, strategy: str) -> None:
         sb = self.m.standby
         tried: list[Any] | None = None  # the parts of a stuck plate: wait until they change
         errors = 0
         self.note(f"automatic mode on: {STRATEGIES[strategy]}")
         self.phase("automatic: waiting for parts")
+        self._now.clear()
         while not self._stop.is_set():
             try:
                 if self._pause.is_set():
@@ -947,19 +969,35 @@ class Runner:
                         time.sleep(0.2)
                     tried = None
                     continue
+                now = self._now.is_set()  # Resume / Start: sort what is there, at once
+                self._now.clear()
+                if now:
+                    tried = None
                 _, parts, _ = self._look()
                 if len(parts) >= sb.min_parts and not (
                     tried is not None and same_parts(parts, tried)
                 ):
-                    self.say(f"{len(parts)} part(s) seen: waiting until they lie still")
-                    self._set(
-                        status="standby",
-                        message=f"{len(parts)} part(s) seen: waiting until they lie still",
-                    )
-                    if self._wait(sb.settle_s):
-                        break
-                    _, again, _ = self._look()
-                    if same_parts(parts, again):
+                    still = now
+                    if not now:
+                        self.say(f"{len(parts)} part(s) seen: waiting until they lie still")
+                        self._set(
+                            status="standby",
+                            message=f"{len(parts)} part(s) seen: waiting until they lie still",
+                        )
+                        if self._wait(sb.settle_s, wake=True):
+                            break
+                        if self._now.is_set():
+                            self._now.clear()
+                            still = True
+                        else:
+                            _, again, _ = self._look()
+                            still = same_parts(parts, again)
+                            if not still:
+                                self.say(
+                                    f"not still yet: {len(parts)} then {len(again)} part(s), "
+                                    "moved (Resume sorts them now)"
+                                )
+                    if still:
                         outcome = self._sort(strategy, None, auto=True)
                         tried = None
                         if outcome == "stuck" and self.last_shot is not None:
@@ -975,8 +1013,8 @@ class Runner:
                 nxt = time.strftime("%H:%M:%S", time.localtime(time.time() + sb.interval_s))
                 status = "stuck" if tried is not None else "standby"
                 msg = "parts need a hand" if tried is not None else "waiting for parts"
-                self._set(status=status, message=f"{msg} · next look at {nxt}")
-                if self._wait(sb.interval_s):
+                self._set(status=status, message=f"{msg} · next look at {nxt} (Resume: now)")
+                if self._wait(sb.interval_s, wake=True):
                     break
             except Exception as exc:  # noqa: BLE001 - shown on the page; standby keeps trying
                 errors += 1
@@ -2075,16 +2113,20 @@ def _describe(plan: Plan) -> str:
     return f"{plan.kind}: {plan.reason}"
 
 
-def same_parts(a: list[Any], b: list[Any], tol_mm: float = 3.0) -> bool:
-    """The same parts at the same places (nothing moved, no hand in the picture)?"""
-    if len(a) != len(b):
-        return False
+def same_parts(a: list[Any], b: list[Any], tol_mm: float = 4.0, share: float = 0.8) -> bool:
+    """Nothing moved between two photos (no hand in the picture, nothing still rolling)?
+
+    Matched by place only: the model's class for a part, and whether it finds a part at all,
+    may differ from one photo to the next. Still when at least `share` of the parts of each
+    photo have one in the other within `tol_mm` (and at most a part or two do not)."""
+    if not a or not b:
+        return not a and not b
     left = list(b)
+    matched = 0
     for p in a:
-        hit = next(
-            (q for q in left if q.cls == p.cls and math.dist(q.bed_xy, p.bed_xy) <= tol_mm), None
-        )
-        if hit is None:
-            return False
-        left.remove(hit)
-    return True
+        hit = min(left, key=lambda q: math.dist(q.bed_xy, p.bed_xy), default=None)
+        if hit is not None and math.dist(hit.bed_xy, p.bed_xy) <= tol_mm:
+            left.remove(hit)
+            matched += 1
+    unmatched = len(a) + len(b) - 2 * matched
+    return matched >= share * max(len(a), len(b)) and unmatched <= max(2, round(0.2 * len(a)))
